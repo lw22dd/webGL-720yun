@@ -1,0 +1,110 @@
+package jwt
+
+import (
+	"webGL-720yun/app/models"
+	"errors"
+	"time"
+	
+	"github.com/golang-jwt/jwt/v5"
+)
+
+// JWTClaims JWT声明
+type JWTClaims struct {
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+// JWTService JWT服务
+type JWTService struct {
+	secret         string
+	accessTimeout  time.Duration
+	refreshTimeout time.Duration
+	issuer         string
+}
+
+// NewJWTService 创建JWT服务
+func NewJWTService(config *models.JWTConfig) *JWTService {
+	return &JWTService{
+		secret:         config.Secret,
+		accessTimeout:  time.Duration(config.AccessTimeout) * time.Minute,
+		refreshTimeout: time.Duration(config.RefreshTimeout) * time.Hour,
+		issuer:         config.Issuer,
+	}
+}
+
+// GenerateAccessToken 生成访问令牌
+func (s *JWTService) GenerateAccessToken(user *models.User) (string, error) {
+	claims := JWTClaims{
+		UserID:   user.ID,
+		Username: user.Username,
+		Role:     user.Role.Name,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.accessTimeout)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    s.issuer,
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(s.secret))
+}
+
+// GenerateRefreshToken 生成刷新令牌
+func (s *JWTService) GenerateRefreshToken(user *models.User) (string, error) {
+	claims := jwt.RegisteredClaims{
+		Subject:   string(rune(user.ID)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.refreshTimeout)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		Issuer:    s.issuer,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(s.secret))
+}
+
+// ParseToken 解析令牌
+func (s *JWTService) ParseToken(tokenString string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return []byte(s.secret), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("invalid token")
+}
+
+// ValidateToken 验证令牌
+func (s *JWTService) ValidateToken(tokenString string) error {
+	_, err := s.ParseToken(tokenString)
+	return err
+}
+
+// GetTokenRemainingTime 获取令牌剩余时间
+func (s *JWTService) GetTokenRemainingTime(tokenString string) (time.Duration, error) {
+	claims, err := s.ParseToken(tokenString)
+	if err != nil {
+		return 0, err
+	}
+
+	if claims.ExpiresAt == nil {
+		return 0, errors.New("token has no expiration time")
+	}
+
+	remainingTime := time.Until(claims.ExpiresAt.Time)
+	if remainingTime < 0 {
+		return 0, errors.New("token has expired")
+	}
+
+	return remainingTime, nil
+}

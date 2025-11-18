@@ -1,0 +1,47 @@
+logger:
+    level: DEBUG
+    filename: debug.log
+    max_size: 10
+    max_backups: 5
+    max_age: 7
+    compress: true
+server:
+    port: 7000
+    read_timeout: 10
+    write_timeout: 10
+    mode: debug
+database:
+    host: localhost
+    port: 3306
+    username: root
+    password: 123456
+    database: 720db
+    charset: utf8mb4
+    max_idle_conns: 10
+    max_open_conns: 100
+redis:
+    host: localhost
+    port: 6379
+    password: ""
+    db: 0
+    pool_size: 10
+jwt:
+    secret: "webgl-720yun-secret-key-2024"
+    access_timeout: 60    # 访问令牌过期时间(分钟)
+    refresh_timeout: 168  # 刷新令牌过期时间(小时)
+    issuer: "webgl-720yun"
+no_auth:
+    - /favicon.ico
+    - /static
+    - /auth/login
+    - /auth/refresh
+    - /user/register
+proxy:
+    host: localhost
+    port: 7001
+    no_proxy:
+        - /favicon.ico
+        - /static
+        - /auth/login
+        - /auth/refresh
+        - /user/register

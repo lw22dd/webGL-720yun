@@ -1,0 +1,31 @@
+logger:
+    level: INFO
+    filename: prod.log
+    max_size: 10
+    max_backups: 5
+    max_age: 7
+    compress: true
+server:
+    port: 7000
+    read_timeout: 10
+    write_timeout: 10
+redis:
+    host: 1.14.105.160
+    port: 6379
+    password: spynsql
+    db: 0
+no_auth:
+    - /favicon.ico
+    - /static
+    - /auth/refreshToken
+proxy:
+    host: 1.14.105.160
+    port: 7001
+    no_proxy:
+        - /user/login
+        - /user/register
+        - /user/logout
+        - /favicon.ico
+        - /static
+        - /auth/refreshToken
+        - /noAuth/get
