@@ -1,0 +1,137 @@
+### 健康检查
+# 描述：测试服务是否正常运行
+GET http://localhost:7000/health
+
+
+### 用户注册
+# 描述：测试新用户注册功能
+POST http://localhost:7000/api/v1/user/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "123456",
+  "email": "test@example.com",
+  "phone": "13800138000",
+  "nickname": "测试用户",
+  "role_id": 2
+}
+
+
+### 用户登录
+# 描述：测试用户登录功能，获取访问令牌
+POST http://localhost:7000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "123456"
+}
+
+
+### 保存环境变量（用于后续请求）
+# 描述：从登录响应中提取令牌并保存到环境变量
+@access_token = {{$response.body.access_token}}
+@refresh_token = {{$response.body.refresh_token}}
+@admin_access_token = {{$response.body.access_token}}
+
+
+### 刷新令牌
+# 描述：使用刷新令牌获取新的访问令牌
+POST http://localhost:7000/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+
+### 获取个人资料
+# 描述：测试已登录用户获取个人资料
+GET http://localhost:7000/api/v1/user/profile
+Authorization: Bearer {{access_token}}
+
+
+### 更新个人资料
+# 描述：测试已登录用户更新个人资料
+PUT http://localhost:7000/api/v1/user/profile
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "nickname": "更新后的测试用户",
+  "email": "updated@example.com",
+  "phone": "13900139000",
+  "avatar": "https://example.com/avatar.jpg"
+}
+
+
+### 修改密码
+# 描述：测试已登录用户修改密码
+POST http://localhost:7000/api/v1/user/change-password
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "old_password": "123456",
+  "new_password": "654321"
+}
+
+
+### 用户退出登录
+# 描述：测试已登录用户退出登录，使令牌失效
+POST http://localhost:7000/api/v1/user/logout
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+
+### 管理员 - 获取用户列表
+# 描述：测试管理员获取用户列表（需要管理员权限）
+GET http://localhost:7000/api/v1/user/admin/list
+Authorization: Bearer {{admin_access_token}}
+
+
+### 管理员 - 获取指定用户
+# 描述：测试管理员获取指定用户详情（需要管理员权限）
+GET http://localhost:7000/api/v1/user/admin/1
+Authorization: Bearer {{admin_access_token}}
+
+
+### 管理员 - 创建用户
+# 描述：测试管理员创建新用户（需要管理员权限）
+POST http://localhost:7000/api/v1/user/admin/create
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "username": "admincreated",
+  "password": "123456",
+  "email": "admincreated@example.com",
+  "phone": "13700137000",
+  "nickname": "管理员创建的用户",
+  "role_id": 2
+}
+
+
+### 管理员 - 更新用户
+# 描述：测试管理员更新指定用户（需要管理员权限）
+PUT http://localhost:7000/api/v1/user/admin/1
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "nickname": "管理员更新的用户",
+  "email": "adminupdated@example.com",
+  "phone": "13600136000",
+  "status": 1
+}
+
+
+### 管理员 - 删除用户
+# 描述：测试管理员删除指定用户（需要管理员权限）
+DELETE http://localhost:7000/api/v1/user/admin/1
+Authorization: Bearer {{admin_access_token}}

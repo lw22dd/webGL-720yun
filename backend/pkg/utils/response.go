@@ -13,6 +13,14 @@ type Response struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+// PageInfo 分页信息
+type PageInfo struct {
+	Page     int   `json:"page"`
+	PageSize int   `json:"page_size"`
+	Total    int64 `json:"total"`
+	Pages    int   `json:"pages"`
+}
+
 // Success 成功响应
 func Success(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")

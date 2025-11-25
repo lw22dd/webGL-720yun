@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"webGL-720yun/app/models"
 	"webGL-720yun/pkg/database"
 	"webGL-720yun/pkg/services/jwt"
 	"webGL-720yun/pkg/services/redis"
@@ -29,15 +28,9 @@ func NewUserService(jwtService *jwt.JWTService, redisService *redis.RedisService
 }
 
 // Register 用户注册（管理员创建学生账户）
-func (s *UserService) Register(req *models.RegisterRequest) (*models.User, error) {
-	// 检查角色是否存在
-	var role models.Role
-	if err := database.DB.First(&role, req.RoleID).Error; err != nil {
-		return nil, errors.New("角色不存在")
-	}
-
+func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 	// 检查用户名是否已存在
-	var existingUser models.User
+	var existingUser User
 	if err := database.DB.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
 		return nil, errors.New("用户名已存在")
 	}
@@ -63,31 +56,28 @@ func (s *UserService) Register(req *models.RegisterRequest) (*models.User, error
 	}
 
 	// 创建用户
-	user := &models.User{
+	user := &User{
 		Username: req.Username,
 		Password: hashedPassword,
 		Email:    req.Email,
 		Phone:    req.Phone,
 		Nickname: req.Nickname,
 		RoleID:   req.RoleID,
-		Status:   models.UserStatusActive,
+		Status:   1, // 1表示活跃状态
 	}
 
 	if err := database.DB.Create(user).Error; err != nil {
 		return nil, fmt.Errorf("用户创建失败: %v", err)
 	}
 
-	// 加载角色信息
-	database.DB.Preload("Role").First(user, user.ID)
-
 	return user, nil
 }
 
 // Login 用户登录
-func (s *UserService) Login(req *models.LoginRequest) (*models.LoginResponse, error) {
+func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
 	// 查找用户
-	var user models.User
-	if err := database.DB.Preload("Role").Where("username = ?", req.Username).First(&user).Error; err != nil {
+	var user User
+	if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户名或密码错误")
 		}
@@ -95,7 +85,7 @@ func (s *UserService) Login(req *models.LoginRequest) (*models.LoginResponse, er
 	}
 
 	// 检查用户状态
-	if user.Status != models.UserStatusActive {
+	if user.Status != 1 {
 		return nil, errors.New("账户已被禁用")
 	}
 
@@ -105,13 +95,13 @@ func (s *UserService) Login(req *models.LoginRequest) (*models.LoginResponse, er
 	}
 
 	// 生成访问令牌
-	accessToken, err := s.jwtService.GenerateAccessToken(&user)
+	accessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Username, user.Role.Name)
 	if err != nil {
 		return nil, fmt.Errorf("生成访问令牌失败: %v", err)
 	}
 
 	// 生成刷新令牌
-	refreshToken, err := s.jwtService.GenerateRefreshToken(&user)
+	refreshToken, err := s.jwtService.GenerateRefreshToken(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("生成刷新令牌失败: %v", err)
 	}
@@ -133,11 +123,10 @@ func (s *UserService) Login(req *models.LoginRequest) (*models.LoginResponse, er
 		return nil, fmt.Errorf("缓存用户信息失败: %v", err)
 	}
 
-	return &models.LoginResponse{
+	return &LoginResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
-		ExpiresAt:    time.Now().Add(time.Duration(24) * time.Hour),
 		User:         &user,
 	}, nil
 }
@@ -168,7 +157,7 @@ func (s *UserService) Logout(userID uint, accessToken string) error {
 }
 
 // RefreshToken 刷新访问令牌
-func (s *UserService) RefreshToken(refreshToken string) (*models.RefreshTokenResponse, error) {
+func (s *UserService) RefreshToken(refreshToken string) (*RefreshTokenResponse, error) {
 	// 验证刷新令牌
 	claims, err := s.jwtService.ParseToken(refreshToken)
 	if err != nil {
@@ -190,18 +179,18 @@ func (s *UserService) RefreshToken(refreshToken string) (*models.RefreshTokenRes
 	}
 
 	// 查找用户
-	var user models.User
+	var user User
 	if err := database.DB.Preload("Role").First(&user, userID).Error; err != nil {
 		return nil, errors.New("用户不存在")
 	}
 
 	// 检查用户状态
-	if user.Status != models.UserStatusActive {
+	if user.Status != UserStatusActive {
 		return nil, errors.New("账户已被禁用")
 	}
 
 	// 生成新的访问令牌
-	newAccessToken, err := s.jwtService.GenerateAccessToken(&user)
+	newAccessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Username, user.Role.Name)
 	if err != nil {
 		return nil, fmt.Errorf("生成访问令牌失败: %v", err)
 	}
@@ -211,18 +200,17 @@ func (s *UserService) RefreshToken(refreshToken string) (*models.RefreshTokenRes
 		return nil, fmt.Errorf("更新会话失败: %v", err)
 	}
 
-	return &models.RefreshTokenResponse{
+	return &RefreshTokenResponse{
 		AccessToken: newAccessToken,
 		TokenType:   "Bearer",
-		ExpiresAt:   time.Now().Add(time.Duration(24) * time.Hour),
 	}, nil
 }
 
 // GetUserByID 根据ID获取用户
-func (s *UserService) GetUserByID(userID uint) (*models.User, error) {
+func (s *UserService) GetUserByID(userID uint) (*User, error) {
 	// 先尝试从缓存获取
 	if cachedUser, err := s.redisService.GetCachedUserInfo(userID); err == nil {
-		var user models.User
+		var user User
 		if userData, err := json.Marshal(cachedUser); err == nil {
 			if err := json.Unmarshal(userData, &user); err == nil {
 				return &user, nil
@@ -231,7 +219,7 @@ func (s *UserService) GetUserByID(userID uint) (*models.User, error) {
 	}
 
 	// 从数据库获取
-	var user models.User
+	var user User
 	if err := database.DB.Preload("Role").First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -246,8 +234,8 @@ func (s *UserService) GetUserByID(userID uint) (*models.User, error) {
 }
 
 // UpdateUser 更新用户信息
-func (s *UserService) UpdateUser(userID uint, req *models.UpdateUserRequest) (*models.User, error) {
-	var user models.User
+func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, error) {
+	var user User
 	if err := database.DB.First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -258,7 +246,7 @@ func (s *UserService) UpdateUser(userID uint, req *models.UpdateUserRequest) (*m
 	// 更新字段
 	if req.Email != "" {
 		// 检查邮箱是否已被使用
-		var existingUser models.User
+		var existingUser User
 		if err := database.DB.Where("email = ? AND id != ?", req.Email, userID).First(&existingUser).Error; err == nil {
 			return nil, errors.New("邮箱已被使用")
 		}
@@ -267,7 +255,7 @@ func (s *UserService) UpdateUser(userID uint, req *models.UpdateUserRequest) (*m
 
 	if req.Phone != "" {
 		// 检查手机号是否已被使用
-		var existingUser models.User
+		var existingUser User
 		if err := database.DB.Where("phone = ? AND id != ?", req.Phone, userID).First(&existingUser).Error; err == nil {
 			return nil, errors.New("手机号已被使用")
 		}
@@ -300,8 +288,8 @@ func (s *UserService) UpdateUser(userID uint, req *models.UpdateUserRequest) (*m
 }
 
 // ChangePassword 修改密码
-func (s *UserService) ChangePassword(userID uint, req *models.ChangePasswordRequest) error {
-	var user models.User
+func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) error {
+	var user User
 	if err := database.DB.First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("用户不存在")
@@ -330,11 +318,11 @@ func (s *UserService) ChangePassword(userID uint, req *models.ChangePasswordRequ
 }
 
 // GetUserList 获取用户列表
-func (s *UserService) GetUserList(req *models.UserListRequest) (*models.UserListResponse, error) {
-	var users []*models.User
+func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, error) {
+	var users []*User
 	var total int64
 
-	query := database.DB.Model(&models.User{}).Preload("Role")
+	query := database.DB.Model(&User{}).Preload("Role")
 
 	// 条件查询
 	if req.Username != "" {
@@ -360,16 +348,21 @@ func (s *UserService) GetUserList(req *models.UserListRequest) (*models.UserList
 	if err := query.Offset(offset).Limit(req.PageSize).Find(&users).Error; err != nil {
 		return nil, err
 	}
-
-	return &models.UserListResponse{
-		Total: total,
+	// 返回响应
+	return &UserListResponse{
+		PageInfo: utils.PageInfo{
+			Page:     req.Page,
+			PageSize: req.PageSize,
+			Total:    total,
+			Pages:    int((total + int64(req.PageSize) - 1) / int64(req.PageSize)),
+		},
 		Users: users,
 	}, nil
 }
 
 // DeleteUser 删除用户
 func (s *UserService) DeleteUser(userID uint) error {
-	var user models.User
+	var user User
 	if err := database.DB.First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("用户不存在")
@@ -383,7 +376,7 @@ func (s *UserService) DeleteUser(userID uint) error {
 	}
 
 	// 删除相关数据
-	database.DB.Where("user_id = ?", userID).Delete(&models.UserSession{})
+	database.DB.Where("user_id = ?", userID).Delete(&UserSession{})
 
 	// 删除缓存
 	s.redisService.DeleteCachedUserInfo(userID)

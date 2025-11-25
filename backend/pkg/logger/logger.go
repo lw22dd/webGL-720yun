@@ -1,14 +1,15 @@
 package logger
 
 import (
-	"webGL-720yun/app/models"
-	"github.com/gin-gonic/gin"
-	"github.com/natefinch/lumberjack"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"sync"
 	"time"
+	"webGL-720yun/config"
+
+	"github.com/gin-gonic/gin"
+	"github.com/natefinch/lumberjack"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -61,7 +62,7 @@ func GinZapLogger() gin.HandlerFunc {
 }
 
 // Setup 初始化日志系统
-func Setup(logConf *models.LoggerConfig) {
+func Setup(logConf *config.LoggerConfig) {
 	level, err := logrus.ParseLevel(logConf.Level)
 	if err != nil {
 		log.SetLevel(logrus.InfoLevel)

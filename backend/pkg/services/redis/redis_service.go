@@ -1,12 +1,13 @@
 package redis
 
 import (
-	"webGL-720yun/app/models"
 	"context"
 	"encoding/json"
 	"fmt"
 	"time"
-	
+
+	"webGL-720yun/config"
+
 	"github.com/go-redis/redis"
 )
 
@@ -17,7 +18,7 @@ type RedisService struct {
 }
 
 // NewRedisService 创建Redis服务
-func NewRedisService(config *models.RedisConfig) *RedisService {
+func NewRedisService(config *config.RedisConfig) *RedisService {
 	client := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", config.Host, config.Port),
 		Password: config.Password,
@@ -26,7 +27,7 @@ func NewRedisService(config *models.RedisConfig) *RedisService {
 	})
 
 	ctx := context.Background()
-	
+
 	// 测试连接
 	if err := client.Ping().Err(); err != nil {
 		// Redis连接失败，记录错误但不中断程序
@@ -47,10 +48,10 @@ func NewRedisService(config *models.RedisConfig) *RedisService {
 
 // 键名前缀定义
 const (
-	KeyPrefixUserSession   = "user:session:"   // 用户会话
-	KeyPrefixUserOnline    = "user:online:"    // 用户在线状态
+	KeyPrefixUserSession    = "user:session:"    // 用户会话
+	KeyPrefixUserOnline     = "user:online:"     // 用户在线状态
 	KeyPrefixTokenBlacklist = "token:blacklist:" // 令牌黑名单
-	KeyPrefixUserInfo      = "user:info:"      // 用户信息缓存
+	KeyPrefixUserInfo       = "user:info:"       // 用户信息缓存
 )
 
 // SaveUserSession 保存用户会话

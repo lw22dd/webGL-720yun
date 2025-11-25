@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"webGL-720yun/app/models"
 	"webGL-720yun/pkg/middleware"
 	"webGL-720yun/pkg/utils"
 
@@ -14,7 +13,7 @@ import (
 // Login 用户登录处理函数
 func Login(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req models.LoginRequest
+		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			utils.BadRequest(c.Writer, "请求参数错误")
 			return
@@ -33,7 +32,7 @@ func Login(service *UserService) gin.HandlerFunc {
 // Register 用户注册处理函数（管理员创建学生账户）
 func Register(service *UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		var req models.RegisterRequest
+		var req RegisterRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
 			utils.BadRequest(ctx.Writer, "请求参数错误")
 			return
@@ -74,7 +73,7 @@ func Logout(service *UserService) gin.HandlerFunc {
 // RefreshToken 刷新访问令牌处理函数
 func RefreshToken(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req models.RefreshTokenRequest
+		var req RefreshTokenRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			utils.BadRequest(c.Writer, "请求参数错误")
 			return
@@ -110,7 +109,7 @@ func UpdateProfile(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
 
-		var req models.UpdateUserRequest
+		var req UpdateUserRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			utils.BadRequest(c.Writer, "请求参数错误")
 			return
@@ -131,7 +130,7 @@ func ChangePassword(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
 
-		var req models.ChangePasswordRequest
+		var req ChangePasswordRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			utils.BadRequest(c.Writer, "请求参数错误")
 			return
@@ -172,7 +171,7 @@ func GetUserByID(service *UserService) gin.HandlerFunc {
 // GetUserList 获取用户列表处理函数
 func GetUserList(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req models.UserListRequest
+		var req UserListRequest
 		if err := c.ShouldBindQuery(&req); err != nil {
 			utils.BadRequest(c.Writer, "请求参数错误")
 			return
@@ -210,7 +209,7 @@ func UpdateUser(service *UserService) gin.HandlerFunc {
 			return
 		}
 
-		var req models.UpdateUserRequest
+		var req UpdateUserRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			utils.BadRequest(c.Writer, "请求参数错误")
 			return

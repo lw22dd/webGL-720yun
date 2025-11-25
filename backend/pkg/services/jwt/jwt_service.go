@@ -1,10 +1,11 @@
 package jwt
 
 import (
-	"webGL-720yun/app/models"
 	"errors"
 	"time"
-	
+
+	"webGL-720yun/config"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -25,7 +26,7 @@ type JWTService struct {
 }
 
 // NewJWTService 创建JWT服务
-func NewJWTService(config *models.JWTConfig) *JWTService {
+func NewJWTService(config *config.JWTConfig) *JWTService {
 	return &JWTService{
 		secret:         config.Secret,
 		accessTimeout:  time.Duration(config.AccessTimeout) * time.Minute,
@@ -35,11 +36,11 @@ func NewJWTService(config *models.JWTConfig) *JWTService {
 }
 
 // GenerateAccessToken 生成访问令牌
-func (s *JWTService) GenerateAccessToken(user *models.User) (string, error) {
+func (s *JWTService) GenerateAccessToken(userID uint, username string, role string) (string, error) {
 	claims := JWTClaims{
-		UserID:   user.ID,
-		Username: user.Username,
-		Role:     user.Role.Name,
+		UserID:   userID,
+		Username: username,
+		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.accessTimeout)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -52,9 +53,9 @@ func (s *JWTService) GenerateAccessToken(user *models.User) (string, error) {
 }
 
 // GenerateRefreshToken 生成刷新令牌
-func (s *JWTService) GenerateRefreshToken(user *models.User) (string, error) {
+func (s *JWTService) GenerateRefreshToken(userID uint) (string, error) {
 	claims := jwt.RegisteredClaims{
-		Subject:   string(rune(user.ID)),
+		Subject:   string(rune(userID)),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.refreshTimeout)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		Issuer:    s.issuer,
