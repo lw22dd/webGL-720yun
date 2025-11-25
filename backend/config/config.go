@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"webGL-720yun/app/models"
+
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
@@ -36,8 +37,20 @@ func Init() error {
 func initViperConfig() error {
 	viper.SetConfigName("config.dev")
 	viper.SetConfigType("yaml")
+
+	// 添加多个可能的配置文件搜索路径
+	// 当前目录的config子目录
 	viper.AddConfigPath("./config")
+	// 当前目录
 	viper.AddConfigPath(".")
+	// 上级目录的config子目录
+	viper.AddConfigPath("../config")
+	// 上级目录
+	viper.AddConfigPath("..")
+	// 上上级目录的config子目录
+	viper.AddConfigPath("../../config")
+	// 上上级目录
+	viper.AddConfigPath("../..")
 
 	// 设置默认值
 	viper.SetDefault("server.port", 7000)

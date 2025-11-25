@@ -6,49 +6,49 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"webGL-720yun/app/user"
 	"webGL-720yun/pkg/services"
 )
 
-
 // UserAPIRoutes 用户相关路由注册
-func UserAPIRoutes(r *gin.Engine, serviceManager *services.ServiceManager) {
-	// 从服务管理器获取所需的服务实例
-	userHandler := serviceManager.GetUserHandler()
-	authMiddleware := serviceManager.GetAuthMiddleware()
-	
+func UserAPIRoutes(r *gin.Engine, serviceContext *services.ServiceContext) {
+	// 从服务上下文获取所需的服务实例
+	userService := serviceContext.GetUserService()
+	authMiddleware := serviceContext.GetAuthMiddleware()
+
 	// API路由组
 	api := r.Group("/api/v1")
 	{
 		// 认证相关路由
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", userHandler.Login)
-			auth.POST("/refresh", userHandler.RefreshToken)
+			auth.POST("/login", user.Login(userService))
+			auth.POST("/refresh", user.RefreshToken(userService))
 		}
 
 		// 用户相关路由
-		user := api.Group("/user")
+		userGroup := api.Group("/user")
 		{
 			// 公开路由
-			user.POST("/register", userHandler.CreateUser)
+			userGroup.POST("/register", user.Register(userService))
 
 			// 需要认证的路由
-			user.Use(authMiddleware.RequireAuth())
+			userGroup.Use(authMiddleware.RequireAuth())
 			{
-				user.GET("/profile", userHandler.GetProfile)
-				user.PUT("/profile", userHandler.UpdateProfile)
-				user.POST("/change-password", userHandler.ChangePassword)
-				user.POST("/logout", userHandler.Logout)
+				userGroup.GET("/profile", user.GetProfile(userService))
+				userGroup.PUT("/profile", user.UpdateProfile(userService))
+				userGroup.POST("/change-password", user.ChangePassword(userService))
+				userGroup.POST("/logout", user.Logout(userService))
 
 				// 管理员专属路由
-				admin := user.Group("/admin")
+				admin := userGroup.Group("/admin")
 				admin.Use(authMiddleware.RequireAdmin())
 				{
-					admin.GET("/list", userHandler.GetUserList)
-					admin.GET("/:id", userHandler.GetUserByID)
-					admin.POST("/create", userHandler.CreateUser)
-					admin.PUT("/:id", userHandler.UpdateUser)
-					admin.DELETE("/:id", userHandler.DeleteUser)
+					admin.GET("/list", user.GetUserList(userService))
+					admin.GET("/:id", user.GetUserByID(userService))
+					admin.POST("/create", user.Register(userService))
+					admin.PUT("/:id", user.UpdateUser(userService))
+					admin.DELETE("/:id", user.DeleteUser(userService))
 				}
 			}
 		}

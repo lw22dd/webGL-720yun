@@ -1,6 +1,6 @@
-import type { Result } from "../models/Result";
-import type { User } from "../models/UserModel";
-import Axios from "../utils/axios";
+import type { Result } from "@/models/Result";
+import type { User } from "@/models/UserModel";
+import Axios from "@/utils/axios";
 
 export default class UserApi {
     public static async login(email: string, password: string): Promise<Result<string | null>> {
