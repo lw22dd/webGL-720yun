@@ -11,6 +11,16 @@ export default defineConfig({
       //
     },
   },
+  build: {
+    // 优化构建输出，减少不必要的JS文件
+    rollupOptions: {
+      output: {
+        manualChunks: undefined, // 不拆分代码块
+      },
+    },
+    // 禁用源映射
+    sourcemap: false,
+  },
 })
 
 
