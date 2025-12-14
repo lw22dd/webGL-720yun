@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Login 用户登录处理函数
+// 用户登录处理函数
 func Login(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
@@ -29,7 +29,7 @@ func Login(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// Register 用户注册处理函数（管理员创建学生账户）
+// 用户注册处理函数（管理员创建学生账户）
 func Register(service *UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req RegisterRequest
@@ -48,7 +48,7 @@ func Register(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// Logout 用户登出处理函数
+// 用户登出处理函数
 func Logout(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
@@ -70,7 +70,7 @@ func Logout(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// RefreshToken 刷新访问令牌处理函数
+// 刷新访问令牌处理函数
 func RefreshToken(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req RefreshTokenRequest
@@ -89,7 +89,7 @@ func RefreshToken(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// GetProfile 获取个人资料处理函数
+// 获取个人资料处理函数
 func GetProfile(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
@@ -104,7 +104,7 @@ func GetProfile(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// UpdateProfile 更新个人资料处理函数
+// 更新个人资料处理函数
 func UpdateProfile(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
@@ -125,7 +125,7 @@ func UpdateProfile(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// ChangePassword 修改密码处理函数
+// 修改密码处理函数
 func ChangePassword(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
@@ -149,7 +149,7 @@ func ChangePassword(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// GetUserByID 根据ID获取用户处理函数
+// 根据ID获取用户处理函数
 func GetUserByID(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -168,7 +168,7 @@ func GetUserByID(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// GetUserList 获取用户列表处理函数
+// 获取用户列表处理函数
 func GetUserList(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req UserListRequest
@@ -200,7 +200,7 @@ func GetUserList(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// UpdateUser 更新用户信息处理函数
+// 更新用户信息处理函数
 func UpdateUser(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -225,7 +225,7 @@ func UpdateUser(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// DeleteUser 删除用户处理函数
+// 删除用户处理函数
 func DeleteUser(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)

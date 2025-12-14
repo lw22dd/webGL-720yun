@@ -11,13 +11,13 @@ import (
 	"github.com/go-redis/redis"
 )
 
-// RedisService Redis服务
+// Redis服务
 type RedisService struct {
 	client *redis.Client
 	ctx    context.Context
 }
 
-// NewRedisService 创建Redis服务
+// 创建Redis服务
 func NewRedisService(config *config.RedisConfig) *RedisService {
 	client := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", config.Host, config.Port),
@@ -55,7 +55,7 @@ const (
 	KeyPrefixLock           = "lock:"            // 互斥锁
 )
 
-// SaveUserSession 保存用户会话
+// 保存用户会话
 func (s *RedisService) SaveUserSession(userID uint, accessToken, refreshToken string, expiresIn time.Duration) error {
 	sessionData := map[string]interface{}{
 		"access_token":  accessToken,
@@ -73,7 +73,7 @@ func (s *RedisService) SaveUserSession(userID uint, accessToken, refreshToken st
 	return s.client.Set(key, data, expiresIn).Err()
 }
 
-// GetUserSession 获取用户会话
+// 获取用户会话
 func (s *RedisService) GetUserSession(userID uint) (map[string]interface{}, error) {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserSession, userID)
 	data, err := s.client.Get(key).Result()
@@ -89,45 +89,45 @@ func (s *RedisService) GetUserSession(userID uint) (map[string]interface{}, erro
 	return sessionData, nil
 }
 
-// DeleteUserSession 删除用户会话
+// 删除用户会话
 func (s *RedisService) DeleteUserSession(userID uint) error {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserSession, userID)
 	return s.client.Del(key).Err()
 }
 
-// SetUserOnline 设置用户在线状态
+// 设置用户在线状态
 func (s *RedisService) SetUserOnline(userID uint, expiresIn time.Duration) error {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserOnline, userID)
 	return s.client.Set(key, "1", expiresIn).Err()
 }
 
-// IsUserOnline 检查用户是否在线
+// 检查用户是否在线
 func (s *RedisService) IsUserOnline(userID uint) bool {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserOnline, userID)
 	err := s.client.Get(key).Err()
 	return err == nil
 }
 
-// SetUserOffline 设置用户离线
+// 设置用户离线
 func (s *RedisService) SetUserOffline(userID uint) error {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserOnline, userID)
 	return s.client.Del(key).Err()
 }
 
-// AddToBlacklist 将令牌加入黑名单
+// 将令牌加入黑名单
 func (s *RedisService) AddToBlacklist(token string, expiresIn time.Duration) error {
 	key := fmt.Sprintf("%s%s", KeyPrefixTokenBlacklist, token)
 	return s.client.Set(key, "1", expiresIn).Err()
 }
 
-// IsInBlacklist 检查令牌是否在黑名单中
+// 检查令牌是否在黑名单中
 func (s *RedisService) IsInBlacklist(token string) bool {
 	key := fmt.Sprintf("%s%s", KeyPrefixTokenBlacklist, token)
 	err := s.client.Get(key).Err()
 	return err == nil
 }
 
-// addRandomExpiration 为缓存时间添加随机值，防止缓存雪崩
+// 为缓存时间添加随机值，防止缓存雪崩
 func addRandomExpiration(base time.Duration) time.Duration {
 	// 添加10%到30%的随机时间
 	percentage := 0.1 + 0.2*(float64(time.Now().UnixNano()%100)/100.0)
@@ -135,7 +135,7 @@ func addRandomExpiration(base time.Duration) time.Duration {
 	return base + randomDuration
 }
 
-// CacheUserInfo 缓存用户信息
+// 缓存用户信息
 func (s *RedisService) CacheUserInfo(userID uint, userInfo interface{}, expiresIn time.Duration) error {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserInfo, userID)
 	data, err := json.Marshal(userInfo)
@@ -148,7 +148,7 @@ func (s *RedisService) CacheUserInfo(userID uint, userInfo interface{}, expiresI
 	return s.client.Set(key, data, randomExpiresIn).Err()
 }
 
-// CacheEmptyUserInfo 缓存空用户信息（防止缓存穿透）
+// 缓存空用户信息（防止缓存穿透）
 func (s *RedisService) CacheEmptyUserInfo(userID uint, expiresIn time.Duration) error {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserInfo, userID)
 	// 使用空对象表示数据不存在
@@ -163,7 +163,7 @@ func (s *RedisService) CacheEmptyUserInfo(userID uint, expiresIn time.Duration) 
 	return s.client.Set(key, data, randomExpiresIn).Err()
 }
 
-// GetCachedUserInfo 获取缓存的用户信息
+// 获取缓存的用户信息
 func (s *RedisService) GetCachedUserInfo(userID uint) (map[string]interface{}, error) {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserInfo, userID)
 	data, err := s.client.Get(key).Result()
@@ -188,13 +188,13 @@ func (s *RedisService) GetCachedUserInfo(userID uint) (map[string]interface{}, e
 	return userInfo, nil
 }
 
-// DeleteCachedUserInfo 删除缓存的用户信息
+// 删除缓存的用户信息
 func (s *RedisService) DeleteCachedUserInfo(userID uint) error {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserInfo, userID)
 	return s.client.Del(key).Err()
 }
 
-// AcquireLock 获取分布式锁
+// 获取分布式锁
 func (s *RedisService) AcquireLock(key string, expiresIn time.Duration) bool {
 	lockKey := fmt.Sprintf("%s%s", KeyPrefixLock, key)
 	// 使用SETNX命令获取锁
@@ -205,18 +205,18 @@ func (s *RedisService) AcquireLock(key string, expiresIn time.Duration) bool {
 	return success
 }
 
-// ReleaseLock 释放分布式锁
+// 释放分布式锁
 func (s *RedisService) ReleaseLock(key string) error {
 	lockKey := fmt.Sprintf("%s%s", KeyPrefixLock, key)
 	return s.client.Del(lockKey).Err()
 }
 
-// GetClient 获取Redis客户端
+// 获取Redis客户端
 func (s *RedisService) GetClient() *redis.Client {
 	return s.client
 }
 
-// Close 关闭连接
+// 关闭连接
 func (s *RedisService) Close() error {
 	if s.client == nil {
 		return nil

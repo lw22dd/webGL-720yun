@@ -7,13 +7,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// LoginRequest 登录请求
+// 登录请求
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-// LoginResponse 登录响应
+// 登录响应
 type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
@@ -21,7 +21,7 @@ type LoginResponse struct {
 	User         *User  `json:"user"`
 }
 
-// RegisterRequest 注册请求
+// 注册请求
 type RegisterRequest struct {
 	Username   string `json:"username" binding:"required,min=3,max=20"`
 	Password   string `json:"password" binding:"required,min=6"`
@@ -34,7 +34,7 @@ type RegisterRequest struct {
 	TeacherIDs []uint `json:"teacher_ids" binding:"omitempty"` // 关联教师ID，仅学生角色需要
 }
 
-// UpdateUserRequest 更新用户请求
+// 更新用户请求
 type UpdateUserRequest struct {
 	Email      string `json:"email" binding:"omitempty,email"`
 	Phone      string `json:"phone" binding:"omitempty,len=11"`
@@ -45,29 +45,29 @@ type UpdateUserRequest struct {
 	TeacherIDs []uint `json:"teacher_ids" binding:"omitempty"` // 关联教师ID，仅学生角色需要
 }
 
-// ChangePasswordRequest 修改密码请求
+// 修改密码请求
 type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
 
-// ResetPasswordRequest 重置密码请求
+// 重置密码请求
 type ResetPasswordRequest struct {
 	Username string `json:"username" binding:"required"`
 }
 
-// RefreshTokenRequest 刷新令牌请求
+// 刷新令牌请求
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
-// RefreshTokenResponse 刷新令牌响应
+// 刷新令牌响应
 type RefreshTokenResponse struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 }
 
-// UserListRequest 用户列表请求
+// 用户列表请求
 type UserListRequest struct {
 	Page     int    `form:"page" binding:"min=1" json:"page"`
 	PageSize int    `form:"page_size" binding:"min=1,max=100" json:"page_size"`
@@ -79,20 +79,20 @@ type UserListRequest struct {
 	Keyword  string `form:"keyword" json:"keyword"`
 }
 
-// UserListResponse 用户列表响应
+// 用户列表响应
 type UserListResponse struct {
 	utils.PageInfo `json:"page_info"`
 	Users          []*User `json:"users"`
 }
 
-// ClassRequest 班级请求
+// 班级请求
 type ClassRequest struct {
 	Name        string `json:"name" binding:"required,max=100"`
 	Description string `json:"description" binding:"omitempty,max=255"`
 	TeacherID   uint   `json:"teacher_id" binding:"required"`
 }
 
-// ClassResponse 班级响应
+// 班级响应
 type ClassResponse struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
@@ -102,20 +102,20 @@ type ClassResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// ClassListResponse 班级列表响应
+// 班级列表响应
 type ClassListResponse struct {
 	utils.PageInfo `json:"page_info"`
 	Classes        []*Class `json:"classes"`
 }
 
-// Response 通用响应结构
+// 通用响应结构
 type Response struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
 
-// User 用户抽象基类
+// 用户抽象基类
 type User struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	Username  string         `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
@@ -132,13 +132,13 @@ type User struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-// Teacher 教师类
+// 教师类
 type Teacher struct {
 	User
 	Classes []Class `gorm:"foreignKey:TeacherID" json:"classes"`
 }
 
-// Student 学生类
+// 学生类
 type Student struct {
 	User
 	StudentID string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"student_id"` // 学号
@@ -147,7 +147,7 @@ type Student struct {
 	Teachers  []Teacher `gorm:"many2many:student_teachers;" json:"teachers"` // 关联多个教师
 }
 
-// Class 班级类
+// 班级类
 type Class struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	Name        string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"name"`
@@ -159,13 +159,13 @@ type Class struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// StudentTeacher 学生-教师关联表
+// 学生-教师关联表
 type StudentTeacher struct {
 	StudentID uint `gorm:"primaryKey" json:"student_id"`
 	TeacherID uint `gorm:"primaryKey" json:"teacher_id"`
 }
 
-// Role 角色模型
+// 角色模型
 type Role struct {
 	ID          uint         `gorm:"primaryKey" json:"id"`
 	Name        string       `gorm:"type:varchar(50);uniqueIndex;not null" json:"name"`
@@ -175,7 +175,7 @@ type Role struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
-// Permission 权限模型
+// 权限模型
 type Permission struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	Name        string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"name"`
@@ -187,7 +187,7 @@ type Permission struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// UserSession 用户会话模型
+// 用户会话模型
 type UserSession struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	UserID       uint      `gorm:"not null;index" json:"user_id"`
@@ -214,7 +214,7 @@ const (
 	RoleStudent = "student"
 )
 
-// TableName 设置表名
+// 设置表名
 func (User) TableName() string {
 	return "users"
 }
@@ -247,7 +247,7 @@ func (StudentTeacher) TableName() string {
 	return "student_teachers"
 }
 
-// ResetPassword 重置密码方法
+// 重置密码方法
 func (u *User) ResetPassword() (string, error) {
 	// 生成临时密码
 	tempPassword := utils.GenerateRandomPassword(8)
@@ -261,7 +261,7 @@ func (u *User) ResetPassword() (string, error) {
 	return tempPassword, nil
 }
 
-// ChangePassword 修改密码方法
+// 修改密码方法
 func (u *User) ChangePassword(oldPassword, newPassword string) error {
 	// 验证原密码
 	if !utils.CheckPassword(oldPassword, u.Password) {
@@ -277,12 +277,12 @@ func (u *User) ChangePassword(oldPassword, newPassword string) error {
 	return nil
 }
 
-// ToTeacher 将User转换为Teacher
+// 将User转换为Teacher
 func (u *User) ToTeacher() *Teacher {
 	return &Teacher{User: *u}
 }
 
-// ToStudent 将User转换为Student
+// 将User转换为Student
 func (u *User) ToStudent() *Student {
 	return &Student{User: *u}
 }

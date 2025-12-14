@@ -9,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWTClaims JWT声明
+// JWT声明
 type JWTClaims struct {
 	UserID   uint   `json:"user_id"`
 	Username string `json:"username"`
@@ -17,7 +17,7 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-// JWTService JWT服务
+// JWT服务
 type JWTService struct {
 	secret         string
 	accessTimeout  time.Duration
@@ -25,7 +25,7 @@ type JWTService struct {
 	issuer         string
 }
 
-// NewJWTService 创建JWT服务
+// 创建JWT服务
 func NewJWTService(config *config.JWTConfig) *JWTService {
 	return &JWTService{
 		secret:         config.Secret,
@@ -35,7 +35,7 @@ func NewJWTService(config *config.JWTConfig) *JWTService {
 	}
 }
 
-// GenerateAccessToken 生成访问令牌
+// 生成访问令牌
 func (s *JWTService) GenerateAccessToken(userID uint, username string, role string) (string, error) {
 	claims := JWTClaims{
 		UserID:   userID,
@@ -52,7 +52,7 @@ func (s *JWTService) GenerateAccessToken(userID uint, username string, role stri
 	return token.SignedString([]byte(s.secret))
 }
 
-// GenerateRefreshToken 生成刷新令牌
+// 生成刷新令牌
 func (s *JWTService) GenerateRefreshToken(userID uint) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Subject:   string(rune(userID)),
@@ -65,7 +65,7 @@ func (s *JWTService) GenerateRefreshToken(userID uint) (string, error) {
 	return token.SignedString([]byte(s.secret))
 }
 
-// ParseToken 解析令牌
+// 解析令牌
 func (s *JWTService) ParseToken(tokenString string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -85,13 +85,13 @@ func (s *JWTService) ParseToken(tokenString string) (*JWTClaims, error) {
 	return nil, errors.New("invalid token")
 }
 
-// ValidateToken 验证令牌
+// 验证令牌
 func (s *JWTService) ValidateToken(tokenString string) error {
 	_, err := s.ParseToken(tokenString)
 	return err
 }
 
-// GetTokenRemainingTime 获取令牌剩余时间
+// 获取令牌剩余时间
 func (s *JWTService) GetTokenRemainingTime(tokenString string) (time.Duration, error) {
 	claims, err := s.ParseToken(tokenString)
 	if err != nil {

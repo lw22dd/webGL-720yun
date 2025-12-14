@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ServiceContext 服务上下文，统一管理所有服务实例
+// 服务上下文，统一管理所有服务实例
 type ServiceContext struct {
 	// 数据库连接
 	DB *gorm.DB
@@ -27,7 +27,7 @@ type ServiceContext struct {
 	AuthMiddleware *middleware.AuthMiddleware
 }
 
-// NewServiceContext 创建服务上下文实例
+// 创建服务上下文实例
 func NewServiceContext(db *gorm.DB, redisService *redis.RedisService, jwtService *jwt.JWTService, userService *user.UserService, authMiddleware *middleware.AuthMiddleware) *ServiceContext {
 	return &ServiceContext{
 		DB:             db,
@@ -38,32 +38,32 @@ func NewServiceContext(db *gorm.DB, redisService *redis.RedisService, jwtService
 	}
 }
 
-// GetRedisService 获取Redis服务实例
+// 获取Redis服务实例
 func (sc *ServiceContext) GetRedisService() *redis.RedisService {
 	return sc.RedisService
 }
 
-// GetJWTService 获取JWT服务实例
+// 获取JWT服务实例
 func (sc *ServiceContext) GetJWTService() *jwt.JWTService {
 	return sc.JWTService
 }
 
-// GetUserService 获取用户服务实例
+// 获取用户服务实例
 func (sc *ServiceContext) GetUserService() *user.UserService {
 	return sc.UserService
 }
 
-// GetAuthMiddleware 获取认证中间件实例
+// 获取认证中间件实例
 func (sc *ServiceContext) GetAuthMiddleware() *middleware.AuthMiddleware {
 	return sc.AuthMiddleware
 }
 
-// GetDB 获取数据库连接实例
+// 获取数据库连接实例
 func (sc *ServiceContext) GetDB() *gorm.DB {
 	return sc.DB
 }
 
-// Close 关闭所有服务连接
+// 关闭所有服务连接
 func (sc *ServiceContext) Close() error {
 	// 关闭Redis连接
 	if sc.RedisService != nil {

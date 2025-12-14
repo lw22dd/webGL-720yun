@@ -15,7 +15,7 @@ var (
 	ErrPasswordComplexity   = errors.New("密码复杂度不足")
 )
 
-// HashPassword 密码加密
+// 密码加密
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -24,13 +24,13 @@ func HashPassword(password string) (string, error) {
 	return string(bytes), nil
 }
 
-// CheckPassword 验证密码
+// 验证密码
 func CheckPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 
-// GenerateRandomPassword 生成随机密码
+// 生成随机密码
 func GenerateRandomPassword(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))

@@ -13,13 +13,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserService 用户服务
+// 用户服务
 type UserService struct {
 	jwtService   *jwt.JWTService
 	redisService *redis.RedisService
 }
 
-// NewUserService 创建用户服务
+// 创建用户服务
 func NewUserService(jwtService *jwt.JWTService, redisService *redis.RedisService) *UserService {
 	return &UserService{
 		jwtService:   jwtService,
@@ -27,7 +27,7 @@ func NewUserService(jwtService *jwt.JWTService, redisService *redis.RedisService
 	}
 }
 
-// Register 用户注册（管理员创建学生账户）
+// 用户注册（管理员创建学生账户）
 func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 	// 检查用户名是否已存在
 	var existingUser User
@@ -133,7 +133,7 @@ func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 	return user, nil
 }
 
-// Login 用户登录
+// 用户登录
 func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
 	// 查找用户
 	var user User
@@ -191,7 +191,7 @@ func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
 	}, nil
 }
 
-// Logout 用户登出
+// 用户登出
 func (s *UserService) Logout(userID uint, accessToken string) error {
 	// 将访问令牌加入黑名单
 	if err := s.redisService.AddToBlacklist(accessToken, time.Duration(24)*time.Hour); err != nil {
@@ -216,7 +216,7 @@ func (s *UserService) Logout(userID uint, accessToken string) error {
 	return nil
 }
 
-// RefreshToken 刷新访问令牌
+// 刷新访问令牌
 func (s *UserService) RefreshToken(refreshToken string) (*RefreshTokenResponse, error) {
 	// 验证刷新令牌
 	claims, err := s.jwtService.ParseToken(refreshToken)
@@ -266,7 +266,7 @@ func (s *UserService) RefreshToken(refreshToken string) (*RefreshTokenResponse, 
 	}, nil
 }
 
-// GetUserByID 根据ID获取用户
+// 根据ID获取用户
 func (s *UserService) GetUserByID(userID uint) (*User, error) {
 	// 先尝试从缓存获取
 	cachedUser, err := s.redisService.GetCachedUserInfo(userID)
@@ -349,7 +349,7 @@ func (s *UserService) GetUserByID(userID uint) (*User, error) {
 	}
 }
 
-// UpdateUser 更新用户信息
+// 更新用户信息
 func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, error) {
 	// 开始事务
 	tx := database.DB.Begin()
@@ -467,7 +467,7 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, er
 	return &user, nil
 }
 
-// ChangePassword 修改密码
+// 修改密码
 func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) error {
 	// 开始事务
 	tx := database.DB.Begin()
@@ -510,7 +510,7 @@ func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) er
 	return nil
 }
 
-// GetUserList 获取用户列表
+// 获取用户列表
 func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, error) {
 	var users []*User
 	var total int64
@@ -557,7 +557,7 @@ func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, erro
 	}, nil
 }
 
-// ResetPassword 重置密码
+// 重置密码
 func (s *UserService) ResetPassword(req *ResetPasswordRequest) (string, error) {
 	// 开始事务
 	tx := database.DB.Begin()
@@ -602,7 +602,7 @@ func (s *UserService) ResetPassword(req *ResetPasswordRequest) (string, error) {
 	return tempPassword, nil
 }
 
-// DeleteUser 删除用户
+// 删除用户
 func (s *UserService) DeleteUser(userID uint) error {
 	var user User
 	if err := database.DB.First(&user, userID).Error; err != nil {
