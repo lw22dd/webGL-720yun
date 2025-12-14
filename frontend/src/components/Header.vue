@@ -1,18 +1,18 @@
 <template>
-  <header class="header">
-    <div class="header-container">
+  <header class="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm transition-all duration-300 h-16 flex items-center">
+    <div class="w-full max-w-7xl mx-auto px-5 flex items-center justify-between h-full gap-3">
       <!-- Logo区域 -->
-      <div class="logo">
-        <h1 class="logo-text">720云</h1>
+      <div class="flex items-center w-auto min-w-20 pr-1">
+        <h1 class="text-xl font-bold text-blue-600 whitespace-nowrap m-0 leading-1">720云</h1>
       </div>
       
       <!-- 导航菜单 -->
-      <nav class="nav-menu">
-        <a href="#" class="nav-item">首页</a>
+      <nav class="flex items-center flex-1 justify-start gap-1">
+        <a href="#" class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50">首页</a>
         <el-dropdown>
-          <span class="nav-item dropdown">
+          <span class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50 flex items-center">
             产品服务
-            <el-icon class="icon-right"><arrow-down /></el-icon>
+            <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -24,9 +24,9 @@
           </template>
         </el-dropdown>
         <el-dropdown>
-          <span class="nav-item dropdown">
+          <span class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50 flex items-center">
             解决方案
-            <el-icon class="icon-right"><arrow-down /></el-icon>
+            <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -38,9 +38,9 @@
           </template>
         </el-dropdown>
         <el-dropdown>
-          <span class="nav-item dropdown">
+          <span class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50 flex items-center">
             内容社区
-            <el-icon class="icon-right"><arrow-down /></el-icon>
+            <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -51,9 +51,9 @@
           </template>
         </el-dropdown>
         <el-dropdown>
-          <span class="nav-item dropdown">
+          <span class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50 flex items-center">
             定制服务
-            <el-icon class="icon-right"><arrow-down /></el-icon>
+            <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -63,29 +63,16 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <el-dropdown>
-          <span class="nav-item dropdown">
-            商城
-            <el-icon class="icon-right"><arrow-down /></el-icon>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>VR设备</el-dropdown-item>
-              <el-dropdown-item>素材资源</el-dropdown-item>
-              <el-dropdown-item>服务套餐</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
       </nav>
       
       <!-- 搜索框 -->
-      <div class="search-box">
+      <div class="flex items-center flex-0 1 w-50 min-w-36">
         <el-input
           v-model="searchKeyword"
           placeholder="搜索"
           size="small"
           prefix-icon="Search"
-          class="search-input"
+          class="w-full min-w-0"
         >
           <template #append>
             <el-button @click="handleSearch" size="small" type="primary" icon="Search"></el-button>
@@ -94,14 +81,14 @@
       </div>
       
       <!-- 用户操作 -->
-      <div class="user-actions">
-        <el-button type="primary" size="small" @click="showLoginDialog = true" class="login-button mr-2">登录</el-button>
-        <el-button type="default" size="small" @click="showRegisterDialog = true" class="register-button">注册</el-button>
+      <div class="flex items-center min-w-fit">
+        <el-button type="primary" size="small" @click="showLoginDialog = true" class="text-xs px-3.5 py-1.5 transition-all hover:-translate-y-0.5 mr-2">登录</el-button>
+        <el-button type="default" size="small" @click="showRegisterDialog = true" class="text-xs px-3.5 py-1.5 transition-all hover:-translate-y-0.5">注册</el-button>
       </div>
       
       <!-- 登录弹窗 -->
       <el-dialog v-model="showLoginDialog" title="登录" width="400px" center>
-        <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef" class="login-form">
+        <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef">
           <el-form-item prop="email">
             <el-input 
               v-model="loginForm.email" 
@@ -121,7 +108,7 @@
           </el-form-item>
         </el-form>
         <template #footer>
-          <span class="dialog-footer">
+          <span>
             <el-button @click="showLoginDialog = false">取消</el-button>
             <el-button type="primary" @click="handleLogin" :loading="loginLoading">
               登录
@@ -132,7 +119,7 @@
       
       <!-- 注册弹窗 -->
       <el-dialog v-model="showRegisterDialog" title="注册" width="400px" center>
-        <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef" class="register-form">
+        <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef">
           <el-form-item prop="name">
             <el-input 
               v-model="registerForm.name" 
@@ -168,7 +155,7 @@
           </el-form-item>
         </el-form>
         <template #footer>
-          <span class="dialog-footer">
+          <span>
             <el-button @click="showRegisterDialog = false">取消</el-button>
             <el-button type="primary" @click="handleRegister" :loading="registerLoading">
               注册
@@ -339,231 +326,6 @@ const handleRegister = async () => {
 }
 </script>
 
-<style scoped lang="scss">
-// 主题颜色变量
-$primary-color: #3b82f6;
-$primary-hover: #2563eb;
-$red-color: #ef4444;
-$orange-color: #f97316;
-$orange-hover: #ea580c;
-$gray-color: #6b7280;
-$gray-hover: #374151;
-$white-color: #ffffff;
-$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-
-// 过渡效果
-$transition: all 0.3s ease;
-
-// Header 主容器
-.header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  background-color: $white-color;
-  box-shadow: $shadow-sm;
-  transition: $transition;
-  height: 64px;
-  display: flex;
-  align-items: center;
-}
-
-// Header 内容容器
-.header-container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
-  gap: 12px;
-}
-
-// Logo 区域
-.logo {
-  display: flex;
-  align-items: center;
-  width: auto;
-  min-width: 80px;
-  padding-right: 4px;
-  
-  .logo-text {
-    font-size: 20px;
-    font-weight: bold;
-    color: $primary-color;
-    white-space: nowrap;
-    margin: 0;
-    line-height: 1;
-  }
-}
-
-// 导航菜单
-.nav-menu {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  justify-content: flex-start;
-  gap: 4px;
-  
-  .nav-item {
-    position: relative;
-    font-size: 14px;
-    color: $gray-color;
-    cursor: pointer;
-    padding: 6px 14px;
-    transition: $transition;
-    white-space: nowrap;
-    border-radius: 4px;
-    
-    &:hover {
-      color: $primary-color;
-      background-color: rgba(59, 130, 246, 0.05);
-      
-      &::after {
-        width: 100%;
-      }
-    }
-    
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: -4px;
-      left: 0;
-      width: 0;
-      height: 2px;
-      background-color: $primary-color;
-      transition: $transition;
-    }
-    
-    &.dropdown {
-      display: flex;
-      align-items: center;
-    }
-  }
-}
-
-// 图标样式
-.icon-right {
-  margin-left: 4px;
-  font-size: 12px;
-}
-
-.icon-left {
-  margin-right: 4px;
-  font-size: 14px;
-}
-
-// 用户操作按钮样式
-.user-actions {
-  display: flex;
-  align-items: center;
-  min-width: fit-content;
-  
-  .login-button,
-  .register-button {
-    font-size: 12px;
-    padding: 6px 14px;
-    transition: $transition;
-    
-    &:hover {
-      transform: translateY(-1px);
-    }
-  }
-  
-  .mr-2 {
-    margin-right: 8px;
-  }
-}
-
-// 搜索框
-.search-box {
-  display: flex;
-  align-items: center;
-  flex: 0 1 200px;
-  min-width: 150px;
-  
-  .search-input {
-    width: 100%;
-    min-width: 0;
-  }
-}
-
-// 用户操作
-.user-actions {
-  display: flex;
-  align-items: center;
-  min-width: fit-content;
-  
-  .login-link {
-    font-size: 13px;
-    color: $primary-color;
-    transition: $transition;
-    padding: 6px 10px;
-    border-radius: 4px;
-    
-    &:hover {
-      color: $primary-hover;
-      background-color: rgba(59, 130, 246, 0.05);
-    }
-  }
-}
-
-
-
-// 响应式设计
-@media (max-width: 1200px) {
-  .header-container {
-    max-width: 1000px;
-  }
-  
-  .special-tags {
-    display: none;
-  }
-  
-  .member-tags {
-    display: none;
-  }
-  
-  .search-box {
-    flex: 0 1 180px;
-  }
-}
-
-@media (max-width: 992px) {
-  .nav-menu {
-    display: none;
-  }
-  
-  .search-box {
-    flex: 1;
-    min-width: 180px;
-  }
-}
-
-@media (max-width: 576px) {
-  .header-container {
-    padding: 0 14px;
-    gap: 8px;
-  }
-  
-  .logo {
-    min-width: 70px;
-    
-    .logo-text {
-      font-size: 18px;
-    }
-  }
-  
-  .search-box {
-    display: none;
-  }
-  
-  .create-button {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-}
+<style scoped>
+/* Tailwind CSS 已应用，不再需要自定义 SCSS 样式 */
 </style>

@@ -1,5 +1,8 @@
 <template>
     <Header />
+    <main class="container mx-auto p-4 mt-18">
+        
+    </main>
 </template>
 
 <script setup lang="ts">
@@ -7,8 +10,5 @@ import Header from '@/components/Header.vue'
 </script>
 
 <style scoped>
-main {
-    margin-top: 70px;
-    /* 为固定定位的header留出空间 */
-}
+/* Tailwind CSS 已应用，不再需要自定义样式 */
 </style>
