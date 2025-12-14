@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 依赖和构建输出
+node_modules
+dist
+dist-ssr
+*.local
+
+# 操作系统文件
+.DS_Store
+*~
+*.swp
+*.swo
+
+# IDE 目录和文件
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# Docker 相关
+.dockerignore
+Dockerfile
+Dockerfile.*

@@ -11,7 +11,7 @@ server:
     write_timeout: 10
     mode: debug
 database:
-    host: localhost
+    host: mysql
     port: 3306
     username: root
     password: 123456
@@ -20,7 +20,7 @@ database:
     max_idle_conns: 10
     max_open_conns: 100
 redis:
-    host: localhost
+    host: redis
     port: 6379
     password: ""
     db: 0

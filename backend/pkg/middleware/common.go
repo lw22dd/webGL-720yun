@@ -1,14 +1,21 @@
 package middleware
 
 import (
-	"webGL-720yun/pkg/logger"
 	"time"
-	
+	"webGL-720yun/pkg/logger"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 // Logger 日志中间件
+// 推荐的中间件顺序
+// 1. Recovery (最外层,捕获panic)
+// 2. Logger (记录所有请求)
+// 3. CORS (跨域处理)
+// 4. RateLimiter (限流)
+// 5. Auth (认证,仅部分路由需要)
+// 6. Permission (权限校验,仅部分路由需要)
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

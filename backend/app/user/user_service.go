@@ -55,6 +55,14 @@ func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 		return nil, fmt.Errorf("密码加密失败: %v", err)
 	}
 
+	// 开始事务
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	// 创建用户
 	user := &User{
 		Username: req.Username,
@@ -66,8 +74,60 @@ func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 		Status:   1, // 1表示活跃状态
 	}
 
-	if err := database.DB.Create(user).Error; err != nil {
+	if err := tx.Create(user).Error; err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("用户创建失败: %v", err)
+	}
+
+	// 如果是学生角色，添加学生信息和关联
+	// 先获取角色信息
+	var role Role
+	if err := tx.First(&role, req.RoleID).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("获取角色信息失败: %v", err)
+	}
+
+	if role.Name == RoleStudent {
+		// 检查学号是否已存在
+		if req.StudentID != "" {
+			var existingStudent Student
+			if err := tx.Where("student_id = ?", req.StudentID).First(&existingStudent).Error; err == nil {
+				tx.Rollback()
+				return nil, errors.New("学号已存在")
+			}
+		}
+
+		// 更新学生信息
+		student := &Student{
+			User:      *user,
+			StudentID: req.StudentID,
+			ClassID:   req.ClassID,
+		}
+
+		if err := tx.Save(student).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("学生信息保存失败: %v", err)
+		}
+
+		// 关联教师
+		if len(req.TeacherIDs) > 0 {
+			for _, teacherID := range req.TeacherIDs {
+				studentTeacher := &StudentTeacher{
+					StudentID: user.ID,
+					TeacherID: teacherID,
+				}
+				if err := tx.Create(studentTeacher).Error; err != nil {
+					tx.Rollback()
+					return nil, fmt.Errorf("关联教师失败: %v", err)
+				}
+			}
+		}
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("事务提交失败: %v", err)
 	}
 
 	return user, nil
@@ -297,22 +357,18 @@ func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) er
 		return err
 	}
 
-	// 验证旧密码
-	if !utils.CheckPassword(req.OldPassword, user.Password) {
-		return errors.New("旧密码错误")
+	// 调用用户对象的ChangePassword方法
+	if err := user.ChangePassword(req.OldPassword, req.NewPassword); err != nil {
+		return err
 	}
 
-	// 加密新密码
-	hashedPassword, err := utils.HashPassword(req.NewPassword)
-	if err != nil {
-		return fmt.Errorf("密码加密失败: %v", err)
-	}
-
-	// 更新密码
-	user.Password = hashedPassword
+	// 保存更新后的用户
 	if err := database.DB.Save(&user).Error; err != nil {
 		return fmt.Errorf("更新密码失败: %v", err)
 	}
+
+	// 更新缓存
+	s.redisService.DeleteCachedUserInfo(userID)
 
 	return nil
 }
@@ -337,6 +393,10 @@ func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, erro
 	if req.Status >= 0 {
 		query = query.Where("status = ?", req.Status)
 	}
+	// 按班级ID查询
+	if req.ClassID > 0 {
+		query = query.Joins("JOIN students ON students.id = users.id").Where("students.class_id = ?", req.ClassID)
+	}
 
 	// 计算总数
 	if err := query.Count(&total).Error; err != nil {
@@ -360,6 +420,34 @@ func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, erro
 	}, nil
 }
 
+// ResetPassword 重置密码
+func (s *UserService) ResetPassword(req *ResetPasswordRequest) (string, error) {
+	// 查找用户
+	var user User
+	if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", errors.New("用户不存在")
+		}
+		return "", fmt.Errorf("数据库查询失败: %v", err)
+	}
+
+	// 调用用户对象的ResetPassword方法
+	tempPassword, err := user.ResetPassword()
+	if err != nil {
+		return "", fmt.Errorf("密码重置失败: %v", err)
+	}
+
+	// 保存更新后的用户
+	if err := database.DB.Save(&user).Error; err != nil {
+		return "", fmt.Errorf("保存密码失败: %v", err)
+	}
+
+	// 更新缓存
+	s.redisService.DeleteCachedUserInfo(user.ID)
+
+	return tempPassword, nil
+}
+
 // DeleteUser 删除用户
 func (s *UserService) DeleteUser(userID uint) error {
 	var user User
@@ -370,13 +458,37 @@ func (s *UserService) DeleteUser(userID uint) error {
 		return err
 	}
 
+	// 开始事务
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 删除用户关联的学生-教师关系
+	if err := tx.Where("student_id = ?", userID).Delete(&StudentTeacher{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("删除学生-教师关系失败: %v", err)
+	}
+
 	// 删除用户
-	if err := database.DB.Delete(&user).Error; err != nil {
+	if err := tx.Delete(&user).Error; err != nil {
+		tx.Rollback()
 		return fmt.Errorf("删除用户失败: %v", err)
 	}
 
 	// 删除相关数据
-	database.DB.Where("user_id = ?", userID).Delete(&UserSession{})
+	if err := tx.Where("user_id = ?", userID).Delete(&UserSession{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("删除用户会话失败: %v", err)
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("事务提交失败: %v", err)
+	}
 
 	// 删除缓存
 	s.redisService.DeleteCachedUserInfo(userID)
