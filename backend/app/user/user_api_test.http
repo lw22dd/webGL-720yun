@@ -135,3 +135,236 @@ Authorization: Bearer {{admin_access_token}}
 # 描述：测试管理员删除指定用户（需要管理员权限）
 DELETE http://localhost:7000/api/v1/user/admin/1
 Authorization: Bearer {{admin_access_token}}
+
+
+### 索引+事务测试 - 批量创建用户（高并发事务）
+# 描述：测试高并发下的事务一致性和索引性能
+# 预期：所有用户创建成功，无重复数据，查询性能良好
+POST http://localhost:7000/api/v1/user/admin/batch-create
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "users": [
+    {
+      "username": "batchuser_001",
+      "password": "123456",
+      "email": "batch001@example.com",
+      "phone": "13000000001",
+      "nickname": "批量用户001",
+      "role_id": 2
+    },
+    {
+      "username": "batchuser_002",
+      "password": "123456",
+      "email": "batch002@example.com",
+      "phone": "13000000002",
+      "nickname": "批量用户002",
+      "role_id": 2
+    },
+    {
+      "username": "batchuser_003",
+      "password": "123456",
+      "email": "batch003@example.com",
+      "phone": "13000000003",
+      "nickname": "批量用户003",
+      "role_id": 2
+    }
+  ]
+}
+
+
+### 索引+事务测试 - 按角色ID查询用户（索引性能测试）
+# 描述：测试User表role_id字段索引的查询性能
+# 预期：查询速度快，体现索引优化效果
+GET http://localhost:7000/api/v1/user/admin/list?role_id=2
+Authorization: Bearer {{admin_access_token}}
+
+
+### 索引+事务测试 - 学生按班级查询（索引性能测试）
+# 描述：测试Student表class_id字段索引的查询性能
+# 预期：查询速度快，体现索引优化效果
+GET http://localhost:7000/api/v1/user/admin/students?class_id=1
+Authorization: Bearer {{admin_access_token}}
+
+
+### Redis缓存测试 - 缓存穿透（查询不存在用户）
+# 描述：测试系统对缓存穿透的防御能力
+# 预期：系统能正确处理不存在的用户，不会直接访问数据库
+GET http://localhost:7000/api/v1/user/admin/999999
+Authorization: Bearer {{admin_access_token}}
+
+
+### Redis缓存测试 - 缓存穿透（重复查询不存在用户）
+# 描述：测试系统对重复缓存穿透的防御能力
+# 预期：第二次查询应从缓存获取空对象，不会访问数据库
+GET http://localhost:7000/api/v1/user/admin/999999
+Authorization: Bearer {{admin_access_token}}
+
+
+### Redis缓存测试 - 缓存击穿（热点用户查询）
+# 描述：测试系统对缓存击穿的防御能力
+# 预期：当热点用户缓存过期时，系统能通过分布式锁机制避免数据库压力
+POST http://localhost:7000/api/v1/user/admin/create
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "username": "hotuser",
+  "password": "123456",
+  "email": "hot@example.com",
+  "phone": "13888888888",
+  "nickname": "热点用户",
+  "role_id": 2
+}
+
+@hot_user_id = {{$response.body.data.id}}
+
+
+### Redis缓存测试 - 缓存击穿（模拟热点用户缓存过期）
+# 描述：手动刷新热点用户缓存，测试分布式锁机制
+# 预期：系统能正确处理缓存刷新，保持高性能
+GET http://localhost:7000/api/v1/user/admin/{{hot_user_id}}
+Authorization: Bearer {{admin_access_token}}
+
+GET http://localhost:7000/api/v1/user/admin/{{hot_user_id}}
+Authorization: Bearer {{admin_access_token}}
+
+GET http://localhost:7000/api/v1/user/admin/{{hot_user_id}}
+Authorization: Bearer {{admin_access_token}}
+
+
+### Redis缓存测试 - 缓存雪崩（批量用户缓存）
+# 描述：测试系统对缓存雪崩的防御能力
+# 预期：系统通过随机过期时间避免缓存雪崩，保持稳定性能
+POST http://localhost:7000/api/v1/user/admin/batch-create
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "users": [
+    {
+      "username": "cacheuser_001",
+      "password": "123456",
+      "email": "cache001@example.com",
+      "phone": "13100000001",
+      "nickname": "缓存用户001",
+      "role_id": 2
+    },
+    {
+      "username": "cacheuser_002",
+      "password": "123456",
+      "email": "cache002@example.com",
+      "phone": "13100000002",
+      "nickname": "缓存用户002",
+      "role_id": 2
+    },
+    {
+      "username": "cacheuser_003",
+      "password": "123456",
+      "email": "cache003@example.com",
+      "phone": "13100000003",
+      "nickname": "缓存用户003",
+      "role_id": 2
+    },
+    {
+      "username": "cacheuser_004",
+      "password": "123456",
+      "email": "cache004@example.com",
+      "phone": "13100000004",
+      "nickname": "缓存用户004",
+      "role_id": 2
+    },
+    {
+      "username": "cacheuser_005",
+      "password": "123456",
+      "email": "cache005@example.com",
+      "phone": "13100000005",
+      "nickname": "缓存用户005",
+      "role_id": 2
+    }
+  ]
+}
+
+
+### Redis缓存测试 - 缓存雪崩（批量查询用户）
+# 描述：测试大量缓存同时查询时的性能
+# 预期：系统能稳定处理大量缓存查询，无性能波动
+GET http://localhost:7000/api/v1/user/admin/cacheuser_001
+Authorization: Bearer {{admin_access_token}}
+
+GET http://localhost:7000/api/v1/user/admin/cacheuser_002
+Authorization: Bearer {{admin_access_token}}
+
+GET http://localhost:7000/api/v1/user/admin/cacheuser_003
+Authorization: Bearer {{admin_access_token}}
+
+GET http://localhost:7000/api/v1/user/admin/cacheuser_004
+Authorization: Bearer {{admin_access_token}}
+
+GET http://localhost:7000/api/v1/user/admin/cacheuser_005
+Authorization: Bearer {{admin_access_token}}
+
+
+### 数据持久化测试 - 创建测试用户
+# 描述：创建用于持久化测试的用户
+# 预期：用户创建成功
+POST http://localhost:7000/api/v1/user/admin/create
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "username": "persistuser",
+  "password": "123456",
+  "email": "persist@example.com",
+  "phone": "13999999999",
+  "nickname": "持久化测试用户",
+  "role_id": 2
+}
+
+@persist_user_id = {{$response.body.data.id}}
+
+
+### 数据持久化测试 - 验证用户存在
+# 描述：验证持久化测试用户存在
+# 预期：能正确获取用户信息
+GET http://localhost:7000/api/v1/user/admin/{{persist_user_id}}
+Authorization: Bearer {{admin_access_token}}
+
+
+### 数据持久化测试 - 服务重启后验证
+# 描述：重启服务后验证用户数据是否仍然存在
+# 操作步骤：
+# 1. 停止当前服务
+# 2. 重启服务
+# 3. 重新获取管理员令牌
+# 4. 执行此请求
+# 预期：用户数据完整保留，无丢失
+# GET http://localhost:7000/api/v1/user/admin/{{persist_user_id}}
+# Authorization: Bearer {{new_admin_access_token}}
+
+
+### 数据持久化测试 - 事务完整性验证
+# 描述：测试事务操作的完整性，确保要么全部成功，要么全部失败
+# 预期：事务中的操作要么全部成功，要么全部回滚
+POST http://localhost:7000/api/v1/user/admin/transaction-test
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "test_scenario": "full_transaction",
+  "data": {
+    "new_user": {
+      "username": "transactionuser",
+      "password": "123456",
+      "email": "transaction@example.com",
+      "phone": "13200000000",
+      "nickname": "事务测试用户",
+      "role_id": 2
+    },
+    "update_user_id": {{persist_user_id}},
+    "update_data": {
+      "nickname": "持久化测试用户-更新"
+    }
+  }
+}

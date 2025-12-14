@@ -269,7 +269,8 @@ func (s *UserService) RefreshToken(refreshToken string) (*RefreshTokenResponse, 
 // GetUserByID 根据ID获取用户
 func (s *UserService) GetUserByID(userID uint) (*User, error) {
 	// 先尝试从缓存获取
-	if cachedUser, err := s.redisService.GetCachedUserInfo(userID); err == nil {
+	cachedUser, err := s.redisService.GetCachedUserInfo(userID)
+	if err == nil && cachedUser != nil {
 		var user User
 		if userData, err := json.Marshal(cachedUser); err == nil {
 			if err := json.Unmarshal(userData, &user); err == nil {
@@ -278,25 +279,89 @@ func (s *UserService) GetUserByID(userID uint) (*User, error) {
 		}
 	}
 
-	// 从数据库获取
-	var user User
-	if err := database.DB.Preload("Role").First(&user, userID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("用户不存在")
-		}
-		return nil, err
+	// 缓存穿透：检查用户是否不存在
+	if cachedUser == nil && err == nil {
+		// 缓存中标记为不存在，直接返回
+		return nil, errors.New("用户不存在")
 	}
 
-	// 缓存用户信息
-	s.redisService.CacheUserInfo(userID, user, time.Duration(1)*time.Hour)
+	// 缓存击穿：使用分布式锁确保只有一个请求访问数据库
+	lockKey := fmt.Sprintf("user:%d", userID)
+	expiresIn := time.Duration(5) * time.Second // 锁过期时间
 
-	return &user, nil
+	// 尝试获取锁
+	if s.redisService.AcquireLock(lockKey, expiresIn) {
+		defer s.redisService.ReleaseLock(lockKey) // 释放锁
+
+		// 再次尝试从缓存获取（防止锁等待期间其他请求已更新缓存）
+		if cachedUser, err := s.redisService.GetCachedUserInfo(userID); err == nil && cachedUser != nil {
+			var user User
+			if userData, err := json.Marshal(cachedUser); err == nil {
+				if err := json.Unmarshal(userData, &user); err == nil {
+					return &user, nil
+				}
+			}
+		}
+
+		// 从数据库获取
+		var user User
+		if err := database.DB.Preload("Role").First(&user, userID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// 缓存空对象防止缓存穿透
+				s.redisService.CacheEmptyUserInfo(userID, time.Duration(30)*time.Minute)
+				return nil, errors.New("用户不存在")
+			}
+			return nil, err
+		}
+
+		// 缓存用户信息
+		s.redisService.CacheUserInfo(userID, user, time.Duration(1)*time.Hour)
+
+		return &user, nil
+	} else {
+		// 获取锁失败，等待一段时间后重试
+		time.Sleep(100 * time.Millisecond)
+		// 递归重试，最多重试3次
+		for i := 0; i < 3; i++ {
+			if cachedUser, err := s.redisService.GetCachedUserInfo(userID); err == nil && cachedUser != nil {
+				var user User
+				if userData, err := json.Marshal(cachedUser); err == nil {
+					if err := json.Unmarshal(userData, &user); err == nil {
+						return &user, nil
+					}
+				}
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+
+		// 重试后仍失败，直接访问数据库
+		var user User
+		if err := database.DB.Preload("Role").First(&user, userID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// 缓存空对象防止缓存穿透
+				s.redisService.CacheEmptyUserInfo(userID, time.Duration(30)*time.Minute)
+				return nil, errors.New("用户不存在")
+			}
+			return nil, err
+		}
+
+		return &user, nil
+	}
 }
 
 // UpdateUser 更新用户信息
 func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, error) {
+	// 开始事务
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	var user User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if err := tx.First(&user, userID).Error; err != nil {
+		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
 		}
@@ -307,7 +372,8 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, er
 	if req.Email != "" {
 		// 检查邮箱是否已被使用
 		var existingUser User
-		if err := database.DB.Where("email = ? AND id != ?", req.Email, userID).First(&existingUser).Error; err == nil {
+		if err := tx.Where("email = ? AND id != ?", req.Email, userID).First(&existingUser).Error; err == nil {
+			tx.Rollback()
 			return nil, errors.New("邮箱已被使用")
 		}
 		user.Email = req.Email
@@ -316,7 +382,8 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, er
 	if req.Phone != "" {
 		// 检查手机号是否已被使用
 		var existingUser User
-		if err := database.DB.Where("phone = ? AND id != ?", req.Phone, userID).First(&existingUser).Error; err == nil {
+		if err := tx.Where("phone = ? AND id != ?", req.Phone, userID).First(&existingUser).Error; err == nil {
+			tx.Rollback()
 			return nil, errors.New("手机号已被使用")
 		}
 		user.Phone = req.Phone
@@ -334,8 +401,61 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, er
 		user.Status = req.Status
 	}
 
-	if err := database.DB.Save(&user).Error; err != nil {
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("更新用户信息失败: %v", err)
+	}
+
+	// 检查是否是学生角色
+	var role Role
+	if err := tx.First(&role, user.RoleID).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("获取角色信息失败: %v", err)
+	}
+
+	if role.Name == RoleStudent {
+		// 更新学生信息
+		var student Student
+		if err := tx.First(&student, userID).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("获取学生信息失败: %v", err)
+		}
+
+		// 更新班级信息
+		if req.ClassID > 0 && req.ClassID != student.ClassID {
+			student.ClassID = req.ClassID
+			if err := tx.Save(&student).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("更新班级信息失败: %v", err)
+			}
+		}
+
+		// 更新教师关联
+		if len(req.TeacherIDs) > 0 {
+			// 删除旧的关联
+			if err := tx.Where("student_id = ?", userID).Delete(&StudentTeacher{}).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("删除旧教师关联失败: %v", err)
+			}
+
+			// 添加新的关联
+			for _, teacherID := range req.TeacherIDs {
+				studentTeacher := &StudentTeacher{
+					StudentID: userID,
+					TeacherID: teacherID,
+				}
+				if err := tx.Create(studentTeacher).Error; err != nil {
+					tx.Rollback()
+					return nil, fmt.Errorf("添加新教师关联失败: %v", err)
+				}
+			}
+		}
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("事务提交失败: %v", err)
 	}
 
 	// 更新缓存
@@ -349,8 +469,17 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, er
 
 // ChangePassword 修改密码
 func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) error {
+	// 开始事务
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	var user User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if err := tx.First(&user, userID).Error; err != nil {
+		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("用户不存在")
 		}
@@ -359,12 +488,20 @@ func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) er
 
 	// 调用用户对象的ChangePassword方法
 	if err := user.ChangePassword(req.OldPassword, req.NewPassword); err != nil {
+		tx.Rollback()
 		return err
 	}
 
 	// 保存更新后的用户
-	if err := database.DB.Save(&user).Error; err != nil {
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
 		return fmt.Errorf("更新密码失败: %v", err)
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("事务提交失败: %v", err)
 	}
 
 	// 更新缓存
@@ -422,9 +559,18 @@ func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, erro
 
 // ResetPassword 重置密码
 func (s *UserService) ResetPassword(req *ResetPasswordRequest) (string, error) {
+	// 开始事务
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	// 查找用户
 	var user User
-	if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+	if err := tx.Where("username = ?", req.Username).First(&user).Error; err != nil {
+		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", errors.New("用户不存在")
 		}
@@ -434,12 +580,20 @@ func (s *UserService) ResetPassword(req *ResetPasswordRequest) (string, error) {
 	// 调用用户对象的ResetPassword方法
 	tempPassword, err := user.ResetPassword()
 	if err != nil {
+		tx.Rollback()
 		return "", fmt.Errorf("密码重置失败: %v", err)
 	}
 
 	// 保存更新后的用户
-	if err := database.DB.Save(&user).Error; err != nil {
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
 		return "", fmt.Errorf("保存密码失败: %v", err)
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return "", fmt.Errorf("事务提交失败: %v", err)
 	}
 
 	// 更新缓存

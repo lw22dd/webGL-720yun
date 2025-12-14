@@ -52,6 +52,7 @@ const (
 	KeyPrefixUserOnline     = "user:online:"     // 用户在线状态
 	KeyPrefixTokenBlacklist = "token:blacklist:" // 令牌黑名单
 	KeyPrefixUserInfo       = "user:info:"       // 用户信息缓存
+	KeyPrefixLock           = "lock:"            // 互斥锁
 )
 
 // SaveUserSession 保存用户会话
@@ -126,6 +127,14 @@ func (s *RedisService) IsInBlacklist(token string) bool {
 	return err == nil
 }
 
+// addRandomExpiration 为缓存时间添加随机值，防止缓存雪崩
+func addRandomExpiration(base time.Duration) time.Duration {
+	// 添加10%到30%的随机时间
+	percentage := 0.1 + 0.2*(float64(time.Now().UnixNano()%100)/100.0)
+	randomDuration := time.Duration(float64(base) * percentage)
+	return base + randomDuration
+}
+
 // CacheUserInfo 缓存用户信息
 func (s *RedisService) CacheUserInfo(userID uint, userInfo interface{}, expiresIn time.Duration) error {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserInfo, userID)
@@ -134,7 +143,24 @@ func (s *RedisService) CacheUserInfo(userID uint, userInfo interface{}, expiresI
 		return err
 	}
 
-	return s.client.Set(key, data, expiresIn).Err()
+	// 添加随机过期时间防止缓存雪崩
+	randomExpiresIn := addRandomExpiration(expiresIn)
+	return s.client.Set(key, data, randomExpiresIn).Err()
+}
+
+// CacheEmptyUserInfo 缓存空用户信息（防止缓存穿透）
+func (s *RedisService) CacheEmptyUserInfo(userID uint, expiresIn time.Duration) error {
+	key := fmt.Sprintf("%s%d", KeyPrefixUserInfo, userID)
+	// 使用空对象表示数据不存在
+	emptyUserInfo := make(map[string]interface{})
+	data, err := json.Marshal(emptyUserInfo)
+	if err != nil {
+		return err
+	}
+
+	// 添加随机过期时间防止缓存雪崩
+	randomExpiresIn := addRandomExpiration(expiresIn)
+	return s.client.Set(key, data, randomExpiresIn).Err()
 }
 
 // GetCachedUserInfo 获取缓存的用户信息
@@ -142,12 +168,21 @@ func (s *RedisService) GetCachedUserInfo(userID uint) (map[string]interface{}, e
 	key := fmt.Sprintf("%s%d", KeyPrefixUserInfo, userID)
 	data, err := s.client.Get(key).Result()
 	if err != nil {
+		// 缓存未命中，判断是否是缓存穿透
+		if err == redis.Nil {
+			return nil, nil // 返回nil表示缓存未命中，由调用方决定是否查询数据库
+		}
 		return nil, err
 	}
 
 	var userInfo map[string]interface{}
 	if err := json.Unmarshal([]byte(data), &userInfo); err != nil {
 		return nil, err
+	}
+
+	// 检查是否是缓存空对象
+	if len(userInfo) == 0 {
+		return nil, nil // 返回nil表示数据不存在
 	}
 
 	return userInfo, nil
@@ -157,6 +192,23 @@ func (s *RedisService) GetCachedUserInfo(userID uint) (map[string]interface{}, e
 func (s *RedisService) DeleteCachedUserInfo(userID uint) error {
 	key := fmt.Sprintf("%s%d", KeyPrefixUserInfo, userID)
 	return s.client.Del(key).Err()
+}
+
+// AcquireLock 获取分布式锁
+func (s *RedisService) AcquireLock(key string, expiresIn time.Duration) bool {
+	lockKey := fmt.Sprintf("%s%s", KeyPrefixLock, key)
+	// 使用SETNX命令获取锁
+	success, err := s.client.SetNX(lockKey, "1", expiresIn).Result()
+	if err != nil {
+		return false
+	}
+	return success
+}
+
+// ReleaseLock 释放分布式锁
+func (s *RedisService) ReleaseLock(key string) error {
+	lockKey := fmt.Sprintf("%s%s", KeyPrefixLock, key)
+	return s.client.Del(lockKey).Err()
 }
 
 // GetClient 获取Redis客户端

@@ -124,9 +124,9 @@ type User struct {
 	Phone     string         `gorm:"type:varchar(20);uniqueIndex" json:"phone"`
 	Nickname  string         `gorm:"type:varchar(50)" json:"nickname"`
 	Avatar    string         `gorm:"type:varchar(255)" json:"avatar"`
-	RoleID    uint           `gorm:"not null" json:"role_id"`
+	RoleID    uint           `gorm:"not null;index" json:"role_id"`
 	Role      Role           `gorm:"foreignKey:RoleID" json:"role"`
-	Status    int            `gorm:"default:1" json:"status"` // 1:正常 0:禁用
+	Status    int            `gorm:"default:1;index" json:"status"` // 1:正常 0:禁用
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
@@ -142,7 +142,7 @@ type Teacher struct {
 type Student struct {
 	User
 	StudentID string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"student_id"` // 学号
-	ClassID   uint      `gorm:"not null" json:"class_id"`
+	ClassID   uint      `gorm:"not null;index" json:"class_id"`
 	Class     Class     `gorm:"foreignKey:ClassID" json:"class"`
 	Teachers  []Teacher `gorm:"many2many:student_teachers;" json:"teachers"` // 关联多个教师
 }
