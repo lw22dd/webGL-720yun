@@ -1,0 +1,6 @@
+学号,用户名,密码,姓名,邮箱,手机号,班级ID,教师ID
+2021001,student001,123456,学生001,student001@example.com,13000000001,1,1
+2021002,student002,123456,学生002,student002@example.com,13000000002,1,1
+2021003,student003,123456,学生003,student003@example.com,13000000003,2,2
+2021004,student004,123456,学生004,student004@example.com,13000000004,2,2
+2021005,student005,123456,学生005,student005@example.com,13000000005,3,3

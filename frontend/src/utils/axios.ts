@@ -1,8 +1,7 @@
-
-import axios from "axios";
+import axios, { CancelTokenSource } from "axios";
 
 const serverConfig = {
-    baseURL: "/api", // 请求基础地址,使用相对路径，通过nginx反向代理到后端
+    baseURL: "/api/v1", // 请求基础地址,使用相对路径，通过nginx反向代理到后端
     useTokenAuthorization: false, // 是否开启 token 认证
   };
 // 创建 axios 请求实例

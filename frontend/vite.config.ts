@@ -14,6 +14,16 @@ export default defineConfig({
       //
     },
   },
+  server: {
+    host: true, // 允许外部访问
+    port: 5173, // Vite默认端口
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_BASE_URL || 'http://localhost:7000',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     // 优化构建输出，减少不必要的JS文件
     rollupOptions: {

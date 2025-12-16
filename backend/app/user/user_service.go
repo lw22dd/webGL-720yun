@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime/multipart"
+	"strings"
 	"time"
 	"webGL-720yun/pkg/database"
 	"webGL-720yun/pkg/services/jwt"
 	"webGL-720yun/pkg/services/redis"
 	"webGL-720yun/pkg/utils"
 
+	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -650,4 +653,203 @@ func (s *UserService) DeleteUser(userID uint) error {
 	s.redisService.SetUserOffline(userID)
 
 	return nil
+}
+
+// 解析Excel文件，提取学生数据
+func (s *UserService) ParseExcel(file multipart.File) ([]StudentExcelData, error) {
+	// 创建excelize文件
+	f, err := excelize.OpenReader(file)
+	if err != nil {
+		return nil, fmt.Errorf("打开Excel文件失败: %v", err)
+	}
+	defer f.Close()
+
+	// 获取第一个工作表
+	sheetName := f.GetSheetName(0)
+	if sheetName == "" {
+		return nil, errors.New("Excel文件中没有工作表")
+	}
+
+	// 获取所有行
+	rows, err := f.GetRows(sheetName)
+	if err != nil {
+		return nil, fmt.Errorf("读取Excel行失败: %v", err)
+	}
+
+	if len(rows) < 2 {
+		return nil, errors.New("Excel文件中至少需要包含表头和一行数据")
+	}
+
+	// 解析表头，自动识别关键字段
+	head := rows[0]
+	nameIndex := -1
+	studentIDIndex := -1
+	emailIndex := -1
+	phoneIndex := -1
+	classNameIndex := -1
+
+	// 自动识别字段
+	for i, field := range head {
+		field = strings.TrimSpace(field)
+		fieldLower := strings.ToLower(field)
+
+		// 识别姓名
+		if nameIndex == -1 && (strings.Contains(fieldLower, "姓名") || strings.Contains(fieldLower, "name")) {
+			nameIndex = i
+		}
+
+		// 识别学号
+		if studentIDIndex == -1 && (strings.Contains(fieldLower, "学号") || strings.Contains(fieldLower, "student") || strings.Contains(fieldLower, "id")) {
+			studentIDIndex = i
+		}
+
+		// 识别邮箱
+		if emailIndex == -1 && (strings.Contains(fieldLower, "邮箱") || strings.Contains(fieldLower, "email")) {
+			emailIndex = i
+		}
+
+		// 识别手机号
+		if phoneIndex == -1 && (strings.Contains(fieldLower, "手机") || strings.Contains(fieldLower, "phone")) {
+			phoneIndex = i
+		}
+
+		// 识别班级
+		if classNameIndex == -1 && (strings.Contains(fieldLower, "班级") || strings.Contains(fieldLower, "class")) {
+			classNameIndex = i
+		}
+	}
+
+	// 验证必要字段是否存在
+	if nameIndex == -1 {
+		return nil, errors.New("无法识别姓名字段")
+	}
+	if studentIDIndex == -1 {
+		return nil, errors.New("无法识别学号字段")
+	}
+	if emailIndex == -1 {
+		return nil, errors.New("无法识别邮箱字段")
+	}
+
+	// 解析数据行
+	var students []StudentExcelData
+	for i, row := range rows[1:] {
+		// 跳过空行
+		if len(row) == 0 || (len(row) > nameIndex && strings.TrimSpace(row[nameIndex]) == "") {
+			continue
+		}
+
+		// 获取字段值
+		name := ""
+		if len(row) > nameIndex {
+			name = strings.TrimSpace(row[nameIndex])
+		}
+
+		studentID := ""
+		if len(row) > studentIDIndex {
+			studentID = strings.TrimSpace(row[studentIDIndex])
+		}
+
+		email := ""
+		if len(row) > emailIndex {
+			email = strings.TrimSpace(row[emailIndex])
+		}
+
+		phone := ""
+		if len(row) > phoneIndex && phoneIndex != -1 {
+			phone = strings.TrimSpace(row[phoneIndex])
+		}
+
+		className := ""
+		if len(row) > classNameIndex && classNameIndex != -1 {
+			className = strings.TrimSpace(row[classNameIndex])
+		}
+
+		// 验证必要字段
+		if name == "" || studentID == "" || email == "" {
+			continue
+		}
+
+		// 根据班级名称获取班级ID
+		var classID uint = 0
+		if className != "" {
+			var class Class
+			if err := database.DB.Where("name = ?", className).First(&class).Error; err == nil {
+				classID = class.ID
+			}
+		}
+
+		// 创建学生数据
+		student := StudentExcelData{
+			Index:      i + 2, // 行号从2开始
+			Name:       name,
+			StudentID:  studentID,
+			Email:      email,
+			Phone:      phone,
+			ClassName:  className,
+			ClassID:    classID,
+			TeacherIDs: []uint{}, // 暂时为空，后续处理
+		}
+
+		students = append(students, student)
+	}
+
+	return students, nil
+}
+
+// 批量注册学生
+func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegisterResponse, error) {
+	var successCount int
+	var failedCount int
+	var results []BatchRegisterResult
+	var errors []map[string]interface{}
+
+	// 遍历学生数据，逐个注册
+	for _, student := range students {
+		// 创建注册请求
+		req := &RegisterRequest{
+			Username:   student.StudentID, // 使用学号作为用户名
+			Password:   "123456",          // 默认密码
+			Email:      student.Email,
+			Phone:      student.Phone,
+			Nickname:   student.Name,
+			RoleID:     3, // 假设学生角色ID为3
+			StudentID:  student.StudentID,
+			ClassID:    student.ClassID,
+			TeacherIDs: student.TeacherIDs,
+		}
+
+		// 注册学生
+		_, err := s.Register(req)
+		var result BatchRegisterResult
+		result.Index = student.Index
+		result.Username = student.StudentID
+		result.StudentID = student.StudentID
+
+		if err != nil {
+			failedCount++
+			result.Status = "failed"
+			result.Message = err.Error()
+			errors = append(errors, map[string]interface{}{
+				"index":    student.Index,
+				"username": student.StudentID,
+				"error":    err.Error(),
+			})
+		} else {
+			successCount++
+			result.Status = "success"
+			result.Message = "注册成功"
+		}
+
+		results = append(results, result)
+	}
+
+	// 创建响应
+	response := &BatchRegisterResponse{
+		SuccessCount: successCount,
+		FailedCount:  failedCount,
+		Results:      results,
+		Errors:       errors,
+	}
+
+	return response, nil
 }

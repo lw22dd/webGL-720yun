@@ -98,8 +98,19 @@ func Init(config *config.DatabaseConfig) error {
 
 // migrate 自动迁移数据库表
 func migrate() error {
-	// 暂时注释掉自动迁移，因为模型定义不存在
-	// 后续需要创建正确的模型定义
+	// 使用GORM的AutoMigrate功能，先导入所需的模型
+	// 这里我们需要手动导入模型，避免循环依赖
+	type User struct {
+		ID        uint   `gorm:"primaryKey"`
+		StudentID string `gorm:"type:varchar(20);default:null"`
+		ClassID   uint   `gorm:"default:null"`
+	}
+
+	// 使用GORM的AutoMigrate来自动添加缺失的字段
+	if err := DB.AutoMigrate(&User{}); err != nil {
+		return fmt.Errorf("自动迁移表结构失败: %v", err)
+	}
+
 	return nil
 }
 
@@ -118,8 +129,7 @@ func printInitResult(steps []string, successSteps []string, failedSteps []string
 
 // initBasicData 初始化基础角色和权限数据
 func initBasicData() error {
-	// 暂时注释掉基础数据初始化，因为模型定义不存在
-	// 后续需要创建正确的模型定义
+
 	return nil
 }
 

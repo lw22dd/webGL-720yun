@@ -286,3 +286,34 @@ func (u *User) ToTeacher() *Teacher {
 func (u *User) ToStudent() *Student {
 	return &Student{User: *u}
 }
+
+// 批量注册相关结构体
+
+// 批量注册响应
+type BatchRegisterResponse struct {
+	SuccessCount int                   `json:"success_count"` // 成功数量
+	FailedCount  int                   `json:"failed_count"`  // 失败数量
+	Results      []BatchRegisterResult `json:"results"`       // 详细结果
+	Errors       []map[string]interface{} `json:"errors"`        // 错误信息
+}
+
+// 单个学生注册结果
+type BatchRegisterResult struct {
+	Index     int    `json:"index"`      // 行号
+	Username  string `json:"username"`   // 用户名
+	StudentID string `json:"student_id"` // 学号
+	Status    string `json:"status"`     // 状态：success/failed
+	Message   string `json:"message"`    // 消息
+}
+
+// Excel解析后的学生数据
+type StudentExcelData struct {
+	Index      int    // 行号
+	Name       string // 姓名
+	StudentID  string // 学号
+	Email      string // 邮箱
+	Phone      string // 手机号
+	ClassName  string // 班级名称
+	ClassID    uint   // 班级ID
+	TeacherIDs []uint // 关联教师ID
+}

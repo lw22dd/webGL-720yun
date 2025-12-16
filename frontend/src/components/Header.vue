@@ -120,9 +120,9 @@
       <!-- 注册弹窗 -->
       <el-dialog v-model="showRegisterDialog" title="注册" width="400px" center>
         <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef">
-          <el-form-item prop="name">
+          <el-form-item prop="username">
             <el-input 
-              v-model="registerForm.name" 
+              v-model="registerForm.username" 
               placeholder="请输入用户名"
               prefix-icon="User"
             ></el-input>
@@ -217,7 +217,7 @@ const loginRules = {
 const registerFormRef = ref()
 const registerLoading = ref(false)
 const registerForm = reactive({
-    name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -225,7 +225,7 @@ const registerForm = reactive({
 
 // 注册表单验证规则
 const registerRules = {
-    name: [
+    username: [
         { required: true, message: '请输入用户名', trigger: 'blur' },
         { min: 2, max: 20, message: '用户名长度应在2-20个字符之间', trigger: 'blur' }
     ],
@@ -297,9 +297,10 @@ const handleRegister = async () => {
             registerLoading.value = true
             try {
                 const result = await UserApi.register({
-                    name: registerForm.name,
+                    username: registerForm.username,
                     email: registerForm.email,
-                    password: registerForm.password
+                    password: registerForm.password,
+                    role_id: 2 // 默认为普通用户角色，根据实际需求调整
                 })
                 if (result.code === 200) {
                     // 注册成功
@@ -308,7 +309,7 @@ const handleRegister = async () => {
                     showLoginDialog.value = true
                     
                     // 重置表单
-                    registerForm.name = ''
+                    registerForm.username = ''
                     registerForm.email = ''
                     registerForm.password = ''
                     registerForm.confirmPassword = ''

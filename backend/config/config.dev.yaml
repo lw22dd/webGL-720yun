@@ -11,8 +11,10 @@ server:
     write_timeout: 10
     mode: debug
 database:
-    host: mysql
-    port: 3306
+#    host: mysql  保留的docker生产配置
+#    port: 3306
+    host: localhost # 开发配置
+    port: 3307
     username: root
     password: 123456
     database: 720db
@@ -20,7 +22,8 @@ database:
     max_idle_conns: 10
     max_open_conns: 100
 redis:
-    host: redis
+#    host: redis 保留的docker生产配置
+    host: localhost
     port: 6379
     password: ""
     db: 0

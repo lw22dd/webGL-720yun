@@ -22,6 +22,10 @@ FROM nginx:alpine
 # 复制构建好的静态文件到nginx的html目录
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# 设置静态文件权限
+RUN chown -R nginx:nginx /usr/share/nginx/html && \ 
+    chmod -R 755 /usr/share/nginx/html
+
 # 复制nginx配置文件
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

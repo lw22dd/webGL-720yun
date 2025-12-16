@@ -42,7 +42,7 @@ func main() {
 	// 调试：打印数据库配置
 	logger.Infof("数据库配置: host=%s, port=%d, database=%s", config.Conf.Database.Host, config.Conf.Database.Port, config.Conf.Database.Database)
 
-	// 4. 初始化Redis服务
+	// 6. 初始化Redis服务
 	redisClient := redis.NewRedisService(&config.Conf.Redis)
 
 	// 5. 初始化JWT服务

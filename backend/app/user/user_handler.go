@@ -242,3 +242,37 @@ func DeleteUser(service *UserService) gin.HandlerFunc {
 		utils.Success(c.Writer, gin.H{"message": "删除成功"})
 	}
 }
+
+// 批量注册处理函数
+func BatchRegister(service *UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 获取上传的文件
+		file, _, err := c.Request.FormFile("file")
+		if err != nil {
+			utils.BadRequest(c.Writer, "获取上传文件失败: "+err.Error())
+			return
+		}
+		defer file.Close()
+
+		// 解析Excel文件
+		students, err := service.ParseExcel(file)
+		if err != nil {
+			utils.BadRequest(c.Writer, "解析Excel文件失败: "+err.Error())
+			return
+		}
+
+		if len(students) == 0 {
+			utils.BadRequest(c.Writer, "Excel文件中没有有效数据")
+			return
+		}
+
+		// 批量注册学生
+		response, err := service.BatchRegister(students)
+		if err != nil {
+			utils.InternalServerError(c.Writer, "批量注册失败: "+err.Error())
+			return
+		}
+
+		utils.Success(c.Writer, response)
+	}
+}

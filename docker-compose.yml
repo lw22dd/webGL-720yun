@@ -50,36 +50,6 @@ services:
       timeout: 5s
       retries: 3
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: webgl-720yun-backend
-    restart: always
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "7000:7000"
-    volumes:
-      - ./backend/config:/app/config
-    environment:
-      - GIN_MODE=release
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: webgl-720yun-frontend
-    restart: always
-    depends_on:
-      - backend
-    ports:
-      - "8080:80"
-
 volumes:
   mysql_data:
-  mysql_config:
   redis_data:

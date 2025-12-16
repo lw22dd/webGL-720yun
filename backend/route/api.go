@@ -49,6 +49,8 @@ func UserAPIRoutes(r *gin.Engine, serviceContext *services.ServiceContext) {
 					admin.POST("/create", user.Register(userService))
 					admin.PUT("/:id", user.UpdateUser(userService))
 					admin.DELETE("/:id", user.DeleteUser(userService))
+					// 批量注册路由
+					admin.POST("/batch-register", user.BatchRegister(userService))
 				}
 			}
 		}
