@@ -3,6 +3,8 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"webGL-720yun/config"
@@ -72,23 +74,14 @@ func Init(config *config.DatabaseConfig) error {
 	sqlDB.SetMaxOpenConns(config.MaxOpenConns)
 	successSteps = append(successSteps, "设置连接池: 成功")
 
-	// 步骤3: 自动迁移表结构
-	steps = append(steps, "自动迁移表结构")
-	if err := migrate(); err != nil {
-		failedSteps = append(failedSteps, fmt.Sprintf("自动迁移表结构: 失败 - %v", err))
+	// 步骤3: 执行初始化SQL脚本
+	steps = append(steps, "执行初始化SQL脚本")
+	if err := executeInitSQL(); err != nil {
+		failedSteps = append(failedSteps, fmt.Sprintf("执行初始化SQL脚本: 失败 - %v", err))
 		printInitResult(steps, successSteps, failedSteps)
-		return fmt.Errorf("数据库迁移失败: %v", err)
+		return fmt.Errorf("执行初始化SQL脚本失败: %v", err)
 	}
-	successSteps = append(successSteps, "自动迁移表结构: 成功")
-
-	// 步骤4: 初始化基础数据
-	steps = append(steps, "初始化基础数据")
-	if err := initBasicData(); err != nil {
-		failedSteps = append(failedSteps, fmt.Sprintf("初始化基础数据: 失败 - %v", err))
-		printInitResult(steps, successSteps, failedSteps)
-		return fmt.Errorf("初始化基础数据失败: %v", err)
-	}
-	successSteps = append(successSteps, "初始化基础数据: 成功")
+	successSteps = append(successSteps, "执行初始化SQL脚本: 成功")
 
 	// 打印最终结果
 	printInitResult(steps, successSteps, failedSteps)
@@ -96,22 +89,101 @@ func Init(config *config.DatabaseConfig) error {
 	return nil
 }
 
-// migrate 自动迁移数据库表
-func migrate() error {
-	// 使用GORM的AutoMigrate功能，先导入所需的模型
-	// 这里我们需要手动导入模型，避免循环依赖
-	type User struct {
-		ID        uint   `gorm:"primaryKey"`
-		StudentID string `gorm:"type:varchar(20);default:null"`
-		ClassID   uint   `gorm:"default:null"`
+// executeInitSQL 执行初始化SQL脚本
+func executeInitSQL() error {
+	// 获取当前工作目录
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("获取当前工作目录失败: %v", err)
 	}
 
-	// 使用GORM的AutoMigrate来自动添加缺失的字段
-	if err := DB.AutoMigrate(&User{}); err != nil {
-		return fmt.Errorf("自动迁移表结构失败: %v", err)
+	// 根据当前工作目录计算init.sql的正确路径
+	var sqlFile string
+
+	// 检查当前工作目录是否包含app/user（测试环境）
+	if strings.Contains(currentDir, "app/user") {
+		// 测试环境：从app/user向上两级目录
+		sqlFile = currentDir + "/../../pkg/database/init.sql"
+	} else if strings.HasSuffix(currentDir, "backend") {
+		// 正常运行环境：直接使用相对路径
+		sqlFile = currentDir + "/pkg/database/init.sql"
+	} else {
+		// 其他情况：假设当前目录是项目根目录
+		sqlFile = currentDir + "/backend/pkg/database/init.sql"
+	}
+
+	// 检查文件是否存在
+	if _, err := os.Stat(sqlFile); os.IsNotExist(err) {
+		return fmt.Errorf("init.sql文件不存在: %v, 尝试的路径: %s", err, sqlFile)
+	}
+
+	// 读取SQL文件内容
+	content, err := os.ReadFile(sqlFile)
+	if err != nil {
+		return fmt.Errorf("读取SQL文件失败: %v, 路径: %s", err, sqlFile)
+	}
+
+	// 使用database/sql包的Exec方法执行SQL文件
+	sqlDB, err := DB.DB()
+	if err != nil {
+		return fmt.Errorf("获取数据库连接失败: %v", err)
+	}
+
+	// 将SQL内容按分号分割成多个语句
+	sqlStatements := splitSQL(string(content))
+
+	// 逐个执行SQL语句
+	for _, stmt := range sqlStatements {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" || strings.HasPrefix(strings.TrimSpace(stmt), "--") {
+			continue // 跳过空语句和注释
+		}
+
+		_, err = sqlDB.Exec(stmt)
+		if err != nil {
+			return fmt.Errorf("执行SQL语句失败: %v, 语句: %s", err, stmt)
+		}
 	}
 
 	return nil
+}
+
+// splitSQL 将SQL内容按分号分割成多个语句
+func splitSQL(sql string) []string {
+	var statements []string
+	var currentStmt strings.Builder
+	inString := false
+	stringChar := byte(0)
+
+	for i := 0; i < len(sql); i++ {
+		char := sql[i]
+
+		// 处理字符串开始/结束
+		if (char == '\'' || char == '"' || char == '`') && (i == 0 || sql[i-1] != '\\') {
+			if !inString {
+				inString = true
+				stringChar = char
+			} else if char == stringChar {
+				inString = false
+				stringChar = 0
+			}
+		}
+
+		// 处理分号分隔符
+		if char == ';' && !inString {
+			statements = append(statements, currentStmt.String())
+			currentStmt.Reset()
+		} else {
+			currentStmt.WriteByte(char)
+		}
+	}
+
+	// 添加最后一个语句
+	if currentStmt.Len() > 0 {
+		statements = append(statements, currentStmt.String())
+	}
+
+	return statements
 }
 
 // printInitResult 打印初始化结果
@@ -125,12 +197,6 @@ func printInitResult(steps []string, successSteps []string, failedSteps []string
 	}
 	fmt.Printf("\n总步骤: %d, 成功: %d, 失败: %d\n", len(steps), len(successSteps), len(failedSteps))
 	fmt.Println("========================\n")
-}
-
-// initBasicData 初始化基础角色和权限数据
-func initBasicData() error {
-
-	return nil
 }
 
 // GetDB 获取数据库实例

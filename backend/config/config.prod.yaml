@@ -9,23 +9,38 @@ server:
     port: 7000
     read_timeout: 10
     write_timeout: 10
+    mode: release
+database:
+    host: mysql
+    port: 3306
+    username: root
+    password: 123456
+    database: 720db
+    charset: utf8mb4
+    max_idle_conns: 10
+    max_open_conns: 100
 redis:
-    host: 1.14.105.160
+    host: redis
     port: 6379
-    password: spynsql
+    password: ""
     db: 0
+jwt:
+    secret: "webgl-720yun-secret-key-2024"
+    access_timeout: 60    # 访问令牌过期时间(分钟)
+    refresh_timeout: 168  # 刷新令牌过期时间(小时)
+    issuer: "webgl-720yun"
 no_auth:
     - /favicon.ico
     - /static
-    - /auth/refreshToken
+    - /auth/login
+    - /auth/refresh
+    - /user/register
 proxy:
-    host: 1.14.105.160
+    host: localhost
     port: 7001
     no_proxy:
-        - /user/login
-        - /user/register
-        - /user/logout
         - /favicon.ico
         - /static
-        - /auth/refreshToken
-        - /noAuth/get
+        - /auth/login
+        - /auth/refresh
+        - /user/register

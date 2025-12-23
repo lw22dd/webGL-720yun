@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"strings"
 	"time"
@@ -807,14 +808,14 @@ func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegister
 	for _, student := range students {
 		// 创建注册请求
 		req := &RegisterRequest{
-			Username:   student.StudentID, // 使用学号作为用户名
-			Password:   "123456",          // 默认密码
-			Email:      student.Email,
-			Phone:      student.Phone,
-			Nickname:   student.Name,
-			RoleID:     3, // 假设学生角色ID为3
-			StudentID:  student.StudentID,
-			ClassID:    student.ClassID,
+			Username:  student.StudentID,  // 使用学号作为用户名
+			Password:  "123456",           // 默认密码
+			Email:     student.Email,
+			Phone:     student.Phone,
+			Nickname:  student.Name,
+			RoleID:    3,                  // 假设学生角色ID为3
+			StudentID: student.StudentID,
+			ClassID:   student.ClassID,
 			TeacherIDs: student.TeacherIDs,
 		}
 
@@ -830,9 +831,9 @@ func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegister
 			result.Status = "failed"
 			result.Message = err.Error()
 			errors = append(errors, map[string]interface{}{
-				"index":    student.Index,
+				"index":   student.Index,
 				"username": student.StudentID,
-				"error":    err.Error(),
+				"error":   err.Error(),
 			})
 		} else {
 			successCount++

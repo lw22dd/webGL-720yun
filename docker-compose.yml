@@ -7,18 +7,29 @@ services:
       MYSQL_ROOT_PASSWORD: 123456
       MYSQL_DATABASE: 720db
       MYSQL_ROOT_HOST: '%'
+      TZ: Asia/Shanghai
     ports:
       - "3307:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./backend/mysql_config.cnf:/etc/mysql/conf.d/mysql_config.cnf
+      # 方案 A: 简单稳定，自动创建目录
+      # mysql_data:/var/lib/mysql Docker 命名卷，数据存在 Docker 存储目录）
+      - ./data/mysql:/var/lib/mysql
+      - ./backend/mysql_config.cnf:/etc/mysql/conf.d/mysql_config.cnf:ro
+      - ./backups:/backups
+    networks:
+      - backend
     command:
-      - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # 保持你的严格模式设置
       - --sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p123456 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -31,6 +42,8 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - backend
     command:
       - redis-server
       - --requirepass ""
@@ -51,5 +64,8 @@ services:
       retries: 3
 
 volumes:
-  mysql_data:
   redis_data:
+
+networks:
+  backend:
+    driver: bridge
