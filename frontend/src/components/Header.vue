@@ -89,12 +89,11 @@
       <!-- 登录弹窗 -->
       <el-dialog v-model="showLoginDialog" title="登录" width="400px" center>
         <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef">
-          <el-form-item prop="email">
+          <el-form-item prop="username">
             <el-input 
-              v-model="loginForm.email" 
-              placeholder="请输入邮箱" 
-              type="email"
-              prefix-icon="Message"
+              v-model="loginForm.username" 
+              placeholder="请输入用户名或邮箱" 
+              prefix-icon="User"
             ></el-input>
           </el-form-item>
           <el-form-item prop="password">
@@ -197,15 +196,14 @@ const showRegisterDialog = ref(false)
 const loginFormRef = ref()
 const loginLoading = ref(false)
 const loginForm = reactive({
-    email: '',
+    username: '',
     password: ''
 })
 
 // 登录表单验证规则
 const loginRules = {
-    email: [
-        { required: true, message: '请输入邮箱', trigger: 'blur' },
-        { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
+    username: [
+        { required: true, message: '请输入用户名或邮箱', trigger: 'blur' }
     ],
     password: [
         { required: true, message: '请输入密码', trigger: 'blur' },
@@ -263,16 +261,16 @@ const handleLogin = async () => {
         if (valid) {
             loginLoading.value = true
             try {
-                const result = await UserApi.login(loginForm.email, loginForm.password)
+                const result = await UserApi.login(loginForm.username, loginForm.password)
                 if (result.code === 200) {
                     // 登录成功
                     userStore.setLogin(true)
-                    userStore.setUserInfo({ email: loginForm.email })
+                    userStore.setUserInfo({ email: loginForm.username })
                     showLoginDialog.value = false
                     ElMessage.success('登录成功')
                     
                     // 重置表单
-                    loginForm.email = ''
+                    loginForm.username = ''
                     loginForm.password = ''
                 } else {
                     // 登录失败

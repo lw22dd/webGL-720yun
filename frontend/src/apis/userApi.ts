@@ -10,7 +10,6 @@ export default class UserApi {
     public static async register(user: User): Promise<Result<string | null>> {
         return await Axios.post('/user/register', user);
     }
-
     public static async logout(): Promise<Result<boolean>> {
         return await Axios.post('/user/logout');
     }
@@ -52,7 +51,7 @@ export default class UserApi {
         page?: number;
         page_size?: number;
     }): Promise<Result<any>> {
-        return await Axios.get('/user/list', { params });
+        return await Axios.get('/user/admin/list', { params });
     }
 
     /**
@@ -61,7 +60,7 @@ export default class UserApi {
      * @returns 用户详情
      */
     public static async getUserDetail(userId: string): Promise<Result<any>> {
-        return await Axios.get(`/user/detail/${userId}`);
+        return await Axios.get(`/user/admin/${userId}`);
     }
 
     /**
@@ -70,7 +69,7 @@ export default class UserApi {
      * @returns 删除结果
      */
     public static async deleteUser(userId: string): Promise<Result<boolean>> {
-        return await Axios.delete(`/user/${userId}`);
+        return await Axios.delete(`/user/admin/${userId}`);
     }
 
     /**
@@ -80,7 +79,7 @@ export default class UserApi {
      * @returns 更新结果
      */
     public static async updateUser(userId: string, userInfo: Partial<User>): Promise<Result<boolean>> {
-        return await Axios.put(`/user/${userId}`, userInfo);
+        return await Axios.put(`/user/admin/${userId}`, userInfo);
     }
 
     /**
@@ -89,6 +88,6 @@ export default class UserApi {
      * @returns 新增结果
      */
     public static async addUser(userInfo: User): Promise<Result<string | null>> {
-        return await Axios.post('/user', userInfo);
+        return await Axios.post('/user/admin/create', userInfo);
     }
 }

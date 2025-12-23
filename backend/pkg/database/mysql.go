@@ -46,7 +46,7 @@ func Init(config *config.DatabaseConfig) error {
 	steps = append(steps, "连接数据库")
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{
-			SingularTable: true, // 使用单数表名
+			SingularTable: false, // 使用复数表名，与SQL脚本保持一致
 		},
 		Logger: logger.New(
 			log.New(log.Writer(), "", log.LstdFlags), // io writer
@@ -120,6 +120,9 @@ func executeInitSQL() error {
 		return fmt.Errorf("init.sql文件不存在: %v, 尝试的路径: %s", err, sqlFile)
 	}
 
+	// 打印SQL文件路径，用于调试
+	fmt.Printf("正在执行SQL脚本: %s\n", sqlFile)
+
 	// 读取SQL文件内容
 	content, err := os.ReadFile(sqlFile)
 	if err != nil {
@@ -132,21 +135,64 @@ func executeInitSQL() error {
 		return fmt.Errorf("获取数据库连接失败: %v", err)
 	}
 
-	// 将SQL内容按分号分割成多个语句
-	sqlStatements := splitSQL(string(content))
+	// 使用原生的sql.DB对象执行SQL脚本
+	// 注意：mysql驱动默认不支持多语句执行，所以我们需要手动分割并执行
+	// 但是对于CREATE TABLE这样的DDL语句，我们可以使用一个简单的方法：
+	// 将SQL脚本按分号分割，然后逐个执行
+
+	// 简单的分割方法，假设分号只出现在语句末尾
+	sqlScript := string(content)
+	lines := strings.Split(sqlScript, "\n")
+	var currentStmt strings.Builder
+	var statements []string
+
+	for _, line := range lines {
+		// 跳过注释行
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "--") {
+			continue
+		}
+
+		currentStmt.WriteString(line)
+		currentStmt.WriteString("\n")
+
+		// 如果行以分号结尾，说明是一个完整的语句
+		if strings.HasSuffix(line, ";") {
+			statements = append(statements, currentStmt.String())
+			currentStmt.Reset()
+		}
+	}
+
+	// 添加最后一个语句（如果有的话）
+	if currentStmt.Len() > 0 {
+		statements = append(statements, currentStmt.String())
+	}
+
+	// 打印SQL语句数量
+	fmt.Printf("SQL语句数量: %d\n", len(statements))
 
 	// 逐个执行SQL语句
-	for _, stmt := range sqlStatements {
+	for i, stmt := range statements {
 		stmt = strings.TrimSpace(stmt)
-		if stmt == "" || strings.HasPrefix(strings.TrimSpace(stmt), "--") {
-			continue // 跳过空语句和注释
+		if stmt == "" {
+			continue
 		}
+
+		// 打印正在执行的SQL语句索引和前50个字符
+		shortStmt := stmt
+		if len(shortStmt) > 50 {
+			shortStmt = shortStmt[:50] + "..."
+		}
+		fmt.Printf("正在执行SQL语句 %d: %s\n", i+1, shortStmt)
 
 		_, err = sqlDB.Exec(stmt)
 		if err != nil {
 			return fmt.Errorf("执行SQL语句失败: %v, 语句: %s", err, stmt)
 		}
 	}
+
+	// 打印SQL脚本执行成功
+	fmt.Printf("SQL脚本执行成功，共执行 %d 条语句\n", len(statements))
 
 	return nil
 }
@@ -157,33 +203,91 @@ func splitSQL(sql string) []string {
 	var currentStmt strings.Builder
 	inString := false
 	stringChar := byte(0)
+	inComment := false
+	commentType := 0 // 0: 不在注释中, 1: 单行注释(//), 2: 多行注释(/*)
 
-	for i := 0; i < len(sql); i++ {
+	for i := 0; i < len(sql); {
 		char := sql[i]
 
-		// 处理字符串开始/结束
-		if (char == '\'' || char == '"' || char == '`') && (i == 0 || sql[i-1] != '\\') {
-			if !inString {
-				inString = true
-				stringChar = char
-			} else if char == stringChar {
-				inString = false
-				stringChar = 0
+		// 处理注释
+		if !inString {
+			// 检查单行注释 //
+			if i+1 < len(sql) && char == '/' && sql[i+1] == '/' && commentType == 0 {
+				inComment = true
+				commentType = 1
+				i += 2
+				continue
+			}
+			// 检查多行注释开始 /*
+			if i+1 < len(sql) && char == '/' && sql[i+1] == '*' && commentType == 0 {
+				inComment = true
+				commentType = 2
+				i += 2
+				continue
+			}
+			// 检查多行注释结束 */
+			if commentType == 2 && i+1 < len(sql) && char == '*' && sql[i+1] == '/' {
+				inComment = false
+				commentType = 0
+				i += 2
+				continue
+			}
+			// 检查单行注释结束
+			if commentType == 1 && char == '\n' {
+				inComment = false
+				commentType = 0
 			}
 		}
 
-		// 处理分号分隔符
-		if char == ';' && !inString {
-			statements = append(statements, currentStmt.String())
-			currentStmt.Reset()
-		} else {
+		// 如果在注释中，跳过当前字符
+		if inComment {
+			i++
+			continue
+		}
+
+		// 处理字符串开始/结束
+		if (char == '\'' || char == '"' || char == '`') && !inString {
+			inString = true
+			stringChar = char
 			currentStmt.WriteByte(char)
+			i++
+		} else if inString && char == stringChar && (i == 0 || sql[i-1] != '\\') {
+			inString = false
+			stringChar = 0
+			currentStmt.WriteByte(char)
+			i++
+		} else if inString {
+			// 处理转义字符
+			if char == '\\' && i+1 < len(sql) {
+				currentStmt.WriteByte(char)
+				i++
+				currentStmt.WriteByte(sql[i])
+				i++
+			} else {
+				currentStmt.WriteByte(char)
+				i++
+			}
+		} else {
+			// 处理分号分隔符
+			if char == ';' {
+				// 添加当前语句
+				stmt := strings.TrimSpace(currentStmt.String())
+				if stmt != "" {
+					statements = append(statements, stmt)
+				}
+				currentStmt.Reset()
+				i++
+			} else {
+				currentStmt.WriteByte(char)
+				i++
+			}
 		}
 	}
 
 	// 添加最后一个语句
-	if currentStmt.Len() > 0 {
-		statements = append(statements, currentStmt.String())
+	stmt := strings.TrimSpace(currentStmt.String())
+	if stmt != "" {
+		statements = append(statements, stmt)
 	}
 
 	return statements

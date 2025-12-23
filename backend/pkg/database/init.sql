@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_users_username` (`username`),
   UNIQUE KEY `idx_users_email` (`email`),
-  UNIQUE KEY `idx_users_phone` (`phone`),
+
   UNIQUE KEY `idx_users_student_id` (`student_id`),
   KEY `idx_users_role_id` (`role_id`),
   KEY `idx_users_status` (`status`),
