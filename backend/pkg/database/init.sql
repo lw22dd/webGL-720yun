@@ -139,7 +139,7 @@ INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 (2, 8),
 (3, 2);
 
--- 插入默认管理员用户
+-- 插入默认管理员用户 admin
 -- 密码：admin123（已加密）
 INSERT IGNORE INTO `users` (`id`, `username`, `password`, `email`, `phone`, `nickname`, `role_id`, `status`, `created_at`, `updated_at`) VALUES
 (1, 'admin', '$2a$10$4eJbJ5XwUaG7E5eJ7J5eJ5eJ5eJ5eJ5eJ5eJ5eJ5eJ5eJ5eJ5e', 'admin@example.com', '13800138000', '管理员', 1, 1, NOW(), NOW());
