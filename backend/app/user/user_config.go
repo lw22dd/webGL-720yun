@@ -29,8 +29,8 @@ type RegisterRequest struct {
 	Phone      string `json:"phone" binding:"omitempty,len=11"`
 	Nickname   string `json:"nickname" binding:"omitempty,max=50"`
 	RoleID     uint   `json:"role_id" binding:"required"`
-	StudentID  string `json:"student_id" binding:"omitempty"` // 学号，仅学生角色需要
-	ClassID    uint   `json:"class_id" binding:"omitempty"`  // 班级ID，仅学生角色需要
+	StudentID  string `json:"student_id" binding:"omitempty"`  // 学号，仅学生角色需要
+	ClassID    uint   `json:"class_id" binding:"omitempty"`    // 班级ID，仅学生角色需要
 	TeacherIDs []uint `json:"teacher_ids" binding:"omitempty"` // 关联教师ID，仅学生角色需要
 }
 
@@ -41,7 +41,7 @@ type UpdateUserRequest struct {
 	Nickname   string `json:"nickname" binding:"omitempty,max=50"`
 	Avatar     string `json:"avatar" binding:"omitempty,url"`
 	Status     int    `json:"status" binding:"omitempty,oneof=0 1"`
-	ClassID    uint   `json:"class_id" binding:"omitempty"`  // 班级ID，仅学生角色需要
+	ClassID    uint   `json:"class_id" binding:"omitempty"`    // 班级ID，仅学生角色需要
 	TeacherIDs []uint `json:"teacher_ids" binding:"omitempty"` // 关联教师ID，仅学生角色需要
 }
 
@@ -75,7 +75,7 @@ type UserListRequest struct {
 	Email    string `form:"email" json:"email"`
 	RoleID   uint   `form:"role_id" json:"role_id"`
 	Status   int    `form:"status" json:"status"`
-	ClassID  uint   `form:"class_id" json:"class_id"`  // 班级ID，用于查询特定班级的学生
+	ClassID  uint   `form:"class_id" json:"class_id"` // 班级ID，用于查询特定班级的学生
 	Keyword  string `form:"keyword" json:"keyword"`
 }
 
@@ -121,7 +121,7 @@ type User struct {
 	Username  string         `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
 	Password  string         `gorm:"type:varchar(255);not null" json:"-"`
 	Email     string         `gorm:"type:varchar(100);uniqueIndex" json:"email"`
-	Phone     string         `gorm:"type:varchar(20);uniqueIndex" json:"phone"`
+	Phone     string         `gorm:"type:varchar(20)" json:"phone"`
 	Nickname  string         `gorm:"type:varchar(50)" json:"nickname"`
 	Avatar    string         `gorm:"type:varchar(255)" json:"avatar"`
 	RoleID    uint           `gorm:"not null;index" json:"role_id"`
@@ -291,9 +291,9 @@ func (u *User) ToStudent() *Student {
 
 // 批量注册响应
 type BatchRegisterResponse struct {
-	SuccessCount int                   `json:"success_count"` // 成功数量
-	FailedCount  int                   `json:"failed_count"`  // 失败数量
-	Results      []BatchRegisterResult `json:"results"`       // 详细结果
+	SuccessCount int                      `json:"success_count"` // 成功数量
+	FailedCount  int                      `json:"failed_count"`  // 失败数量
+	Results      []BatchRegisterResult    `json:"results"`       // 详细结果
 	Errors       []map[string]interface{} `json:"errors"`        // 错误信息
 }
 

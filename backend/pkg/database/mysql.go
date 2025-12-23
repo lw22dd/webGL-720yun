@@ -107,6 +107,9 @@ func executeInitSQL() error {
 	} else if strings.HasSuffix(currentDir, "backend") {
 		// 正常运行环境：直接使用相对路径
 		sqlFile = currentDir + "/pkg/database/init.sql"
+	} else if strings.Contains(currentDir, "cmd") {
+		// 从cmd目录运行：向上一级目录
+		sqlFile = currentDir + "/../pkg/database/init.sql"
 	} else {
 		// 其他情况：假设当前目录是项目根目录
 		sqlFile = currentDir + "/backend/pkg/database/init.sql"

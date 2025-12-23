@@ -71,10 +71,14 @@ func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 		Username: req.Username,
 		Password: hashedPassword,
 		Email:    req.Email,
-		Phone:    req.Phone,
 		Nickname: req.Nickname,
 		RoleID:   req.RoleID,
 		Status:   1, // 1表示活跃状态
+	}
+
+	// 处理Phone字段，仅在非空时设置，避免唯一索引冲突
+	if req.Phone != "" {
+		user.Phone = req.Phone
 	}
 
 	if err := tx.Create(user).Error; err != nil {
@@ -138,9 +142,9 @@ func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 
 // 用户登录
 func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
-	// 查找用户
+	// 查找用户，支持用户名或邮箱登录
 	var user User
-	if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+	if err := database.DB.Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户名或密码错误")
 		}
