@@ -1,11 +1,12 @@
 package middleware
 
 import (
+	"strconv"
+	"strings"
 	"webGL-720yun/pkg/services/jwt"
 	"webGL-720yun/pkg/services/redis"
 	"webGL-720yun/pkg/utils"
-	"strings"
-	
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -80,14 +81,6 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 // RequireRole 需要特定角色
 func (m *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 先进行认证
-		m.RequireAuth()(c)
-		
-		// 如果认证失败，直接返回
-		if c.IsAborted() {
-			return
-		}
-
 		// 获取用户角色
 		userRole, exists := c.Get("role")
 		if !exists {
@@ -136,31 +129,27 @@ func (m *AuthMiddleware) RequireStudent() gin.HandlerFunc {
 // RequireAdminOrSelf 需要管理员权限或用户本人
 func (m *AuthMiddleware) RequireAdminOrSelf() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 先进行认证
-		m.RequireAuth()(c)
-		
-		// 如果认证失败，直接返回
-		if c.IsAborted() {
-			return
-		}
-
 		// 获取用户ID和角色
 		userID, _ := c.Get("user_id")
 		userRole, _ := c.Get("role")
-		
+
 		// 获取目标用户ID（从URL参数）
 		targetUserID := c.Param("id")
-		
+
 		// 如果是管理员，直接通过
-		if roleStr, ok := userRole.(string); ok && roleStr == "admin" {
-			c.Next()
-			return
+		if roleStr, ok := userRole.(string); ok {
+			if roleStr == "admin" {
+				c.Next()
+				return
+			}
 		}
 
 		// 如果是用户本人，也允许
-		if userIDStr, ok := userID.(string); ok && userIDStr == targetUserID {
-			c.Next()
-			return
+		if userIDUint, ok := userID.(uint); ok {
+			if targetID, err := strconv.ParseUint(targetUserID, 10, 32); err == nil && uint(targetID) == userIDUint {
+				c.Next()
+				return
+			}
 		}
 
 		utils.Forbidden(c.Writer, "权限不足")

@@ -142,9 +142,9 @@ func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 
 // 用户登录
 func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
-	// 查找用户，支持用户名或邮箱登录
+	// 查找用户，支持用户名或邮箱登录，并预加载角色
 	var user User
-	if err := database.DB.Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
+	if err := database.DB.Preload("Role").Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户名或密码错误")
 		}
@@ -534,12 +534,19 @@ func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, erro
 	if req.RoleID > 0 {
 		query = query.Where("role_id = ?", req.RoleID)
 	}
-	if req.Status >= 0 {
-		query = query.Where("status = ?", req.Status)
-	}
+	// 只有当Status被显式设置时才添加条件（使用指针类型或特殊标记来判断是否被设置）
+	// 对于int类型，我们无法直接判断是否被显式设置，所以需要修改逻辑
+	// 移除默认的状态过滤，让所有状态的用户都能被查询到
+	// 如果需要过滤特定状态，会通过前端显式传递status参数
+
 	// 按班级ID查询
 	if req.ClassID > 0 {
 		query = query.Joins("JOIN students ON students.id = users.id").Where("students.class_id = ?", req.ClassID)
+	}
+	// 关键词搜索
+	if req.Keyword != "" {
+		keyword := "%" + req.Keyword + "%"
+		query = query.Where("username LIKE ? OR email LIKE ? OR nickname LIKE ?", keyword, keyword, keyword)
 	}
 
 	// 计算总数

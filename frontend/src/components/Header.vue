@@ -82,8 +82,23 @@
       
       <!-- 用户操作 -->
       <div class="flex items-center min-w-fit">
-        <el-button type="primary" size="small" @click="showLoginDialog = true" class="text-xs px-3.5 py-1.5 transition-all hover:-translate-y-0.5 mr-2">登录</el-button>
-        <el-button type="default" size="small" @click="showRegisterDialog = true" class="text-xs px-3.5 py-1.5 transition-all hover:-translate-y-0.5">注册</el-button>
+        <template v-if="userStore.isLogin">
+          <el-dropdown>
+            <span class="flex items-center cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50">
+              {{ userStore.userInfo.email || userStore.userInfo.name || '用户' }}
+              <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <template v-else>
+          <el-button type="primary" size="small" @click="showLoginDialog = true" class="text-xs px-3.5 py-1.5 transition-all hover:-translate-y-0.5 mr-2">登录</el-button>
+          <el-button type="default" size="small" @click="showRegisterDialog = true" class="text-xs px-3.5 py-1.5 transition-all hover:-translate-y-0.5">注册</el-button>
+        </template>
       </div>
       
       <!-- 登录弹窗 -->
@@ -262,10 +277,22 @@ const handleLogin = async () => {
             loginLoading.value = true
             try {
                 const result = await UserApi.login(loginForm.username, loginForm.password)
+                console.log('login result', result)
                 if (result.code === 200) {
                     // 登录成功
                     userStore.setLogin(true)
-                    userStore.setUserInfo({ email: loginForm.username })
+                    
+                    // 保存用户ID和基础信息
+                    userStore.setUserInfo({ 
+                        id: result.data?.user_id, 
+                        email: loginForm.username 
+                    })
+                    
+                    // 保存token到store
+                    if (result.data && result.data?.access_token) {
+                        userStore.setToken(result.data.access_token, result.data.refresh_token)
+                    }
+                    
                     showLoginDialog.value = false
                     ElMessage.success('登录成功')
                     
@@ -298,7 +325,8 @@ const handleRegister = async () => {
                     username: registerForm.username,
                     email: registerForm.email,
                     password: registerForm.password,
-                    role_id: 2 // 默认为普通用户角色，根据实际需求调整
+                    role_id: 2, // 默认为普通用户角色，根据实际需求调整
+                    status: 1 // 默认为启用状态
                 })
                 if (result.code === 200) {
                     // 注册成功
@@ -322,6 +350,25 @@ const handleRegister = async () => {
             }
         }
     })
+}
+
+// 退出登录处理
+const handleLogout = async () => {
+    try {
+        const result = await UserApi.logout()
+        if (result.code === 200) {
+            // 退出成功
+            userStore.logout()
+            ElMessage.success('退出成功')
+        } else {
+            // 退出失败
+            ElMessage.error(result.msg || '退出失败')
+        }
+    } catch (error: any) {
+        // 网络错误，直接清除本地状态
+        userStore.logout()
+        ElMessage.success('已退出登录')
+    }
 }
 </script>
 

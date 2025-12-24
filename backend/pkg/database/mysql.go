@@ -97,22 +97,34 @@ func executeInitSQL() error {
 		return fmt.Errorf("获取当前工作目录失败: %v", err)
 	}
 
-	// 根据当前工作目录计算init.sql的正确路径
+	// 尝试多种可能的路径，直到找到init.sql文件
 	var sqlFile string
+	var found bool
 
-	// 检查当前工作目录是否包含app/user（测试环境）
-	if strings.Contains(currentDir, "app/user") {
-		// 测试环境：从app/user向上两级目录
-		sqlFile = currentDir + "/../../pkg/database/init.sql"
-	} else if strings.HasSuffix(currentDir, "backend") {
-		// 正常运行环境：直接使用相对路径
-		sqlFile = currentDir + "/pkg/database/init.sql"
-	} else if strings.Contains(currentDir, "cmd") {
-		// 从cmd目录运行：向上一级目录
-		sqlFile = currentDir + "/../pkg/database/init.sql"
-	} else {
-		// 其他情况：假设当前目录是项目根目录
-		sqlFile = currentDir + "/backend/pkg/database/init.sql"
+	// 可能的路径列表
+	possiblePaths := []string{
+		// 直接在当前目录下查找
+		currentDir + "/pkg/database/init.sql",
+		// 向上一级目录查找
+		currentDir + "/../pkg/database/init.sql",
+		// 向上两级目录查找
+		currentDir + "/../../pkg/database/init.sql",
+		// 从backend目录下查找
+		currentDir + "/backend/pkg/database/init.sql",
+	}
+
+	// 遍历所有可能的路径，直到找到文件
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			sqlFile = path
+			found = true
+			break
+		}
+	}
+
+	// 如果没有找到文件，返回错误
+	if !found {
+		return fmt.Errorf("init.sql文件不存在，尝试的路径: %v", possiblePaths)
 	}
 
 	// 检查文件是否存在

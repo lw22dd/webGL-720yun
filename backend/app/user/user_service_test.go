@@ -267,3 +267,121 @@ func TestUserService_GetUserByID(t *testing.T) {
 		t.Logf("获取不存在的用户，返回错误: %v", err)
 	})
 }
+
+// 测试管理员权限功能
+func TestUserService_AdminPermissions(t *testing.T) {
+	// 创建依赖服务
+	jwtService := jwt.NewJWTService(&config.Conf.JWT)
+	redisService := redis.NewRedisService(&config.Conf.Redis)
+
+	// 创建用户服务
+	userService := NewUserService(jwtService, redisService)
+
+	// 测试用例1: 管理员登录
+	t.Run("管理员登录", func(t *testing.T) {
+		req := &LoginRequest{
+			Username: "admin",
+			Password: "admin123",
+		}
+
+		response, err := userService.Login(req)
+		if err != nil {
+			t.Errorf("管理员登录失败: %v", err)
+			return
+		}
+
+		if response == nil {
+			t.Error("管理员登录返回的响应为nil")
+			return
+		}
+
+		if response.AccessToken == "" {
+			t.Error("管理员登录返回的访问令牌为空")
+			return
+		}
+
+		if response.User == nil {
+			t.Error("管理员登录返回的用户信息为nil")
+			return
+		}
+
+		if response.User.Username != "admin" {
+			t.Errorf("管理员用户名不匹配，期望: admin, 实际: %s", response.User.Username)
+			return
+		}
+
+		// 检查用户角色是否为admin
+		if response.User.Role.Name != "admin" {
+			t.Errorf("管理员角色不匹配，期望: admin, 实际: %s", response.User.Role.Name)
+			return
+		}
+
+		t.Logf("管理员登录成功，用户ID: %d, 用户名: %s, 角色: %s", response.User.ID, response.User.Username, response.User.Role.Name)
+	})
+
+	// 测试用例2: 获取用户列表
+	t.Run("获取用户列表", func(t *testing.T) {
+		// 创建JWT服务和Redis服务
+		jwtService := jwt.NewJWTService(&config.Conf.JWT)
+		redisService := redis.NewRedisService(&config.Conf.Redis)
+
+		// 创建用户服务
+		userService := NewUserService(jwtService, redisService)
+
+		// 先注册几个用户，用于测试
+		users := []struct {
+			username string
+			email    string
+			roleID   uint
+		}{
+			{"testadmin1", "testadmin1@example.com", 1}, // admin角色
+			{"testadmin2", "testadmin2@example.com", 2}, // teacher角色
+			{"testadmin3", "testadmin3@example.com", 3}, // student角色
+		}
+
+		for _, u := range users {
+			req := &RegisterRequest{
+				Username: u.username,
+				Password: "123456",
+				Email:    u.email,
+				Nickname: u.username,
+				RoleID:   u.roleID,
+			}
+
+			_, err := userService.Register(req)
+			if err != nil {
+				t.Logf("注册用户 %s 失败: %v", u.username, err)
+				// 忽略已存在的用户错误
+			}
+		}
+
+		// 测试获取用户列表
+		listReq := &UserListRequest{
+			Page:     1,
+			PageSize: 10,
+		}
+
+		response, err := userService.GetUserList(listReq)
+		if err != nil {
+			t.Errorf("获取用户列表失败: %v", err)
+			return
+		}
+
+		if response == nil {
+			t.Error("获取用户列表返回的响应为nil")
+			return
+		}
+
+		if response.Users == nil {
+			t.Error("获取用户列表返回的用户数组为nil")
+			return
+		}
+
+		t.Logf("获取用户列表成功，总用户数: %d, 返回用户数: %d", response.Total, len(response.Users))
+		
+		// 打印返回的用户信息
+		for _, user := range response.Users {
+			t.Logf("用户ID: %d, 用户名: %s, 角色: %s, 状态: %d", user.ID, user.Username, user.Role.Name, user.Status)
+		}
+	})
+}

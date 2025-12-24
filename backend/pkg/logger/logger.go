@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"sync"
@@ -36,6 +37,19 @@ func GinZapLogger() gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
+		method := c.Request.Method
+
+		// 读取请求体（仅对非GET请求）
+		var requestBody string
+		if method != "GET" && method != "HEAD" && method != "OPTIONS" {
+			// 保存原始请求体，以便后续处理
+			body, err := io.ReadAll(c.Request.Body)
+			if err == nil && len(body) > 0 {
+				requestBody = string(body)
+				// 重新设置请求体，以便后续处理
+				c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+			}
+		}
 
 		c.Next()
 
@@ -44,17 +58,20 @@ func GinZapLogger() gin.HandlerFunc {
 
 		entry := log.WithFields(logrus.Fields{
 			"status":     c.Writer.Status(),
-			"method":     c.Request.Method,
+			"method":     method,
 			"path":       path,
 			"query":      query,
 			"ip":         c.ClientIP(),
 			"user-agent": c.Request.UserAgent(),
 			"time":       end.Format("2006-01-02 15:04:05"),
 			"latency":    latency,
+			"body":       requestBody,
 		})
 
 		if len(c.Errors) > 0 {
 			entry.Error(c.Errors.String())
+		} else {
+			entry.Info()
 		}
 
 		logChan <- entry

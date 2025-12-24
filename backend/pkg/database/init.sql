@@ -139,9 +139,17 @@ INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 (2, 8),
 (3, 2);
 
--- 插入默认管理员用户 admin
+-- 插入或更新默认管理员用户 admin
 -- 密码：admin123（已加密）
-INSERT IGNORE INTO `users` (`id`, `username`, `password`, `email`, `phone`, `nickname`, `role_id`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'admin', '$2a$10$4eJbJ5XwUaG7E5eJ7J5eJ5eJ5eJ5eJ5eJ5eJ5eJ5eJ5eJ5eJ5e', 'admin@example.com', '13800138000', '管理员', 1, 1, NOW(), NOW());
+INSERT INTO `users` (`id`, `username`, `password`, `email`, `phone`, `nickname`, `role_id`, `status`, `created_at`, `updated_at`) 
+VALUES (1, 'admin', '$2a$10$0QfJWCtOYeMEPr4JBfmLK.nhudaQnVHsSZcjgS4x.4YFAsqpB7SDe', 'admin@example.com', '13800138000', '管理员', 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE 
+password = VALUES(password), 
+email = VALUES(email), 
+phone = VALUES(phone), 
+nickname = VALUES(nickname), 
+role_id = VALUES(role_id), 
+status = VALUES(status), 
+updated_at = NOW();
 
 -- 索引已在表创建时定义，无需重复创建
