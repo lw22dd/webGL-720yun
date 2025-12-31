@@ -11,6 +11,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import * as THREE from 'three';
+// 为OrbitControls添加类型声明
+// @ts-ignore - 忽略类型检查，OrbitControls是three.js的扩展模块
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 // 容器引用
