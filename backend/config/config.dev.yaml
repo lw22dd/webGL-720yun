@@ -14,7 +14,7 @@ database:
 #    host: mysql  保留的docker生产配置
 #    port: 3306
     host: localhost # 开发配置
-    port: 3307
+    port: 3306
     username: root
     password: 123456
     database: 720db

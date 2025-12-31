@@ -247,24 +247,24 @@ func DeleteUser(service *UserService) gin.HandlerFunc {
 func BatchRegister(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 获取上传的文件
-		file, _, err := c.Request.FormFile("file")
+		file, header, err := c.Request.FormFile("file")
 		if err != nil {
 			utils.BadRequest(c.Writer, "获取上传文件失败: "+err.Error())
 			return
 		}
 		defer file.Close()
 
-		// 解析Excel文件
-		students, err := service.ParseExcel(file)
+		// 解析文件
+		students, err := service.ParseFile(file, header.Filename)
 		if err != nil {
-			utils.BadRequest(c.Writer, "解析Excel文件失败: "+err.Error())
+			utils.BadRequest(c.Writer, "解析文件失败: "+err.Error())
 			return
 		}
 
 		if len(students) == 0 {
-			utils.BadRequest(c.Writer, "Excel文件中没有有效数据")
-			return
-		}
+		utils.BadRequest(c.Writer, "文件中没有有效数据")
+		return
+	}
 
 		// 批量注册学生
 		response, err := service.BatchRegister(students)

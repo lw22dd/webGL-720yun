@@ -115,5 +115,6 @@ func registerCoreMiddleware(r *gin.Engine) {
 	r.Use(
 		gin.Recovery(),        // 官方恢复中间件
 		logger.GinZapLogger(), // 自定义日志中间件
+		middleware.CORS(),     // CORS中间件
 	)
 }

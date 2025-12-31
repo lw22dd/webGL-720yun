@@ -1,6 +1,7 @@
 package user
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -668,6 +669,29 @@ func (s *UserService) DeleteUser(userID uint) error {
 
 // 解析Excel文件，提取学生数据
 func (s *UserService) ParseExcel(file multipart.File) ([]StudentExcelData, error) {
+	// 解析Excel文件，提取学生数据
+	return s.parseExcelFile(file)
+}
+
+// 解析CSV文件，提取学生数据
+func (s *UserService) ParseCSV(file multipart.File) ([]StudentExcelData, error) {
+	// 解析CSV文件，提取学生数据
+	return s.parseCSVFile(file)
+}
+
+// 解析文件，根据文件名后缀自动选择解析方式
+func (s *UserService) ParseFile(file multipart.File, filename string) ([]StudentExcelData, error) {
+	// 根据文件名后缀选择解析方式
+	if strings.HasSuffix(strings.ToLower(filename), ".xlsx") || strings.HasSuffix(strings.ToLower(filename), ".xls") {
+		return s.parseExcelFile(file)
+	} else if strings.HasSuffix(strings.ToLower(filename), ".csv") {
+		return s.parseCSVFile(file)
+	}
+	return nil, errors.New("不支持的文件格式，仅支持.xlsx, .xls和.csv文件")
+}
+
+// 内部方法：解析Excel文件
+func (s *UserService) parseExcelFile(file multipart.File) ([]StudentExcelData, error) {
 	// 创建excelize文件
 	f, err := excelize.OpenReader(file)
 	if err != nil {
@@ -689,6 +713,140 @@ func (s *UserService) ParseExcel(file multipart.File) ([]StudentExcelData, error
 
 	if len(rows) < 2 {
 		return nil, errors.New("Excel文件中至少需要包含表头和一行数据")
+	}
+
+	// 解析表头，自动识别关键字段
+	head := rows[0]
+	nameIndex := -1
+	studentIDIndex := -1
+	emailIndex := -1
+	phoneIndex := -1
+	classNameIndex := -1
+
+	// 自动识别字段
+	for i, field := range head {
+		field = strings.TrimSpace(field)
+		fieldLower := strings.ToLower(field)
+
+		// 识别姓名
+		if nameIndex == -1 && (strings.Contains(fieldLower, "姓名") || strings.Contains(fieldLower, "name")) {
+			nameIndex = i
+		}
+
+		// 识别学号
+		if studentIDIndex == -1 && (strings.Contains(fieldLower, "学号") || strings.Contains(fieldLower, "student") || strings.Contains(fieldLower, "id")) {
+			studentIDIndex = i
+		}
+
+		// 识别邮箱
+		if emailIndex == -1 && (strings.Contains(fieldLower, "邮箱") || strings.Contains(fieldLower, "email")) {
+			emailIndex = i
+		}
+
+		// 识别手机号
+		if phoneIndex == -1 && (strings.Contains(fieldLower, "手机") || strings.Contains(fieldLower, "phone")) {
+			phoneIndex = i
+		}
+
+		// 识别班级
+		if classNameIndex == -1 && (strings.Contains(fieldLower, "班级") || strings.Contains(fieldLower, "class")) {
+			classNameIndex = i
+		}
+	}
+
+	// 验证必要字段是否存在
+	if nameIndex == -1 {
+		return nil, errors.New("无法识别姓名字段")
+	}
+	if studentIDIndex == -1 {
+		return nil, errors.New("无法识别学号字段")
+	}
+	if emailIndex == -1 {
+		return nil, errors.New("无法识别邮箱字段")
+	}
+
+	// 解析数据行
+	var students []StudentExcelData
+	for i, row := range rows[1:] {
+		// 跳过空行
+		if len(row) == 0 || (len(row) > nameIndex && strings.TrimSpace(row[nameIndex]) == "") {
+			continue
+		}
+
+		// 获取字段值
+		name := ""
+		if len(row) > nameIndex {
+			name = strings.TrimSpace(row[nameIndex])
+		}
+
+		studentID := ""
+		if len(row) > studentIDIndex {
+			studentID = strings.TrimSpace(row[studentIDIndex])
+		}
+
+		email := ""
+		if len(row) > emailIndex {
+			email = strings.TrimSpace(row[emailIndex])
+		}
+
+		phone := ""
+		if len(row) > phoneIndex && phoneIndex != -1 {
+			phone = strings.TrimSpace(row[phoneIndex])
+		}
+
+		className := ""
+		if len(row) > classNameIndex && classNameIndex != -1 {
+			className = strings.TrimSpace(row[classNameIndex])
+		}
+
+		// 验证必要字段
+		if name == "" || studentID == "" || email == "" {
+			continue
+		}
+
+		// 根据班级名称获取班级ID
+		var classID uint = 0
+		if className != "" {
+			var class Class
+			if err := database.DB.Where("name = ?", className).First(&class).Error; err == nil {
+				classID = class.ID
+			}
+		}
+
+		// 创建学生数据
+		student := StudentExcelData{
+			Index:      i + 2, // 行号从2开始
+			Name:       name,
+			StudentID:  studentID,
+			Email:      email,
+			Phone:      phone,
+			ClassName:  className,
+			ClassID:    classID,
+			TeacherIDs: []uint{}, // 暂时为空，后续处理
+		}
+
+		students = append(students, student)
+	}
+
+	return students, nil
+}
+
+// 内部方法：解析CSV文件
+func (s *UserService) parseCSVFile(file multipart.File) ([]StudentExcelData, error) {
+	// 创建csv reader
+	reader := csv.NewReader(file)
+
+	// 设置字段映射
+	reader.FieldsPerRecord = -1 // 允许可变字段数
+
+	// 读取所有行
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("读取CSV文件失败: %v", err)
+	}
+
+	if len(rows) < 2 {
+		return nil, errors.New("CSV文件中至少需要包含表头和一行数据")
 	}
 
 	// 解析表头，自动识别关键字段
