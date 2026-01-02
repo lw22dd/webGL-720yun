@@ -1,73 +1,30 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: webgl-720yun-mysql
+    container_name: mysql-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
-      MYSQL_DATABASE: 720db
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: "mydatabase"
+      MYSQL_ROOT_HOST: "%"
       TZ: Asia/Shanghai
     ports:
-      - "3307:3306"
+      - "3306:3306"
+    command: >
+      --default-authentication-plugin=mysql_native_password
     volumes:
-      # 使用Docker命名卷管理数据库
-      - mysql_data:/var/lib/mysql
-      - ./backend/mysql_config.cnf:/etc/mysql/conf.d/mysql_config.cnf:ro
-      - ./backups:/backups
-    networks:
-      - backend
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      # 保持你的严格模式设置
-      - --sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
-      # 配置认证插件，兼容旧版本客户端
-      - --default-authentication-plugin=caching_sha2_password
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 2G
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p123456 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      - mysql-data:/var/lib/mysql
 
   redis:
     image: redis:7.0
-    container_name: webgl-720yun-redis
+    container_name: redis-cache
     restart: always
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
-    networks:
-      - backend
-    command:
-      - redis-server
-      - --requirepass ""
-      - --appendonly yes
-      - --save
-      - "900"
-      - "1"
-      - --save
-      - "300"
-      - "10"
-      - --save
-      - "60"
-      - "10000"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      - redis-data:/data
+    command: redis-server --appendonly yes
 
 volumes:
-  redis_data:
-  mysql_data:
-
-networks:
-  backend:
-    driver: bridge
+  mysql-data:
+  redis-data:
