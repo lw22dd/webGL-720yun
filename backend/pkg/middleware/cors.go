@@ -1,11 +1,7 @@
 package middleware
 
 import (
-	"time"
-	"webGL-720yun/pkg/logger"
-
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 // Logger 日志中间件
@@ -16,38 +12,6 @@ import (
 // 4. RateLimiter (限流)
 // 5. Auth (认证,仅部分路由需要)
 // 6. Permission (权限校验,仅部分路由需要)
-func Logger() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		path := c.Request.URL.Path
-		raw := c.Request.URL.RawQuery
-
-		// 处理请求
-		c.Next()
-
-		// 记录日志
-		latency := time.Since(start)
-		clientIP := c.ClientIP()
-		method := c.Request.Method
-		statusCode := c.Writer.Status()
-		bodySize := c.Writer.Size()
-
-		if raw != "" {
-			path = path + "?" + raw
-		}
-
-		logger.Info("HTTP请求",
-			zap.String("client_ip", clientIP),
-			zap.String("method", method),
-			zap.String("path", path),
-			zap.Int("status_code", statusCode),
-			zap.Duration("latency", latency),
-			zap.Int("body_size", bodySize),
-			zap.String("user_agent", c.Request.UserAgent()),
-			zap.String("error_message", c.Errors.ByType(gin.ErrorTypePrivate).String()),
-		)
-	}
-}
 
 // CORS CORS中间件
 func CORS() gin.HandlerFunc {
