@@ -458,3 +458,5 @@
 {"file":"D:/lwdd/code/tmp/webGL-720yun/backend/pkg/logger/logger.go:118","func":"webGL-720yun/pkg/logger.Info","level":"info","msg":"服务已安全停止","time":"2026-01-02 17:39:27"}
 {"file":"D:/lwdd/code/tmp/webGL-720yun/backend/pkg/logger/logger.go:160","func":"webGL-720yun/pkg/logger.Infof","level":"info","msg":"数据库配置: host=localhost, port=3306, database=720db","time":"2026-01-02 17:39:29"}
 {"file":"D:/lwdd/code/tmp/webGL-720yun/backend/pkg/logger/logger.go:118","func":"webGL-720yun/pkg/logger.Info","level":"info","msg":"服务器启动address:7000","time":"2026-01-02 17:39:29"}
+{"file":"D:/lwdd/code/tmp/webGL-720yun/backend/pkg/logger/logger.go:118","func":"webGL-720yun/pkg/logger.Info","level":"info","msg":"正在关闭服务...signalterminated","time":"2026-01-02 18:02:58"}
+{"file":"D:/lwdd/code/tmp/webGL-720yun/backend/pkg/logger/logger.go:118","func":"webGL-720yun/pkg/logger.Info","level":"info","msg":"服务已安全停止","time":"2026-01-02 18:02:58"}
