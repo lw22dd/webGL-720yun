@@ -12,9 +12,8 @@ import (
 
 // UserAPIRoutes 用户相关路由注册
 func UserAPIRoutes(r *gin.Engine, serviceContext *services.ServiceContext) {
-	// 从服务上下文获取所需的服务实例
-	userService := serviceContext.GetUserService()
-	authMiddleware := serviceContext.GetAuthMiddleware()
+	userService := serviceContext.UserService
+	authMiddleware := serviceContext.AuthMiddleware
 
 	// API路由组
 	api := r.Group("/api/v1")

@@ -8,8 +8,7 @@ import (
 	"mime/multipart"
 	"strings"
 	"time"
-	"webGL-720yun/pkg/database"
-	"webGL-720yun/pkg/services/jwt"
+	"webGL-720yun/pkg/middleware"
 	"webGL-720yun/pkg/services/redis"
 	"webGL-720yun/pkg/utils"
 
@@ -19,13 +18,14 @@ import (
 
 // 用户服务
 type UserService struct {
-	jwtService   *jwt.JWTService
+	db           *gorm.DB
+	jwtService   *middleware.JWTService
 	redisService *redis.RedisService
 }
 
-// 创建用户服务
-func NewUserService(jwtService *jwt.JWTService, redisService *redis.RedisService) *UserService {
+func NewUserService(db *gorm.DB, jwtService *middleware.JWTService, redisService *redis.RedisService) *UserService {
 	return &UserService{
+		db:           db,
 		jwtService:   jwtService,
 		redisService: redisService,
 	}
@@ -35,20 +35,20 @@ func NewUserService(jwtService *jwt.JWTService, redisService *redis.RedisService
 func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 	// 检查用户名是否已存在
 	var existingUser User
-	if err := database.DB.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+	if err := s.db.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
 		return nil, errors.New("用户名已存在")
 	}
 
 	// 检查邮箱是否已存在
 	if req.Email != "" {
-		if err := database.DB.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+		if err := s.db.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
 			return nil, errors.New("邮箱已存在")
 		}
 	}
 
 	// 检查手机号是否已存在
 	if req.Phone != "" {
-		if err := database.DB.Where("phone = ?", req.Phone).First(&existingUser).Error; err == nil {
+		if err := s.db.Where("phone = ?", req.Phone).First(&existingUser).Error; err == nil {
 			return nil, errors.New("手机号已存在")
 		}
 	}
@@ -60,7 +60,7 @@ func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 	}
 
 	// 开始事务
-	tx := database.DB.Begin()
+	tx := s.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -145,7 +145,7 @@ func (s *UserService) Register(req *RegisterRequest) (*User, error) {
 func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
 	// 查找用户，支持用户名或邮箱登录，并预加载角色
 	var user User
-	if err := database.DB.Preload("Role").Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
+	if err := s.db.Preload("Role").Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户名或密码错误")
 		}
@@ -248,7 +248,7 @@ func (s *UserService) RefreshToken(refreshToken string) (*RefreshTokenResponse, 
 
 	// 查找用户
 	var user User
-	if err := database.DB.Preload("Role").First(&user, userID).Error; err != nil {
+	if err := s.db.Preload("Role").First(&user, userID).Error; err != nil {
 		return nil, errors.New("用户不存在")
 	}
 
@@ -313,7 +313,7 @@ func (s *UserService) GetUserByID(userID uint) (*User, error) {
 
 		// 从数据库获取
 		var user User
-		if err := database.DB.Preload("Role").First(&user, userID).Error; err != nil {
+		if err := s.db.Preload("Role").First(&user, userID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// 缓存空对象防止缓存穿透
 				s.redisService.CacheEmptyUserInfo(userID, time.Duration(30)*time.Minute)
@@ -344,7 +344,7 @@ func (s *UserService) GetUserByID(userID uint) (*User, error) {
 
 		// 重试后仍失败，直接访问数据库
 		var user User
-		if err := database.DB.Preload("Role").First(&user, userID).Error; err != nil {
+		if err := s.db.Preload("Role").First(&user, userID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// 缓存空对象防止缓存穿透
 				s.redisService.CacheEmptyUserInfo(userID, time.Duration(30)*time.Minute)
@@ -360,7 +360,7 @@ func (s *UserService) GetUserByID(userID uint) (*User, error) {
 // 更新用户信息
 func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, error) {
 	// 开始事务
-	tx := database.DB.Begin()
+	tx := s.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -470,7 +470,7 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, er
 	s.redisService.CacheUserInfo(userID, user, time.Duration(1)*time.Hour)
 
 	// 重新加载角色信息
-	database.DB.Preload("Role").First(&user, userID)
+	s.db.Preload("Role").First(&user, userID)
 
 	return &user, nil
 }
@@ -478,7 +478,7 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, er
 // 修改密码
 func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) error {
 	// 开始事务
-	tx := database.DB.Begin()
+	tx := s.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -523,7 +523,7 @@ func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, erro
 	var users []*User
 	var total int64
 
-	query := database.DB.Model(&User{}).Preload("Role")
+	query := s.db.Model(&User{}).Preload("Role")
 
 	// 条件查询
 	if req.Username != "" {
@@ -575,7 +575,7 @@ func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, erro
 // 重置密码
 func (s *UserService) ResetPassword(req *ResetPasswordRequest) (string, error) {
 	// 开始事务
-	tx := database.DB.Begin()
+	tx := s.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -620,7 +620,7 @@ func (s *UserService) ResetPassword(req *ResetPasswordRequest) (string, error) {
 // 删除用户
 func (s *UserService) DeleteUser(userID uint) error {
 	var user User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if err := s.db.First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("用户不存在")
 		}
@@ -628,7 +628,7 @@ func (s *UserService) DeleteUser(userID uint) error {
 	}
 
 	// 开始事务
-	tx := database.DB.Begin()
+	tx := s.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -808,7 +808,7 @@ func (s *UserService) parseExcelFile(file multipart.File) ([]StudentExcelData, e
 		var classID uint = 0
 		if className != "" {
 			var class Class
-			if err := database.DB.Where("name = ?", className).First(&class).Error; err == nil {
+			if err := s.db.Where("name = ?", className).First(&class).Error; err == nil {
 				classID = class.ID
 			}
 		}
@@ -942,7 +942,7 @@ func (s *UserService) parseCSVFile(file multipart.File) ([]StudentExcelData, err
 		var classID uint = 0
 		if className != "" {
 			var class Class
-			if err := database.DB.Where("name = ?", className).First(&class).Error; err == nil {
+			if err := s.db.Where("name = ?", className).First(&class).Error; err == nil {
 				classID = class.ID
 			}
 		}

@@ -51,12 +51,12 @@ const initScene = () => {
   renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
-  // 创建全景图球体
-  const geometry = new THREE.SphereGeometry(500, 60, 40);
+  // 创建全景图球体三个参数：半径、水平分段数、垂直分段数
+  const geometry = new THREE.SphereGeometry(500, 60, 40); 
   // 反转球体法线方向，使纹理朝向内部
   geometry.scale(-1, 1, 1);
 
-  // 加载纹理
+  // 加载纹理，这里需要传入全景图路径
   const textureLoader = new THREE.TextureLoader();
   const texture = textureLoader.load(panoramaPath);
 
@@ -67,7 +67,7 @@ const initScene = () => {
   sphere = new THREE.Mesh(geometry, material);
   scene.add(sphere);
 
-  // 创建轨道控制器
+  // 创建轨道控制器，提供用户观看全景图的交互功能
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; // 启用阻尼效果
   controls.dampingFactor = 0.05;

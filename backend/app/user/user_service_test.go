@@ -4,9 +4,11 @@ import (
 	"testing"
 	"webGL-720yun/config"
 	"webGL-720yun/pkg/database"
-	"webGL-720yun/pkg/services/jwt"
+	"webGL-720yun/pkg/middleware"
 	"webGL-720yun/pkg/services/redis"
 )
+
+var db *database.Database
 
 // 测试前的初始化
 func TestMain(m *testing.M) {
@@ -16,7 +18,9 @@ func TestMain(m *testing.M) {
 	}
 
 	// 初始化数据库
-	if err := database.Init(&config.Conf.Database); err != nil {
+	var err error
+	db, err = database.NewDatabase(&config.Conf.Database)
+	if err != nil {
 		panic("数据库初始化失败: " + err.Error())
 	}
 
@@ -27,11 +31,11 @@ func TestMain(m *testing.M) {
 // 测试用户注册功能
 func TestUserService_Register(t *testing.T) {
 	// 创建依赖服务
-	jwtService := jwt.NewJWTService(&config.Conf.JWT)
+	jwtService := middleware.NewJWTService(&config.Conf.JWT)
 	redisService := redis.NewRedisService(&config.Conf.Redis)
 
 	// 创建用户服务
-	userService := NewUserService(jwtService, redisService)
+	userService := NewUserService(db.GetDB(), jwtService, redisService)
 
 	// 测试用例1: 正常注册
 	t.Run("正常注册", func(t *testing.T) {
@@ -119,12 +123,11 @@ func TestUserService_Register(t *testing.T) {
 
 // 测试用户登录功能
 func TestUserService_Login(t *testing.T) {
-	// 创建依赖服务
-	jwtService := jwt.NewJWTService(&config.Conf.JWT)
+	jwtService := middleware.NewJWTService(&config.Conf.JWT)
 	redisService := redis.NewRedisService(&config.Conf.Redis)
 
 	// 创建用户服务
-	userService := NewUserService(jwtService, redisService)
+	userService := NewUserService(db.GetDB(), jwtService, redisService)
 
 	// 测试用例1: 正常登录
 	t.Run("正常登录", func(t *testing.T) {
@@ -207,12 +210,11 @@ func TestUserService_Login(t *testing.T) {
 
 // 测试根据ID获取用户功能
 func TestUserService_GetUserByID(t *testing.T) {
-	// 创建依赖服务
-	jwtService := jwt.NewJWTService(&config.Conf.JWT)
+	jwtService := middleware.NewJWTService(&config.Conf.JWT)
 	redisService := redis.NewRedisService(&config.Conf.Redis)
 
 	// 创建用户服务
-	userService := NewUserService(jwtService, redisService)
+	userService := NewUserService(db.GetDB(), jwtService, redisService)
 
 	// 先注册一个用户，用于测试
 	req := &RegisterRequest{
@@ -270,12 +272,11 @@ func TestUserService_GetUserByID(t *testing.T) {
 
 // 测试管理员权限功能
 func TestUserService_AdminPermissions(t *testing.T) {
-	// 创建依赖服务
-	jwtService := jwt.NewJWTService(&config.Conf.JWT)
+	jwtService := middleware.NewJWTService(&config.Conf.JWT)
 	redisService := redis.NewRedisService(&config.Conf.Redis)
 
 	// 创建用户服务
-	userService := NewUserService(jwtService, redisService)
+	userService := NewUserService(db.GetDB(), jwtService, redisService)
 
 	// 测试用例1: 管理员登录
 	t.Run("管理员登录", func(t *testing.T) {
@@ -321,12 +322,11 @@ func TestUserService_AdminPermissions(t *testing.T) {
 
 	// 测试用例2: 获取用户列表
 	t.Run("获取用户列表", func(t *testing.T) {
-		// 创建JWT服务和Redis服务
-		jwtService := jwt.NewJWTService(&config.Conf.JWT)
+		jwtService := middleware.NewJWTService(&config.Conf.JWT)
 		redisService := redis.NewRedisService(&config.Conf.Redis)
 
 		// 创建用户服务
-		userService := NewUserService(jwtService, redisService)
+		userService := NewUserService(db.GetDB(), jwtService, redisService)
 
 		// 先注册几个用户，用于测试
 		users := []struct {
@@ -378,7 +378,7 @@ func TestUserService_AdminPermissions(t *testing.T) {
 		}
 
 		t.Logf("获取用户列表成功，总用户数: %d, 返回用户数: %d", response.Total, len(response.Users))
-		
+
 		// 打印返回的用户信息
 		for _, user := range response.Users {
 			t.Logf("用户ID: %d, 用户名: %s, 角色: %s, 状态: %d", user.ID, user.Username, user.Role.Name, user.Status)

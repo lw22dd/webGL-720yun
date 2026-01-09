@@ -17,7 +17,6 @@ import (
 	"webGL-720yun/pkg/logger"
 	"webGL-720yun/pkg/middleware"
 	"webGL-720yun/pkg/services"
-	"webGL-720yun/pkg/services/jwt"
 	"webGL-720yun/pkg/services/redis"
 	routes "webGL-720yun/route"
 )
@@ -34,29 +33,28 @@ func main() {
 	logger.Setup(&config.Conf.Logger)
 
 	// 3. 初始化数据库
-	if err := database.Init(&config.Conf.Database); err != nil {
+	db, err := database.NewDatabase(&config.Conf.Database)
+	if err != nil {
 		logger.Fatal("初始化数据库失败:", err)
 	}
-	db := database.GetDB()
 
-	// 调试：打印数据库配置
 	logger.Infof("数据库配置: host=%s, port=%d, database=%s", config.Conf.Database.Host, config.Conf.Database.Port, config.Conf.Database.Database)
 
-	// 6. 初始化Redis服务
+	// 4. 初始化Redis服务
 	redisClient := redis.NewRedisService(&config.Conf.Redis)
 
 	// 5. 初始化JWT服务
-	jwtService := jwt.NewJWTService(&config.Conf.JWT)
+	jwtService := middleware.NewJWTService(&config.Conf.JWT)
 
 	// 6. 初始化用户服务
-	userService := user.NewUserService(jwtService, redisClient)
+	userService := user.NewUserService(db.GetDB(), jwtService, redisClient)
 
 	// 7. 初始化权限中间件
 	noAuthPaths := config.Conf.NoAuth
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, redisClient, noAuthPaths)
 
 	// 8. 初始化服务上下文
-	serviceContext := services.NewServiceContext(db, redisClient, jwtService, userService, authMiddleware)
+	serviceContext := services.NewServiceContext(db.GetDB(), redisClient, jwtService, userService, authMiddleware)
 
 	// 10. 创建Gin实例（根据配置设置模式）
 	if config.Conf.App.Debug {
@@ -105,6 +103,11 @@ func main() {
 	// 关闭服务上下文（包含所有服务连接）
 	if err := serviceContext.Close(); err != nil {
 		logger.Error("关闭服务上下文失败", "error", err)
+	}
+
+	// 关闭数据库连接
+	if err := db.Close(); err != nil {
+		logger.Error("关闭数据库连接失败", "error", err)
 	}
 
 	logger.Info("服务已安全停止")

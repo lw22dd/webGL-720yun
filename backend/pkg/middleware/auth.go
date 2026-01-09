@@ -1,24 +1,119 @@
 package middleware
 
 import (
+	"errors"
 	"strconv"
 	"strings"
-	"webGL-720yun/pkg/services/jwt"
+	"time"
+
+	"webGL-720yun/config"
 	"webGL-720yun/pkg/services/redis"
 	"webGL-720yun/pkg/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-// AuthMiddleware 认证中间件
+type JWTClaims struct {
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+type JWTService struct {
+	secret         string
+	accessTimeout  time.Duration
+	refreshTimeout time.Duration
+	issuer         string
+}
+
+func NewJWTService(cfg *config.JWTConfig) *JWTService {
+	return &JWTService{
+		secret:         cfg.Secret,
+		accessTimeout:  time.Duration(cfg.AccessTimeout) * time.Minute,
+		refreshTimeout: time.Duration(cfg.RefreshTimeout) * time.Hour,
+		issuer:         cfg.Issuer,
+	}
+}
+
+func (s *JWTService) GenerateAccessToken(userID uint, username string, role string) (string, error) {
+	claims := JWTClaims{
+		UserID:   userID,
+		Username: username,
+		Role:     role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.accessTimeout)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    s.issuer,
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(s.secret))
+}
+
+func (s *JWTService) GenerateRefreshToken(userID uint) (string, error) {
+	claims := jwt.RegisteredClaims{
+		Subject:   string(rune(userID)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.refreshTimeout)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		Issuer:    s.issuer,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(s.secret))
+}
+
+func (s *JWTService) ParseToken(tokenString string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return []byte(s.secret), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("invalid token")
+}
+
+func (s *JWTService) ValidateToken(tokenString string) error {
+	_, err := s.ParseToken(tokenString)
+	return err
+}
+
+func (s *JWTService) GetTokenRemainingTime(tokenString string) (time.Duration, error) {
+	claims, err := s.ParseToken(tokenString)
+	if err != nil {
+		return 0, err
+	}
+
+	if claims.ExpiresAt == nil {
+		return 0, errors.New("token has no expiration time")
+	}
+
+	remainingTime := time.Until(claims.ExpiresAt.Time)
+	if remainingTime < 0 {
+		return 0, errors.New("token has expired")
+	}
+
+	return remainingTime, nil
+}
+
 type AuthMiddleware struct {
-	jwtService   *jwt.JWTService
+	jwtService   *JWTService
 	redisService *redis.RedisService
 	noAuthPaths  []string
 }
 
-// NewAuthMiddleware 创建认证中间件
-func NewAuthMiddleware(jwtService *jwt.JWTService, redisService *redis.RedisService, noAuthPaths []string) *AuthMiddleware {
+func NewAuthMiddleware(jwtService *JWTService, redisService *redis.RedisService, noAuthPaths []string) *AuthMiddleware {
 	return &AuthMiddleware{
 		jwtService:   jwtService,
 		redisService: redisService,
@@ -26,16 +121,13 @@ func NewAuthMiddleware(jwtService *jwt.JWTService, redisService *redis.RedisServ
 	}
 }
 
-// RequireAuth 需要认证
 func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 检查是否在免认证路径中
 		if m.isNoAuthPath(c.Request.URL.Path) {
 			c.Next()
 			return
 		}
 
-		// 获取令牌
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			utils.Unauthorized(c.Writer, "缺少认证令牌")
@@ -43,7 +135,6 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 解析Bearer令牌
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			utils.Unauthorized(c.Writer, "认证令牌格式错误")
@@ -53,14 +144,12 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		// 检查令牌是否在黑名单中
 		if m.redisService.IsInBlacklist(tokenString) {
 			utils.Unauthorized(c.Writer, "令牌已失效")
 			c.Abort()
 			return
 		}
 
-		// 验证令牌
 		claims, err := m.jwtService.ParseToken(tokenString)
 		if err != nil {
 			utils.Unauthorized(c.Writer, "无效的认证令牌")
@@ -68,7 +157,6 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 设置用户信息到上下文
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
@@ -78,10 +166,8 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 	}
 }
 
-// RequireRole 需要特定角色
 func (m *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 获取用户角色
 		userRole, exists := c.Get("role")
 		if !exists {
 			utils.Forbidden(c.Writer, "无法获取用户角色")
@@ -89,7 +175,6 @@ func (m *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 			return
 		}
 
-		// 检查角色权限
 		roleStr, ok := userRole.(string)
 		if !ok {
 			utils.Forbidden(c.Writer, "用户角色格式错误")
@@ -97,7 +182,6 @@ func (m *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 			return
 		}
 
-		// 检查用户角色是否在允许的角色列表中
 		hasPermission := false
 		for _, role := range roles {
 			if roleStr == role {
@@ -116,27 +200,21 @@ func (m *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 	}
 }
 
-// RequireAdmin 需要管理员权限
 func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
 	return m.RequireRole("admin")
 }
 
-// RequireStudent 需要学生权限
 func (m *AuthMiddleware) RequireStudent() gin.HandlerFunc {
 	return m.RequireRole("student")
 }
 
-// RequireAdminOrSelf 需要管理员权限或用户本人
 func (m *AuthMiddleware) RequireAdminOrSelf() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 获取用户ID和角色
 		userID, _ := c.Get("user_id")
 		userRole, _ := c.Get("role")
 
-		// 获取目标用户ID（从URL参数）
 		targetUserID := c.Param("id")
 
-		// 如果是管理员，直接通过
 		if roleStr, ok := userRole.(string); ok {
 			if roleStr == "admin" {
 				c.Next()
@@ -144,7 +222,6 @@ func (m *AuthMiddleware) RequireAdminOrSelf() gin.HandlerFunc {
 			}
 		}
 
-		// 如果是用户本人，也允许
 		if userIDUint, ok := userID.(uint); ok {
 			if targetID, err := strconv.ParseUint(targetUserID, 10, 32); err == nil && uint(targetID) == userIDUint {
 				c.Next()
@@ -157,7 +234,6 @@ func (m *AuthMiddleware) RequireAdminOrSelf() gin.HandlerFunc {
 	}
 }
 
-// isNoAuthPath 检查路径是否在免认证列表中
 func (m *AuthMiddleware) isNoAuthPath(path string) bool {
 	for _, noAuthPath := range m.noAuthPaths {
 		if strings.HasPrefix(path, noAuthPath) {
@@ -167,7 +243,6 @@ func (m *AuthMiddleware) isNoAuthPath(path string) bool {
 	return false
 }
 
-// GetCurrentUser 获取当前用户信息
 func GetCurrentUser(c *gin.Context) (userID uint, username string, role string) {
 	if id, exists := c.Get("user_id"); exists {
 		if idUint, ok := id.(uint); ok {
