@@ -163,7 +163,7 @@ func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
 	}
 
 	// 生成访问令牌
-	accessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Username, user.Role.Name)
+	accessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Username, user.Role.Name, user.RoleID, user.IsSuperAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("生成访问令牌失败: %v", err)
 	}
@@ -258,7 +258,7 @@ func (s *UserService) RefreshToken(refreshToken string) (*RefreshTokenResponse, 
 	}
 
 	// 生成新的访问令牌
-	newAccessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Username, user.Role.Name)
+	newAccessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Username, user.Role.Name, user.RoleID, user.IsSuperAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("生成访问令牌失败: %v", err)
 	}
@@ -405,8 +405,8 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*User, er
 		user.Avatar = req.Avatar
 	}
 
-	if req.Status >= 0 {
-		user.Status = req.Status
+	if req.Status != nil {
+		user.Status = *req.Status
 	}
 
 	if err := tx.Save(&user).Error; err != nil {

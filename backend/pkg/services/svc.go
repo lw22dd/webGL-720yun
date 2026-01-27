@@ -14,15 +14,17 @@ type ServiceContext struct {
 	JWTService     *middleware.JWTService
 	UserService    *user.UserService
 	AuthMiddleware *middleware.AuthMiddleware
+	RBACMiddleware *middleware.RBACMiddleware
 }
 
-func NewServiceContext(db *gorm.DB, redisService *redis.RedisService, jwtService *middleware.JWTService, userService *user.UserService, authMiddleware *middleware.AuthMiddleware) *ServiceContext {
+func NewServiceContext(db *gorm.DB, redisService *redis.RedisService, jwtService *middleware.JWTService, userService *user.UserService, authMiddleware *middleware.AuthMiddleware, rbacMiddleware *middleware.RBACMiddleware) *ServiceContext {
 	return &ServiceContext{
 		DB:             db,
 		RedisService:   redisService,
 		JWTService:     jwtService,
 		UserService:    userService,
 		AuthMiddleware: authMiddleware,
+		RBACMiddleware: rbacMiddleware,
 	}
 }
 

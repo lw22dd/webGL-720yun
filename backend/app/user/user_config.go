@@ -40,7 +40,7 @@ type UpdateUserRequest struct {
 	Phone      string `json:"phone" binding:"omitempty,len=11"`
 	Nickname   string `json:"nickname" binding:"omitempty,max=50"`
 	Avatar     string `json:"avatar" binding:"omitempty,url"`
-	Status     int    `json:"status" binding:"omitempty,oneof=0 1"`
+	Status     *int   `json:"status" binding:"omitempty,oneof=0 1"`
 	ClassID    uint   `json:"class_id" binding:"omitempty"`    // 班级ID，仅学生角色需要
 	TeacherIDs []uint `json:"teacher_ids" binding:"omitempty"` // 关联教师ID，仅学生角色需要
 }
@@ -124,9 +124,10 @@ type User struct {
 	Phone     string         `gorm:"type:varchar(20)" json:"phone"`
 	Nickname  string         `gorm:"type:varchar(50)" json:"nickname"`
 	Avatar    string         `gorm:"type:varchar(255)" json:"avatar"`
-	RoleID    uint           `gorm:"not null;index" json:"role_id"`
-	Role      Role           `gorm:"foreignKey:RoleID" json:"role"`
-	Status    int            `gorm:"default:1;index" json:"status"` // 1:正常 0:禁用
+	RoleID       uint           `gorm:"not null;index" json:"role_id"`
+	Role         Role           `gorm:"foreignKey:RoleID" json:"role"`
+	IsSuperAdmin bool           `gorm:"default:false" json:"is_super_admin"`
+	Status       int            `gorm:"default:1;index" json:"status"` // 1:正常 0:禁用
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
@@ -144,7 +145,7 @@ type Student struct {
 	StudentID string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"student_id"` // 学号
 	ClassID   uint      `gorm:"not null;index" json:"class_id"`
 	Class     Class     `gorm:"foreignKey:ClassID" json:"class"`
-	Teachers  []Teacher `gorm:"many2many:student_teachers;" json:"teachers"` // 关联多个教师
+	Teachers  []Teacher `gorm:"many2many:sys_student_teachers;" json:"teachers"` // 关联多个教师
 }
 
 // 班级类
@@ -170,7 +171,7 @@ type Role struct {
 	ID          uint         `gorm:"primaryKey" json:"id"`
 	Name        string       `gorm:"type:varchar(50);uniqueIndex;not null" json:"name"`
 	Description string       `gorm:"type:varchar(255)" json:"description"`
-	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
+	Permissions []Permission `gorm:"many2many:sys_role_permissions;" json:"permissions"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
@@ -182,7 +183,7 @@ type Permission struct {
 	Description string    `gorm:"type:varchar(255)" json:"description"`
 	Resource    string    `gorm:"type:varchar(50)" json:"resource"`
 	Action      string    `gorm:"type:varchar(50)" json:"action"`
-	Roles       []Role    `gorm:"many2many:role_permissions;" json:"-"`
+	Roles       []Role    `gorm:"many2many:sys_role_permissions;" json:"-"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -216,35 +217,35 @@ const (
 
 // 设置表名
 func (User) TableName() string {
-	return "users"
+	return "sys_users"
 }
 
 func (Teacher) TableName() string {
-	return "users"
+	return "sys_users"
 }
 
 func (Student) TableName() string {
-	return "users"
+	return "sys_users"
 }
 
 func (Role) TableName() string {
-	return "roles"
+	return "sys_roles"
 }
 
 func (Permission) TableName() string {
-	return "permissions"
+	return "sys_permissions"
 }
 
 func (UserSession) TableName() string {
-	return "user_sessions"
+	return "sys_user_sessions"
 }
 
 func (Class) TableName() string {
-	return "classes"
+	return "sys_classes"
 }
 
 func (StudentTeacher) TableName() string {
-	return "student_teachers"
+	return "sys_student_teachers"
 }
 
 // 重置密码方法

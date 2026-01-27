@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -21,8 +21,7 @@ import (
 	routes "webGL-720yun/route"
 )
 
-func main() {
-
+func Run() {
 	// 1. 初始化配置
 	if err := config.Init(); err != nil {
 		fmt.Printf("配置加载失败: %v\n", err)
@@ -53,8 +52,11 @@ func main() {
 	noAuthPaths := config.Conf.NoAuth
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, redisClient, noAuthPaths)
 
-	// 8. 初始化服务上下文
-	serviceContext := services.NewServiceContext(db.GetDB(), redisClient, jwtService, userService, authMiddleware)
+	// 8. 初始化 RBAC 中间件
+	rbacMiddleware := middleware.NewRBACMiddleware(db.GetDB())
+
+	// 9. 初始化服务上下文
+	serviceContext := services.NewServiceContext(db.GetDB(), redisClient, jwtService, userService, authMiddleware, rbacMiddleware)
 
 	// 10. 创建Gin实例（根据配置设置模式）
 	if config.Conf.App.Debug {
@@ -65,7 +67,7 @@ func main() {
 	router := gin.New()
 
 	// 11. 注册全局中间件
-	registerCoreMiddleware(router)
+	RegisterCoreMiddleware(router)
 
 	// 12. 注册路由
 	routes.UserAPIRoutes(router, serviceContext)
@@ -113,8 +115,8 @@ func main() {
 	logger.Info("服务已安全停止")
 }
 
-// 核心中间件注册（与网关功能强相关）
-func registerCoreMiddleware(r *gin.Engine) {
+// RegisterCoreMiddleware 核心中间件注册（与网关功能强相关）
+func RegisterCoreMiddleware(r *gin.Engine) {
 	r.Use(
 		gin.Recovery(),        // 官方恢复中间件
 		logger.GinZapLogger(), // 自定义日志中间件

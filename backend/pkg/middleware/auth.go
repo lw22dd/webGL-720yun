@@ -18,6 +18,8 @@ type JWTClaims struct {
 	UserID   uint   `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
+	RoleID   uint   `json:"role_id"`
+	IsSuper  bool   `json:"is_super"`
 	jwt.RegisteredClaims
 }
 
@@ -37,11 +39,13 @@ func NewJWTService(cfg *config.JWTConfig) *JWTService {
 	}
 }
 
-func (s *JWTService) GenerateAccessToken(userID uint, username string, role string) (string, error) {
+func (s *JWTService) GenerateAccessToken(userID uint, username string, role string, roleID uint, isSuper bool) (string, error) {
 	claims := JWTClaims{
 		UserID:   userID,
 		Username: username,
 		Role:     role,
+		RoleID:   roleID,
+		IsSuper:  isSuper,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.accessTimeout)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -54,11 +58,13 @@ func (s *JWTService) GenerateAccessToken(userID uint, username string, role stri
 }
 
 func (s *JWTService) GenerateRefreshToken(userID uint) (string, error) {
-	claims := jwt.RegisteredClaims{
-		Subject:   string(rune(userID)),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.refreshTimeout)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Issuer:    s.issuer,
+	claims := JWTClaims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.refreshTimeout)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    s.issuer,
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -160,6 +166,8 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
+		c.Set("role_id", claims.RoleID)
+		c.Set("is_super_admin", claims.IsSuper)
 		c.Set("claims", claims)
 
 		c.Next()
