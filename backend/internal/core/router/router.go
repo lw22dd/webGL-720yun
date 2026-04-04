@@ -1,4 +1,4 @@
-package routes
+package router
 
 import (
 	"net/http"
@@ -6,32 +6,32 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"webGL-720yun/app/user"
-	"webGL-720yun/pkg/services"
+	"webGL-720yun/internal/core/middleware"
+	"webGL-720yun/internal/user"
 )
 
-// UserAPIRoutes 用户相关路由注册
-func UserAPIRoutes(r *gin.Engine, serviceContext *services.ServiceContext) {
-	userService := serviceContext.UserService
-	authMiddleware := serviceContext.AuthMiddleware
+type ServiceContext struct {
+	UserService    *user.UserService
+	AuthMiddleware *middleware.AuthMiddleware
+	RBACMiddleware *middleware.RBACMiddleware
+}
 
-	// API路由组
+func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
+	userService := ctx.UserService
+	authMiddleware := ctx.AuthMiddleware
+
 	api := r.Group("/api/v1")
 	{
-		// 认证相关路由
 		auth := api.Group("/auth")
 		{
 			auth.POST("/login", user.Login(userService))
 			auth.POST("/refresh", user.RefreshToken(userService))
 		}
 
-		// 用户相关路由
 		userGroup := api.Group("/user")
 		{
-			// 公开路由
 			userGroup.POST("/register", user.Register(userService))
 
-			// 需要认证的路由
 			userGroup.Use(authMiddleware.RequireAuth())
 			{
 				userGroup.GET("/profile", user.GetProfile(userService))
@@ -39,7 +39,6 @@ func UserAPIRoutes(r *gin.Engine, serviceContext *services.ServiceContext) {
 				userGroup.POST("/change-password", user.ChangePassword(userService))
 				userGroup.POST("/logout", user.Logout(userService))
 
-				// 管理员专属路由
 				admin := userGroup.Group("/admin")
 				admin.Use(authMiddleware.RequireAdmin())
 				{
@@ -48,14 +47,12 @@ func UserAPIRoutes(r *gin.Engine, serviceContext *services.ServiceContext) {
 					admin.POST("/create", user.Register(userService))
 					admin.PUT("/:id", user.UpdateUser(userService))
 					admin.DELETE("/:id", user.DeleteUser(userService))
-					// 批量注册路由
 					admin.POST("/batch-register", user.BatchRegister(userService))
 				}
 			}
 		}
 	}
 
-	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "ok",

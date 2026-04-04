@@ -11,77 +11,67 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"webGL-720yun/app/user"
 	"webGL-720yun/config"
-	"webGL-720yun/pkg/database"
+	"webGL-720yun/internal/core/middleware"
+	"webGL-720yun/internal/core/router"
+	"webGL-720yun/internal/core/setup"
+	"webGL-720yun/internal/user"
+	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/logger"
-	"webGL-720yun/pkg/middleware"
-	"webGL-720yun/pkg/services"
-	"webGL-720yun/pkg/services/redis"
-	routes "webGL-720yun/route"
+	"webGL-720yun/pkg/redis"
 )
 
 func Run() {
-	// 1. 初始化配置
 	if err := config.Init(); err != nil {
 		fmt.Printf("配置加载失败: %v\n", err)
 		os.Exit(1)
 	}
 
-	// 2. 初始化日志系统
 	logger.Setup(&config.Conf.Logger)
 
-	// 3. 初始化数据库
-	db, err := database.NewDatabase(&config.Conf.Database)
+	db, err := setup.NewDatabase(&config.Conf.Database)
 	if err != nil {
 		logger.Fatal("初始化数据库失败:", err)
 	}
 
 	logger.Infof("数据库配置: host=%s, port=%d, database=%s", config.Conf.Database.Host, config.Conf.Database.Port, config.Conf.Database.Database)
 
-	// 4. 初始化Redis服务
 	redisClient := redis.NewRedisService(&config.Conf.Redis)
 
-	// 5. 初始化JWT服务
-	jwtService := middleware.NewJWTService(&config.Conf.JWT)
+	jwtService := jwt.NewJWTService(&config.Conf.JWT)
 
-	// 6. 初始化用户服务
 	userService := user.NewUserService(db.GetDB(), jwtService, redisClient)
 
-	// 7. 初始化权限中间件
 	noAuthPaths := config.Conf.NoAuth
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, redisClient, noAuthPaths)
 
-	// 8. 初始化 RBAC 中间件
 	rbacMiddleware := middleware.NewRBACMiddleware(db.GetDB())
 
-	// 9. 初始化服务上下文
-	serviceContext := services.NewServiceContext(db.GetDB(), redisClient, jwtService, userService, authMiddleware, rbacMiddleware)
+	serviceContext := &router.ServiceContext{
+		UserService:    userService,
+		AuthMiddleware: authMiddleware,
+		RBACMiddleware: rbacMiddleware,
+	}
 
-	// 10. 创建Gin实例（根据配置设置模式）
 	if config.Conf.App.Debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	router := gin.New()
+	r := gin.New()
 
-	// 11. 注册全局中间件
-	RegisterCoreMiddleware(router)
+	RegisterCoreMiddleware(r)
 
-	// 12. 注册路由
-	routes.UserAPIRoutes(router, serviceContext)
+	router.RegisterRoutes(r, serviceContext)
 
-	// 13. 配置HTTP服务器
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Conf.Server.Port),
-		Handler:        router,
+		Handler:        r,
 		ReadTimeout:    30 * time.Second,
 		WriteTimeout:   30 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	// 14. 启动服务器
 	go func() {
 		logger.Info("服务器启动", "address", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -89,7 +79,6 @@ func Run() {
 		}
 	}()
 
-	// 15. 优雅关机处理
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
@@ -102,12 +91,10 @@ func Run() {
 		logger.Error("强制关闭服务", "error", err)
 	}
 
-	// 关闭服务上下文（包含所有服务连接）
-	if err := serviceContext.Close(); err != nil {
-		logger.Error("关闭服务上下文失败", "error", err)
+	if err := redisClient.Close(); err != nil {
+		logger.Error("关闭Redis连接失败", "error", err)
 	}
 
-	// 关闭数据库连接
 	if err := db.Close(); err != nil {
 		logger.Error("关闭数据库连接失败", "error", err)
 	}
@@ -115,11 +102,10 @@ func Run() {
 	logger.Info("服务已安全停止")
 }
 
-// RegisterCoreMiddleware 核心中间件注册（与网关功能强相关）
 func RegisterCoreMiddleware(r *gin.Engine) {
 	r.Use(
-		gin.Recovery(),        // 官方恢复中间件
-		logger.GinZapLogger(), // 自定义日志中间件
-		middleware.CORS(),     // CORS中间件
+		gin.Recovery(),
+		logger.GinZapLogger(),
+		middleware.CORS(),
 	)
 }

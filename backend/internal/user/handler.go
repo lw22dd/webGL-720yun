@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"webGL-720yun/pkg/middleware"
+
+	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
-// 用户登录处理函数
 func Login(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
@@ -29,7 +29,6 @@ func Login(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 用户注册处理函数（管理员创建学生账户）
 func Register(service *UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req RegisterRequest
@@ -48,12 +47,10 @@ func Register(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 用户登出处理函数
 func Logout(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
 
-		// 获取访问令牌
 		authHeader := c.GetHeader("Authorization")
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
@@ -70,7 +67,6 @@ func Logout(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 刷新访问令牌处理函数
 func RefreshToken(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req RefreshTokenRequest
@@ -89,7 +85,6 @@ func RefreshToken(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 获取个人资料处理函数
 func GetProfile(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
@@ -104,7 +99,6 @@ func GetProfile(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 更新个人资料处理函数
 func UpdateProfile(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
@@ -125,7 +119,6 @@ func UpdateProfile(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 修改密码处理函数
 func ChangePassword(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
@@ -149,7 +142,6 @@ func ChangePassword(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 根据ID获取用户处理函数
 func GetUserByID(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -168,7 +160,6 @@ func GetUserByID(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 获取用户列表处理函数
 func GetUserList(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req UserListRequest
@@ -177,7 +168,6 @@ func GetUserList(service *UserService) gin.HandlerFunc {
 			return
 		}
 
-		// 设置默认值
 		if req.Page == 0 {
 			req.Page = 1
 		}
@@ -200,7 +190,6 @@ func GetUserList(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 更新用户信息处理函数
 func UpdateUser(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -225,7 +214,6 @@ func UpdateUser(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 删除用户处理函数
 func DeleteUser(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -243,10 +231,8 @@ func DeleteUser(service *UserService) gin.HandlerFunc {
 	}
 }
 
-// 批量注册处理函数
 func BatchRegister(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 获取上传的文件
 		file, header, err := c.Request.FormFile("file")
 		if err != nil {
 			utils.BadRequest(c.Writer, "获取上传文件失败: "+err.Error())
@@ -254,7 +240,6 @@ func BatchRegister(service *UserService) gin.HandlerFunc {
 		}
 		defer file.Close()
 
-		// 解析文件
 		students, err := service.ParseFile(file, header.Filename)
 		if err != nil {
 			utils.BadRequest(c.Writer, "解析文件失败: "+err.Error())
@@ -262,11 +247,10 @@ func BatchRegister(service *UserService) gin.HandlerFunc {
 		}
 
 		if len(students) == 0 {
-		utils.BadRequest(c.Writer, "文件中没有有效数据")
-		return
-	}
+			utils.BadRequest(c.Writer, "文件中没有有效数据")
+			return
+		}
 
-		// 批量注册学生
 		response, err := service.BatchRegister(students)
 		if err != nil {
 			utils.InternalServerError(c.Writer, "批量注册失败: "+err.Error())

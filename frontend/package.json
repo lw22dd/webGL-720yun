@@ -11,6 +11,8 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "@types/three": "^0.182.0",
+    "@univerjs/preset-sheets-core": "^0.16.1",
+    "@univerjs/presets": "^0.16.1",
     "autoprefixer": "^10.4.21",
     "axios": "^1.12.2",
     "element-plus": "^2.12.0",
