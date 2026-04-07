@@ -27,11 +27,8 @@ export default class UserApi {
     public static async batchRegister(file: File, onUploadProgress?: (progress: number) => void): Promise<Result<any>> {
         const formData = new FormData();
         formData.append('file', file);
-        
+
         return await Axios.post('/user/admin/batch-register', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            },
             onUploadProgress: (progressEvent) => {
                 if (progressEvent.total && onUploadProgress) {
                     const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);

@@ -59,8 +59,6 @@ func GetSpaceDetail(svc *service.SpaceService) gin.HandlerFunc {
 func CreateSpace(svc *service.SpaceService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
 
 		var req dto.CreateSpaceRequest
 		if err := c.ShouldBind(&req); err != nil {
@@ -68,9 +66,10 @@ func CreateSpace(svc *service.SpaceService) gin.HandlerFunc {
 			return
 		}
 
-		var coverFile interface{}
-		if file, err := c.FormFile("cover"); err == nil {
-			coverFile = file
+		coverFile, err := c.FormFile("cover")
+		if err != nil {
+			utils.BadRequest(c.Writer, "请上传封面图")
+			return
 		}
 
 		space, err := svc.CreateSpace(&req, userID, coverFile)
@@ -101,9 +100,10 @@ func UpdateSpace(svc *service.SpaceService) gin.HandlerFunc {
 			return
 		}
 
-		var coverFile interface{}
-		if file, err := c.FormFile("cover"); err == nil {
-			coverFile = file
+		coverFile, err := c.FormFile("cover")
+		if err != nil {
+			utils.BadRequest(c.Writer, "请上传封面图")
+			return
 		}
 
 		space, err := svc.UpdateSpace(uint(id), &req, userID, isAdmin, coverFile)

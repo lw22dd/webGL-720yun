@@ -7,52 +7,52 @@
 
       <nav class="nav-menu">
         <a href="#" class="nav-item active">首页</a>
-        <t-dropdown>
-          <span class="nav-item">产品服务</span>
-          <template #dropdown>
-            <t-dropdown-menu>
-              <t-dropdown-item>VR全景创作</t-dropdown-item>
-              <t-dropdown-item>数字孪生</t-dropdown-item>
-              <t-dropdown-item>元宇宙平台</t-dropdown-item>
-              <t-dropdown-item>VR直播</t-dropdown-item>
-            </t-dropdown-menu>
-          </template>
-        </t-dropdown>
-        <t-dropdown>
-          <span class="nav-item">解决方案</span>
-          <template #dropdown>
-            <t-dropdown-menu>
-              <t-dropdown-item>教育行业</t-dropdown-item>
-              <t-dropdown-item>房地产</t-dropdown-item>
-              <t-dropdown-item>旅游景区</t-dropdown-item>
-              <t-dropdown-item>企业展示</t-dropdown-item>
-            </t-dropdown-menu>
-          </template>
-        </t-dropdown>
-        <t-dropdown>
-          <span class="nav-item">内容社区</span>
-          <template #dropdown>
-            <t-dropdown-menu>
-              <t-dropdown-item>作品展示</t-dropdown-item>
-              <t-dropdown-item>教程中心</t-dropdown-item>
-              <t-dropdown-item>社区论坛</t-dropdown-item>
-            </t-dropdown-menu>
-          </template>
-        </t-dropdown>
-        <t-dropdown>
-          <span class="nav-item">定制服务</span>
-          <template #dropdown>
-            <t-dropdown-menu>
-              <t-dropdown-item>VR内容定制</t-dropdown-item>
-              <t-dropdown-item>数字孪生定制</t-dropdown-item>
-              <t-dropdown-item>平台定制开发</t-dropdown-item>
-            </t-dropdown-menu>
-          </template>
-        </t-dropdown>
+      <Dropdown>
+        <span class="nav-item">产品服务</span>
+        <template #dropdown>
+          <DropdownMenu>
+            <DropdownItem>VR全景创作</DropdownItem>
+            <DropdownItem>数字孪生</DropdownItem>
+            <DropdownItem>元宇宙平台</DropdownItem>
+            <DropdownItem>VR直播</DropdownItem>
+          </DropdownMenu>
+        </template>
+      </Dropdown>
+      <Dropdown>
+        <span class="nav-item">解决方案</span>
+        <template #dropdown>
+          <DropdownMenu>
+            <DropdownItem>教育行业</DropdownItem>
+            <DropdownItem>房地产</DropdownItem>
+            <DropdownItem>旅游景区</DropdownItem>
+            <DropdownItem>企业展示</DropdownItem>
+          </DropdownMenu>
+        </template>
+      </Dropdown>
+      <Dropdown>
+        <span class="nav-item">内容社区</span>
+        <template #dropdown>
+          <DropdownMenu>
+            <DropdownItem>作品展示</DropdownItem>
+            <DropdownItem>教程中心</DropdownItem>
+            <DropdownItem>社区论坛</DropdownItem>
+          </DropdownMenu>
+        </template>
+      </Dropdown>
+      <Dropdown>
+        <span class="nav-item">定制服务</span>
+        <template #dropdown>
+          <DropdownMenu>
+            <DropdownItem>VR内容定制</DropdownItem>
+            <DropdownItem>数字孪生定制</DropdownItem>
+            <DropdownItem>平台定制开发</DropdownItem>
+          </DropdownMenu>
+        </template>
+      </Dropdown>
       </nav>
 
       <div class="search-section">
-        <t-input
+        <Input
           v-model="searchKeyword"
           placeholder="搜索"
           size="small"
@@ -64,104 +64,114 @@
 
       <div class="auth-section">
         <template v-if="userStore.isLogin">
-          <t-dropdown>
+          <Dropdown>
             <span class="user-info">
               {{ userStore.userInfo.email || userStore.userInfo.name || '用户' }}
             </span>
             <template #dropdown>
-              <t-dropdown-menu>
-                <t-dropdown-item @click="handleLogout">退出登录</t-dropdown-item>
-              </t-dropdown-menu>
+              <DropdownMenu>
+                <DropdownItem @click="handleLogout">退出登录</DropdownItem>
+              </DropdownMenu>
             </template>
-          </t-dropdown>
+          </Dropdown>
         </template>
         <template v-else>
-          <t-button theme="default" variant="outline" size="small" @click="showLoginDialog = true" class="login-btn">登录</t-button>
-          <t-button theme="primary" size="small" @click="showRegisterDialog = true" class="register-btn">注册</t-button>
+          <Button theme="default" variant="outline" size="small" @click="showLoginDialog = true" class="login-btn">登录</Button>
+          <Button theme="primary" size="small" @click="showRegisterDialog = true" class="register-btn">注册</Button>
         </template>
       </div>
 
-      <t-dialog v-model="showLoginDialog" header="登录" width="420px" :footer="null">
+      <Dialog v-model:visible="showLoginDialog" header="登录" width="420px" :footer="false" attach="body">
         <div class="dialog-content">
-          <t-form :data="loginForm" :rules="loginRules" ref="loginFormRef" label-width="0">
-            <t-form-item name="username">
-              <t-input
+          <Form :data="loginForm" label-width="0">
+            <FormItem name="username">
+              <Input
                 v-model="loginForm.username"
                 placeholder="请输入用户名或邮箱"
                 size="large"
               />
-            </t-form-item>
-            <t-form-item name="password">
-              <t-input
+            </FormItem>
+            <FormItem name="password">
+              <Input
                 v-model="loginForm.password"
                 placeholder="请输入密码"
                 type="password"
                 size="large"
               />
-            </t-form-item>
-            <t-form-item>
-              <t-button theme="primary" block size="large" :loading="loginLoading" @click="handleLogin" class="submit-btn">
+            </FormItem>
+            <FormItem>
+              <Button theme="primary" block size="large" :loading="loginLoading" @click="handleLogin" class="submit-btn">
                 登录
-              </t-button>
-            </t-form-item>
-          </t-form>
+              </Button>
+            </FormItem>
+          </Form>
           <div class="dialog-footer">
             <span class="link-text" @click="showLoginDialog = false; showRegisterDialog = true">没有账号？去注册</span>
           </div>
         </div>
-      </t-dialog>
+      </Dialog>
 
-      <t-dialog v-model="showRegisterDialog" header="注册" width="420px" :footer="null">
+      <Dialog v-model:visible="showRegisterDialog" header="注册" width="420px" :footer="false" attach="body">
         <div class="dialog-content">
-          <t-form :data="registerForm" :rules="registerRules" ref="registerFormRef" label-width="0">
-            <t-form-item name="username">
-              <t-input
+          <Form :data="registerForm" label-width="0">
+            <FormItem name="username">
+              <Input
                 v-model="registerForm.username"
                 placeholder="请输入用户名"
                 size="large"
               />
-            </t-form-item>
-            <t-form-item name="email">
-              <t-input
+            </FormItem>
+            <FormItem name="email">
+              <Input
                 v-model="registerForm.email"
                 placeholder="请输入邮箱"
                 size="large"
               />
-            </t-form-item>
-            <t-form-item name="password">
-              <t-input
+            </FormItem>
+            <FormItem name="password">
+              <Input
                 v-model="registerForm.password"
                 placeholder="请输入密码"
                 type="password"
                 size="large"
               />
-            </t-form-item>
-            <t-form-item name="confirmPassword">
-              <t-input
+            </FormItem>
+            <FormItem name="confirmPassword">
+              <Input
                 v-model="registerForm.confirmPassword"
                 placeholder="请确认密码"
                 type="password"
                 size="large"
               />
-            </t-form-item>
-            <t-form-item>
-              <t-button theme="primary" block size="large" :loading="registerLoading" @click="handleRegister" class="submit-btn">
+            </FormItem>
+            <FormItem>
+              <Button theme="primary" block size="large" :loading="registerLoading" @click="handleRegister" class="submit-btn">
                 注册
-              </t-button>
-            </t-form-item>
-          </t-form>
+              </Button>
+            </FormItem>
+          </Form>
           <div class="dialog-footer">
             <span class="link-text" @click="showRegisterDialog = false; showLoginDialog = true">已有账号？去登录</span>
           </div>
         </div>
-      </t-dialog>
+      </Dialog>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { Message } from 'tdesign-vue-next'
+import {
+  Message,
+  Button,
+  Dialog,
+  Dropdown,
+  DropdownMenu,
+  DropdownItem,
+  Form,
+  FormItem,
+  Input
+} from 'tdesign-vue-next'
 import UserApi from '@/apis/userApi'
 import { useUserStore } from '@/stores/userStore'
 
@@ -180,24 +190,12 @@ const userStore = useUserStore()
 const showLoginDialog = ref(false)
 const showRegisterDialog = ref(false)
 
-const loginFormRef = ref()
 const loginLoading = ref(false)
 const loginForm = reactive({
     username: '',
     password: ''
 })
 
-const loginRules = {
-    username: [
-        { required: true, message: '请输入用户名或邮箱', trigger: 'blur' }
-    ],
-    password: [
-        { required: true, message: '请输入密码', trigger: 'blur' },
-        { min: 6, message: '密码长度不能少于6个字符', trigger: 'blur' }
-    ]
-}
-
-const registerFormRef = ref()
 const registerLoading = ref(false)
 const registerForm = reactive({
     username: '',
@@ -206,104 +204,73 @@ const registerForm = reactive({
     confirmPassword: ''
 })
 
-const registerRules = {
-    username: [
-        { required: true, message: '请输入用户名', trigger: 'blur' },
-        { min: 2, max: 20, message: '用户名长度应在2-20个字符之间', trigger: 'blur' }
-    ],
-    email: [
-        { required: true, message: '请输入邮箱', trigger: 'blur' },
-        { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
-    ],
-    password: [
-        { required: true, message: '请输入密码', trigger: 'blur' },
-        { min: 6, message: '密码长度不能少于6个字符', trigger: 'blur' }
-    ],
-    confirmPassword: [
-        { required: true, message: '请确认密码', trigger: 'blur' },
-        {
-            validator: (rule: any, value: any, callback: any) => {
-                if (value === '') {
-                    callback(new Error('请确认密码'))
-                } else if (value !== registerForm.password) {
-                    callback(new Error('两次输入密码不一致'))
-                } else {
-                    callback()
-                }
-            },
-            trigger: 'blur'
-        }
-    ]
-}
-
 const handleLogin = async () => {
-    if (!loginFormRef.value) return
+    if (!loginForm.username || !loginForm.password) {
+        Message.warning('请输入用户名和密码')
+        return
+    }
 
-    const valid = await (loginFormRef.value as any).validate()
-    if (valid) {
-        loginLoading.value = true
-        try {
-            const result = await UserApi.login(loginForm.username, loginForm.password)
-            console.log('login result', result)
-            if (result.code === 200) {
-                userStore.setLogin(true)
+    loginLoading.value = true
+    try {
+        const result = await UserApi.login(loginForm.username, loginForm.password)
+        if (result.code === 200) {
+            userStore.setLogin(true)
 
-                userStore.setUserInfo({
-                    id: result.data?.user_id,
-                    email: loginForm.username
-                })
+            userStore.setUserInfo({
+                id: result.data?.user_id,
+                email: loginForm.username
+            })
 
-                if (result.data && result.data?.access_token) {
-                    userStore.setToken(result.data.access_token, result.data.refresh_token)
-                }
-
-                showLoginDialog.value = false
-                Message.success('登录成功')
-
-                loginForm.username = ''
-                loginForm.password = ''
-            } else {
-                Message.error(result.msg || '登录失败')
+            if (result.data && result.data?.access_token) {
+                userStore.setToken(result.data.access_token, result.data.refresh_token)
             }
-        } catch (error: any) {
-            Message.error(error.message || '登录失败，请稍后重试')
-        } finally {
-            loginLoading.value = false
+
+            showLoginDialog.value = false
+            Message.success('登录成功')
+
+            loginForm.username = ''
+            loginForm.password = ''
+        } else {
+            Message.error(result.msg || '登录失败')
         }
+    } catch (error: any) {
+        Message.error(error.message || '登录失败，请稍后重试')
+    } finally {
+        loginLoading.value = false
     }
 }
 
 const handleRegister = async () => {
-    if (!registerFormRef.value) return
+    if (!registerForm.username || !registerForm.email || !registerForm.password) {
+        Message.warning('请填写完整信息')
+        return
+    }
 
-    const valid = await (registerFormRef.value as any).validate()
-    if (valid) {
-        registerLoading.value = true
-        try {
-            const result = await UserApi.register({
-                username: registerForm.username,
-                email: registerForm.email,
-                password: registerForm.password,
-                role_id: 2,
-                status: 1
-            })
-            if (result.code === 200) {
-                Message.success('注册成功，请登录')
-                showRegisterDialog.value = false
-                showLoginDialog.value = true
+    registerLoading.value = true
+    try {
+        const result = await UserApi.register({
+            username: registerForm.username,
+            email: registerForm.email,
+            password: registerForm.password,
+            role_id: 2,
+            status: 1
+        })
+        if (result.code === 200) {
+            Message.success('注册成功，请登录')
+            showRegisterDialog.value = false
+            showLoginDialog.value = true
 
-                registerForm.username = ''
-                registerForm.email = ''
-                registerForm.password = ''
-                registerForm.confirmPassword = ''
-            } else {
-                Message.error(result.msg || '注册失败')
-            }
-        } catch (error: any) {
-            Message.error(error.message || '注册失败，请稍后重试')
-        } finally {
-            registerLoading.value = false
+            registerForm.username = ''
+            registerForm.email = ''
+            registerForm.password = ''
+            registerForm.confirmPassword = ''
+        } else {
+            Message.error(result.msg || '注册失败')
         }
+    } catch (error: any) {
+        Message.error(error.message || '注册失败，请稍后重试')
+    } finally {
+        registerLoading.value = false
     }
 }
 

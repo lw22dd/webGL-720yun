@@ -17,30 +17,7 @@
         <t-button theme="primary" @click="handleAddUser">新增用户</t-button>
       </div>
 
-      <t-table :data="userList" style="width: 100%" stripe hover>
-        <t-table-column prop="id" label="ID" width="80" />
-        <t-table-column prop="username" label="用户名" />
-        <t-table-column prop="email" label="邮箱" />
-        <t-table-column prop="phone" label="手机号" />
-        <t-table-column prop="nickname" label="昵称" />
-        <t-table-column prop="role.name" label="角色" />
-        <t-table-column prop="status" label="状态" width="80">
-          <template #default="scope">
-            <t-switch
-              v-model="scope.row.status"
-              @change="(newStatus: any) => handleStatusChange(scope.row, newStatus)"
-              custom-value="['1', '0']"
-            />
-          </template>
-        </t-table-column>
-        <t-table-column prop="created_at" label="创建时间" width="180" />
-        <t-table-column label="操作" width="200" fixed="right">
-          <template #default="scope">
-            <t-button theme="primary" size="small" @click="handleEditUser(scope.row)">编辑</t-button>
-            <t-button theme="danger" size="small" @click="handleDeleteUser(scope.row.id)">删除</t-button>
-          </template>
-        </t-table-column>
-      </t-table>
+      
 
       <div class="flex justify-center mt-6">
         <t-pagination
@@ -102,8 +79,6 @@ import { Message } from 'tdesign-vue-next'
 import Header from '@/components/Header.vue'
 import UserApi from '@/apis/userApi'
 
-const router = useRouter()
-
 const searchKeyword = ref('')
 
 const userList = ref([])
@@ -160,6 +135,7 @@ const loadUserList = async () => {
     })
     console.log(result)
     if (result.code === 200) {
+      console.log(result.data.users)
       userList.value = result.data.users
       pagination.total = result.data.total
     } else {
@@ -233,7 +209,7 @@ const handleSubmit = async () => {
   }
 }
 
-const handleDeleteUser = (userId: string) => {
+const handleDeleteUser = (_userId: string) => {
   Message.warning('删除功能已禁用，请联系管理员')
 }
 
@@ -250,13 +226,13 @@ const handleStatusChange = async (user: any, newStatus: any) => {
     const result = await UserApi.updateUser(user.id, { status: newStatus })
     if (result.code !== 200) {
       Message.error(result.msg || '更新状态失败')
-      user.status = user.status === '1' ? '0' : '1'
+      user.status = user.status === 1 ? 0 : 1
     } else {
       user.status = newStatus
     }
   } catch (error) {
     Message.error('更新状态失败')
-    user.status = user.status === '1' ? '0' : '1'
+    user.status = user.status === 1 ? 0 : 1
   }
 }
 

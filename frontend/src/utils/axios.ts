@@ -37,13 +37,26 @@ serviceAxios.interceptors.request.use(
 serviceAxios.interceptors.response.use(
   (res) => {
     let data = res.data;
-    // 处理自己的业务逻辑，比如判断 token 是否过期等等
-    // 代码块
+    if (data.code && data.code !== 200) {
+      return Promise.reject(new Error(data.msg || '请求失败'));
+    }
     return data;
   },
   (err) => {
-    // 处理请求错误，这里可以用全局提示框进行提示
-    // 错误处理
+    if (err.response) {
+      const { status, data } = err.response;
+      let message = data?.msg || '请求失败';
+      if (status === 401) {
+        message = data?.msg || '用户名或密码错误';
+      } else if (status === 400) {
+        message = data?.msg || '请求参数错误';
+      } else if (status === 404) {
+        message = data?.msg || '资源不存在';
+      } else if (status === 500) {
+        message = data?.msg || '服务器内部错误';
+      }
+      return Promise.reject(new Error(message));
+    }
     return Promise.reject(err);
   }
 );

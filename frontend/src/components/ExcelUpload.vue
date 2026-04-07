@@ -133,7 +133,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Message } from 'tdesign-vue-next'
 import UserApi from '@/apis/userApi'
 
 const UPLOAD_STATUS = {
