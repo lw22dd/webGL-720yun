@@ -1,50 +1,60 @@
-logger:
-    level: DEBUG
-    filename: debug.log
-    max_size: 10
-    max_backups: 5
-    max_age: 7
-    compress: true
+app:
+  name: webGL-720yun
+  version: 1.0.0
+  debug: true
+  environment: development
+
 server:
-    port: 7000
-    read_timeout: 10
-    write_timeout: 10
-    mode: debug
+  port: 7000
+  read_timeout: 30
+  write_timeout: 30
+  mode: debug
+
+logger:
+  level: info
+  filename: logs/app.log
+  max_size: 100
+  max_backups: 7
+  max_age: 30
+  compress: true
+
 database:
-#    host: mysql  保留的docker生产配置
-#    port: 3306
-    host: localhost # 开发配置
-    port: 3306
-    username: root
-    password: 123456
-    database: 720db
-    charset: utf8mb4
-    max_idle_conns: 10
-    max_open_conns: 100
+  host: localhost
+  port: 3306
+  username: root
+  password: 123456
+  database: 720db
+  charset: utf8mb4
+  max_idle_conns: 10
+  max_open_conns: 100
+
 redis:
-#    host: redis 保留的docker生产配置
-    host: localhost
-    port: 6379
-    password: ""
-    db: 0
-    pool_size: 10
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 100
+
 jwt:
-    secret: "webgl-720yun-secret-key-2024"
-    access_timeout: 60    # 访问令牌过期时间(分钟)
-    refresh_timeout: 168  # 刷新令牌过期时间(小时)
-    issuer: "webgl-720yun"
+  secret: your-jwt-secret-key-change-in-production
+  access_timeout: 60
+  refresh_timeout: 168
+  issuer: webGL-720yun
+
+minio:
+  endpoint: localhost:9000
+  access_key: admin
+  secret_key: admin123456
+  bucket: pannellum-resources
+  use_ssl: false
+  region: us-east-1
+
 no_auth:
-    - /favicon.ico
-    - /static
-    - /auth/login
-    - /auth/refresh
-    - /user/register
+  - /api/v1/auth/login
+  - /api/v1/auth/register
+  - /api/v1/health
+
 proxy:
-    host: localhost
-    port: 7001
-    no_proxy:
-        - /favicon.ico
-        - /static
-        - /auth/login
-        - /auth/refresh
-        - /user/register
+  host: ""
+  port: 0
+  no_proxy: []

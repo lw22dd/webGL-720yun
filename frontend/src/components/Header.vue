@@ -1,213 +1,185 @@
 <template>
-  <header class="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm transition-all duration-300 h-16 flex items-center">
-    <div class="w-full max-w-7xl mx-auto px-5 flex items-center justify-between h-full gap-3">
-      <!-- Logo区域 -->
-      <div class="flex items-center w-auto min-w-20 pr-1">
-        <h1 class="text-xl font-bold text-blue-600 whitespace-nowrap m-0 leading-1">720云</h1>
+  <header class="header">
+    <div class="header-content">
+      <div class="logo-section">
+        <h1 class="logo">720云</h1>
       </div>
-      
-      <!-- 导航菜单 -->
-      <nav class="flex items-center flex-1 justify-start gap-1">
-        <a href="#" class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50">首页</a>
-        <el-dropdown>
-          <span class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50 flex items-center">
-            产品服务
-            <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
-          </span>
+
+      <nav class="nav-menu">
+        <a href="#" class="nav-item active">首页</a>
+        <t-dropdown>
+          <span class="nav-item">产品服务</span>
           <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>VR全景创作</el-dropdown-item>
-              <el-dropdown-item>数字孪生</el-dropdown-item>
-              <el-dropdown-item>元宇宙平台</el-dropdown-item>
-              <el-dropdown-item>VR直播</el-dropdown-item>
-            </el-dropdown-menu>
+            <t-dropdown-menu>
+              <t-dropdown-item>VR全景创作</t-dropdown-item>
+              <t-dropdown-item>数字孪生</t-dropdown-item>
+              <t-dropdown-item>元宇宙平台</t-dropdown-item>
+              <t-dropdown-item>VR直播</t-dropdown-item>
+            </t-dropdown-menu>
           </template>
-        </el-dropdown>
-        <el-dropdown>
-          <span class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50 flex items-center">
-            解决方案
-            <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
-          </span>
+        </t-dropdown>
+        <t-dropdown>
+          <span class="nav-item">解决方案</span>
           <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>教育行业</el-dropdown-item>
-              <el-dropdown-item>房地产</el-dropdown-item>
-              <el-dropdown-item>旅游景区</el-dropdown-item>
-              <el-dropdown-item>企业展示</el-dropdown-item>
-            </el-dropdown-menu>
+            <t-dropdown-menu>
+              <t-dropdown-item>教育行业</t-dropdown-item>
+              <t-dropdown-item>房地产</t-dropdown-item>
+              <t-dropdown-item>旅游景区</t-dropdown-item>
+              <t-dropdown-item>企业展示</t-dropdown-item>
+            </t-dropdown-menu>
           </template>
-        </el-dropdown>
-        <el-dropdown>
-          <span class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50 flex items-center">
-            内容社区
-            <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
-          </span>
+        </t-dropdown>
+        <t-dropdown>
+          <span class="nav-item">内容社区</span>
           <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>作品展示</el-dropdown-item>
-              <el-dropdown-item>教程中心</el-dropdown-item>
-              <el-dropdown-item>社区论坛</el-dropdown-item>
-            </el-dropdown-menu>
+            <t-dropdown-menu>
+              <t-dropdown-item>作品展示</t-dropdown-item>
+              <t-dropdown-item>教程中心</t-dropdown-item>
+              <t-dropdown-item>社区论坛</t-dropdown-item>
+            </t-dropdown-menu>
           </template>
-        </el-dropdown>
-        <el-dropdown>
-          <span class="relative text-sm text-gray-600 cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50 flex items-center">
-            定制服务
-            <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
-          </span>
+        </t-dropdown>
+        <t-dropdown>
+          <span class="nav-item">定制服务</span>
           <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>VR内容定制</el-dropdown-item>
-              <el-dropdown-item>数字孪生定制</el-dropdown-item>
-              <el-dropdown-item>平台定制开发</el-dropdown-item>
-            </el-dropdown-menu>
+            <t-dropdown-menu>
+              <t-dropdown-item>VR内容定制</t-dropdown-item>
+              <t-dropdown-item>数字孪生定制</t-dropdown-item>
+              <t-dropdown-item>平台定制开发</t-dropdown-item>
+            </t-dropdown-menu>
           </template>
-        </el-dropdown>
+        </t-dropdown>
       </nav>
-      
-      <!-- 搜索框 -->
-      <div class="flex items-center flex-0 1 w-50 min-w-36">
-        <el-input
+
+      <div class="search-section">
+        <t-input
           v-model="searchKeyword"
           placeholder="搜索"
           size="small"
-          prefix-icon="Search"
-          class="w-full min-w-0"
-        >
-          <template #append>
-            <el-button @click="handleSearch" size="small" type="primary" icon="Search"></el-button>
-          </template>
-        </el-input>
+          class="search-input"
+          clearable
+          @enter="handleSearch"
+        />
       </div>
-      
-      <!-- 用户操作 -->
-      <div class="flex items-center min-w-fit">
+
+      <div class="auth-section">
         <template v-if="userStore.isLogin">
-          <el-dropdown>
-            <span class="flex items-center cursor-pointer px-3.5 py-1.5 transition-all whitespace-nowrap rounded hover:text-blue-600 hover:bg-blue-50">
+          <t-dropdown>
+            <span class="user-info">
               {{ userStore.userInfo.email || userStore.userInfo.name || '用户' }}
-              <el-icon class="ml-1 text-xs"><arrow-down /></el-icon>
             </span>
             <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
-              </el-dropdown-menu>
+              <t-dropdown-menu>
+                <t-dropdown-item @click="handleLogout">退出登录</t-dropdown-item>
+              </t-dropdown-menu>
             </template>
-          </el-dropdown>
+          </t-dropdown>
         </template>
         <template v-else>
-          <el-button type="primary" size="small" @click="showLoginDialog = true" class="text-xs px-3.5 py-1.5 transition-all hover:-translate-y-0.5 mr-2">登录</el-button>
-          <el-button type="default" size="small" @click="showRegisterDialog = true" class="text-xs px-3.5 py-1.5 transition-all hover:-translate-y-0.5">注册</el-button>
+          <t-button theme="default" variant="outline" size="small" @click="showLoginDialog = true" class="login-btn">登录</t-button>
+          <t-button theme="primary" size="small" @click="showRegisterDialog = true" class="register-btn">注册</t-button>
         </template>
       </div>
-      
-      <!-- 登录弹窗 -->
-      <el-dialog v-model="showLoginDialog" title="登录" width="400px" center>
-        <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef">
-          <el-form-item prop="username">
-            <el-input 
-              v-model="loginForm.username" 
-              placeholder="请输入用户名或邮箱" 
-              prefix-icon="User"
-            ></el-input>
-          </el-form-item>
-          <el-form-item prop="password">
-            <el-input 
-              v-model="loginForm.password" 
-              placeholder="请输入密码" 
-              type="password" 
-              show-password
-              prefix-icon="Lock"
-            ></el-input>
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <span>
-            <el-button @click="showLoginDialog = false">取消</el-button>
-            <el-button type="primary" @click="handleLogin" :loading="loginLoading">
-              登录
-            </el-button>
-          </span>
-        </template>
-      </el-dialog>
-      
-      <!-- 注册弹窗 -->
-      <el-dialog v-model="showRegisterDialog" title="注册" width="400px" center>
-        <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef">
-          <el-form-item prop="username">
-            <el-input 
-              v-model="registerForm.username" 
-              placeholder="请输入用户名"
-              prefix-icon="User"
-            ></el-input>
-          </el-form-item>
-          <el-form-item prop="email">
-            <el-input 
-              v-model="registerForm.email" 
-              placeholder="请输入邮箱" 
-              type="email"
-              prefix-icon="Message"
-            ></el-input>
-          </el-form-item>
-          <el-form-item prop="password">
-            <el-input 
-              v-model="registerForm.password" 
-              placeholder="请输入密码" 
-              type="password" 
-              show-password
-              prefix-icon="Lock"
-            ></el-input>
-          </el-form-item>
-          <el-form-item prop="confirmPassword">
-            <el-input 
-              v-model="registerForm.confirmPassword" 
-              placeholder="请确认密码" 
-              type="password" 
-              show-password
-              prefix-icon="Lock"
-            ></el-input>
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <span>
-            <el-button @click="showRegisterDialog = false">取消</el-button>
-            <el-button type="primary" @click="handleRegister" :loading="registerLoading">
-              注册
-            </el-button>
-          </span>
-        </template>
-      </el-dialog>
+
+      <t-dialog v-model="showLoginDialog" header="登录" width="420px" :footer="null">
+        <div class="dialog-content">
+          <t-form :data="loginForm" :rules="loginRules" ref="loginFormRef" label-width="0">
+            <t-form-item name="username">
+              <t-input
+                v-model="loginForm.username"
+                placeholder="请输入用户名或邮箱"
+                size="large"
+              />
+            </t-form-item>
+            <t-form-item name="password">
+              <t-input
+                v-model="loginForm.password"
+                placeholder="请输入密码"
+                type="password"
+                size="large"
+              />
+            </t-form-item>
+            <t-form-item>
+              <t-button theme="primary" block size="large" :loading="loginLoading" @click="handleLogin" class="submit-btn">
+                登录
+              </t-button>
+            </t-form-item>
+          </t-form>
+          <div class="dialog-footer">
+            <span class="link-text" @click="showLoginDialog = false; showRegisterDialog = true">没有账号？去注册</span>
+          </div>
+        </div>
+      </t-dialog>
+
+      <t-dialog v-model="showRegisterDialog" header="注册" width="420px" :footer="null">
+        <div class="dialog-content">
+          <t-form :data="registerForm" :rules="registerRules" ref="registerFormRef" label-width="0">
+            <t-form-item name="username">
+              <t-input
+                v-model="registerForm.username"
+                placeholder="请输入用户名"
+                size="large"
+              />
+            </t-form-item>
+            <t-form-item name="email">
+              <t-input
+                v-model="registerForm.email"
+                placeholder="请输入邮箱"
+                size="large"
+              />
+            </t-form-item>
+            <t-form-item name="password">
+              <t-input
+                v-model="registerForm.password"
+                placeholder="请输入密码"
+                type="password"
+                size="large"
+              />
+            </t-form-item>
+            <t-form-item name="confirmPassword">
+              <t-input
+                v-model="registerForm.confirmPassword"
+                placeholder="请确认密码"
+                type="password"
+                size="large"
+              />
+            </t-form-item>
+            <t-form-item>
+              <t-button theme="primary" block size="large" :loading="registerLoading" @click="handleRegister" class="submit-btn">
+                注册
+              </t-button>
+            </t-form-item>
+          </t-form>
+          <div class="dialog-footer">
+            <span class="link-text" @click="showRegisterDialog = false; showLoginDialog = true">已有账号？去登录</span>
+          </div>
+        </div>
+      </t-dialog>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
-import { ArrowDown, Message, Lock, User } from '@element-plus/icons-vue'
+import { Message } from 'tdesign-vue-next'
 import UserApi from '@/apis/userApi'
 import { useUserStore } from '@/stores/userStore'
 
-// 搜索功能
 const searchKeyword = ref('')
 
-// 搜索处理
 const handleSearch = () => {
     if (searchKeyword.value.trim()) {
-        ElMessage.info(`搜索内容：${searchKeyword.value}`)
+        Message.info(`搜索内容：${searchKeyword.value}`)
     } else {
-        ElMessage.warning('请输入搜索内容')
+        Message.warning('请输入搜索内容')
     }
 }
 
-// 用户状态
 const userStore = useUserStore()
 
-// 登录弹窗控制
 const showLoginDialog = ref(false)
 const showRegisterDialog = ref(false)
 
-// 登录表单
 const loginFormRef = ref()
 const loginLoading = ref(false)
 const loginForm = reactive({
@@ -215,7 +187,6 @@ const loginForm = reactive({
     password: ''
 })
 
-// 登录表单验证规则
 const loginRules = {
     username: [
         { required: true, message: '请输入用户名或邮箱', trigger: 'blur' }
@@ -226,7 +197,6 @@ const loginRules = {
     ]
 }
 
-// 注册表单
 const registerFormRef = ref()
 const registerLoading = ref(false)
 const registerForm = reactive({
@@ -236,7 +206,6 @@ const registerForm = reactive({
     confirmPassword: ''
 })
 
-// 注册表单验证规则
 const registerRules = {
     username: [
         { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -252,7 +221,7 @@ const registerRules = {
     ],
     confirmPassword: [
         { required: true, message: '请确认密码', trigger: 'blur' },
-        { 
+        {
             validator: (rule: any, value: any, callback: any) => {
                 if (value === '') {
                     callback(new Error('请确认密码'))
@@ -261,117 +230,270 @@ const registerRules = {
                 } else {
                     callback()
                 }
-            }, 
-            trigger: 'blur' 
+            },
+            trigger: 'blur'
         }
     ]
 }
 
-// 登录处理
 const handleLogin = async () => {
     if (!loginFormRef.value) return
-    
-    // 表单验证
-    await loginFormRef.value.validate(async (valid: boolean) => {
-        if (valid) {
-            loginLoading.value = true
-            try {
-                const result = await UserApi.login(loginForm.username, loginForm.password)
-                console.log('login result', result)
-                if (result.code === 200) {
-                    // 登录成功
-                    userStore.setLogin(true)
-                    
-                    // 保存用户ID和基础信息
-                    userStore.setUserInfo({ 
-                        id: result.data?.user_id, 
-                        email: loginForm.username 
-                    })
-                    
-                    // 保存token到store
-                    if (result.data && result.data?.access_token) {
-                        userStore.setToken(result.data.access_token, result.data.refresh_token)
-                    }
-                    
-                    showLoginDialog.value = false
-                    ElMessage.success('登录成功')
-                    
-                    // 重置表单
-                    loginForm.username = ''
-                    loginForm.password = ''
-                } else {
-                    // 登录失败
-                    ElMessage.error(result.msg || '登录失败')
+
+    const valid = await (loginFormRef.value as any).validate()
+    if (valid) {
+        loginLoading.value = true
+        try {
+            const result = await UserApi.login(loginForm.username, loginForm.password)
+            console.log('login result', result)
+            if (result.code === 200) {
+                userStore.setLogin(true)
+
+                userStore.setUserInfo({
+                    id: result.data?.user_id,
+                    email: loginForm.username
+                })
+
+                if (result.data && result.data?.access_token) {
+                    userStore.setToken(result.data.access_token, result.data.refresh_token)
                 }
-            } catch (error: any) {
-                ElMessage.error(error.message || '登录失败，请稍后重试')
-            } finally {
-                loginLoading.value = false
+
+                showLoginDialog.value = false
+                Message.success('登录成功')
+
+                loginForm.username = ''
+                loginForm.password = ''
+            } else {
+                Message.error(result.msg || '登录失败')
             }
+        } catch (error: any) {
+            Message.error(error.message || '登录失败，请稍后重试')
+        } finally {
+            loginLoading.value = false
         }
-    })
+    }
 }
 
-// 注册处理
 const handleRegister = async () => {
     if (!registerFormRef.value) return
-    
-    // 表单验证
-    await registerFormRef.value.validate(async (valid: boolean) => {
-        if (valid) {
-            registerLoading.value = true
-            try {
-                const result = await UserApi.register({
-                    username: registerForm.username,
-                    email: registerForm.email,
-                    password: registerForm.password,
-                    role_id: 2, // 默认为普通用户角色，根据实际需求调整
-                    status: 1 // 默认为启用状态
-                })
-                if (result.code === 200) {
-                    // 注册成功
-                    ElMessage.success('注册成功，请登录')
-                    showRegisterDialog.value = false
-                    showLoginDialog.value = true
-                    
-                    // 重置表单
-                    registerForm.username = ''
-                    registerForm.email = ''
-                    registerForm.password = ''
-                    registerForm.confirmPassword = ''
-                } else {
-                    // 注册失败
-                    ElMessage.error(result.msg || '注册失败')
-                }
-            } catch (error: any) {
-                ElMessage.error(error.message || '注册失败，请稍后重试')
-            } finally {
-                registerLoading.value = false
+
+    const valid = await (registerFormRef.value as any).validate()
+    if (valid) {
+        registerLoading.value = true
+        try {
+            const result = await UserApi.register({
+                username: registerForm.username,
+                email: registerForm.email,
+                password: registerForm.password,
+                role_id: 2,
+                status: 1
+            })
+            if (result.code === 200) {
+                Message.success('注册成功，请登录')
+                showRegisterDialog.value = false
+                showLoginDialog.value = true
+
+                registerForm.username = ''
+                registerForm.email = ''
+                registerForm.password = ''
+                registerForm.confirmPassword = ''
+            } else {
+                Message.error(result.msg || '注册失败')
             }
+        } catch (error: any) {
+            Message.error(error.message || '注册失败，请稍后重试')
+        } finally {
+            registerLoading.value = false
         }
-    })
+    }
 }
 
-// 退出登录处理
 const handleLogout = async () => {
     try {
         const result = await UserApi.logout()
         if (result.code === 200) {
-            // 退出成功
             userStore.logout()
-            ElMessage.success('退出成功')
+            Message.success('退出成功')
         } else {
-            // 退出失败
-            ElMessage.error(result.msg || '退出失败')
+            userStore.logout()
+            Message.error(result.msg || '退出失败')
         }
     } catch (error: any) {
-        // 网络错误，直接清除本地状态
         userStore.logout()
-        ElMessage.success('已退出登录')
+        Message.success('已退出登录')
     }
 }
 </script>
 
 <style scoped>
-/* Tailwind CSS 已应用，不再需要自定义 SCSS 样式 */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  height: 64px;
+  display: flex;
+  align-items: center;
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.header-content {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  gap: 32px;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0052d9;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.nav-menu {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.nav-item {
+  position: relative;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4e5969;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.nav-item:hover {
+  color: #0052d9;
+  background: rgba(0, 82, 217, 0.06);
+}
+
+.nav-item.active {
+  color: #0052d9;
+  font-weight: 600;
+}
+
+.search-section {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 240px;
+}
+
+.search-input {
+  width: 100%;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.login-btn {
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: 6px;
+  padding: 0 20px;
+  border-color: #0052d9;
+  color: #0052d9;
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+
+.login-btn:hover {
+  background: #0052d9 !important;
+  border-color: #0052d9 !important;
+  color: #ffffff !important;
+}
+
+.register-btn {
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: 6px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, #0052d9 0%, #4080ff 100%);
+  border-color: #0052d9;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 82, 217, 0.2);
+  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+
+.register-btn:hover {
+  background: linear-gradient(135deg, #4080ff 0%, #0052d9 100%);
+  border-color: #4080ff;
+  box-shadow: 0 4px 12px rgba(0, 82, 217, 0.3);
+  transform: translateY(-1px);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4e5969;
+  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+
+.user-info:hover {
+  color: #0052d9;
+  background: rgba(0, 82, 217, 0.06);
+}
+
+.dialog-content {
+  padding: 8px 0;
+}
+
+.dialog-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.submit-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.link-text {
+  font-size: 14px;
+  color: #0052d9;
+  cursor: pointer;
+  transition: color 0.2s;
+  text-align: center;
+}
+
+.link-text:hover {
+  color: #4080ff;
+  text-decoration: underline;
+}
 </style>

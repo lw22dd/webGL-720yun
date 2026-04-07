@@ -15,9 +15,11 @@ import (
 	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/internal/core/router"
 	"webGL-720yun/internal/core/setup"
+	"webGL-720yun/internal/resource/service"
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/logger"
+	"webGL-720yun/pkg/minio_client"
 	"webGL-720yun/pkg/redis"
 )
 
@@ -38,9 +40,36 @@ func Run() {
 
 	redisClient := redis.NewRedisService(&config.Conf.Redis)
 
+	minioClient, err := minio_client.NewMinIOClient(&config.MinIOConfig{
+		Endpoint:  config.Conf.MinIO.Endpoint,
+		AccessKey: config.Conf.MinIO.AccessKey,
+		SecretKey: config.Conf.MinIO.SecretKey,
+		Bucket:    config.Conf.MinIO.Bucket,
+		UseSSL:    config.Conf.MinIO.UseSSL,
+		Region:    config.Conf.MinIO.Region,
+	})
+	if err != nil {
+		logger.Warnf("MinIO初始化失败（非致命）: %v", err)
+	}
+
 	jwtService := jwt.NewJWTService(&config.Conf.JWT)
 
 	userService := user.NewUserService(db.GetDB(), jwtService, redisClient)
+
+	spaceService := service.NewSpaceService(db.GetDB(), minioClient)
+	sceneService := service.NewSceneService(db.GetDB(), minioClient)
+	hotspotService := service.NewHotspotService(db.GetDB())
+
+	if err := setup.SeedTestData(db.GetDB()); err != nil {
+		logger.Fatal("种子数据初始化失败:", err)
+	}
+
+	if minioClient != nil {
+		resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, ".")
+		if initErr := resourceInitService.SeedResourcesIfNeeded(); initErr != nil {
+			logger.Warnf("全景资源初始化失败（非致命）: %v", initErr)
+		}
+	}
 
 	noAuthPaths := config.Conf.NoAuth
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, redisClient, noAuthPaths)
@@ -49,8 +78,12 @@ func Run() {
 
 	serviceContext := &router.ServiceContext{
 		UserService:    userService,
+		SpaceService:   spaceService,
+		SceneService:   sceneService,
+		HotspotService: hotspotService,
 		AuthMiddleware: authMiddleware,
 		RBACMiddleware: rbacMiddleware,
+		MinIOClient:    minioClient,
 	}
 
 	if config.Conf.App.Debug {

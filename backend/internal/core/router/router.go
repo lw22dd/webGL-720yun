@@ -7,17 +7,27 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"webGL-720yun/internal/core/middleware"
+	"webGL-720yun/internal/resource/handler"
+	"webGL-720yun/internal/resource/service"
 	"webGL-720yun/internal/user"
+	"webGL-720yun/pkg/minio_client"
 )
 
 type ServiceContext struct {
 	UserService    *user.UserService
+	SpaceService   *service.SpaceService
+	SceneService   *service.SceneService
+	HotspotService *service.HotspotService
 	AuthMiddleware *middleware.AuthMiddleware
 	RBACMiddleware *middleware.RBACMiddleware
+	MinIOClient    *minio_client.MinIOClient
 }
 
 func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	userService := ctx.UserService
+	spaceService := ctx.SpaceService
+	sceneService := ctx.SceneService
+	hotspotService := ctx.HotspotService
 	authMiddleware := ctx.AuthMiddleware
 
 	api := r.Group("/api/v1")
@@ -49,6 +59,38 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 					admin.DELETE("/:id", user.DeleteUser(userService))
 					admin.POST("/batch-register", user.BatchRegister(userService))
 				}
+			}
+		}
+
+		resourceGroup := api.Group("/resource")
+		resourceGroup.Use(authMiddleware.RequireAuth())
+		{
+			spaces := resourceGroup.Group("/spaces")
+			{
+				spaces.GET("", handler.GetSpaceList(spaceService))
+				spaces.GET("/:slug", handler.GetSpaceDetail(spaceService))
+				spaces.POST("", authMiddleware.RequireAdmin(), handler.CreateSpace(spaceService))
+				spaces.PUT("/:id", handler.UpdateSpace(spaceService))
+				spaces.DELETE("/:id", handler.DeleteSpace(spaceService))
+			}
+
+			scenes := resourceGroup.Group("/scenes")
+			{
+				scenes.GET("", handler.GetSceneList(sceneService))
+				scenes.GET("/:id", handler.GetSceneDetail(sceneService))
+				scenes.POST("", authMiddleware.RequireAdmin(), handler.CreateScene(sceneService))
+				scenes.PUT("/:id", handler.UpdateScene(sceneService))
+				scenes.DELETE("/:id", handler.DeleteScene(sceneService))
+				scenes.POST("/batch-import", authMiddleware.RequireAdmin(), handler.BatchImportScenes(sceneService))
+			}
+
+			hotspots := resourceGroup.Group("/hotspots")
+			{
+				hotspots.GET("", handler.GetHotspotList(hotspotService))
+				hotspots.GET("/:id", handler.GetHotspotDetail(hotspotService))
+				hotspots.POST("", authMiddleware.RequireAdmin(), handler.CreateHotspot(hotspotService))
+				hotspots.PUT("/:id", handler.UpdateHotspot(hotspotService))
+				hotspots.DELETE("/:id", handler.DeleteHotspot(hotspotService))
 			}
 		}
 	}

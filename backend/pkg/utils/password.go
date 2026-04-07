@@ -1,10 +1,10 @@
 package utils
 
 import (
+	"crypto/rand"
 	"errors"
-	"math/rand"
+	"math/big"
 	"regexp"
-	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -31,14 +31,17 @@ func CheckPassword(password, hash string) bool {
 }
 
 // 生成随机密码
-func GenerateRandomPassword(length int) string {
+func GenerateRandomPassword(length int) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = charset[r.Intn(len(charset))]
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = charset[n.Int64()]
 	}
-	return string(b)
+	return string(b), nil
 }
 
 // ValidatePasswordComplexity 验证密码复杂度

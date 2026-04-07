@@ -155,8 +155,8 @@ func seedTestClasses(db *gorm.DB) error {
 		},
 	}
 
-	for _, teacher := range teachers {
-		if err := db.Create(&teacher).Error; err != nil {
+	for i := range teachers {
+		if err := db.Create(&teachers[i]).Error; err != nil {
 			return err
 		}
 	}

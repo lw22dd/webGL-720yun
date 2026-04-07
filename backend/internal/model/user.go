@@ -40,7 +40,10 @@ func (User) TableName() string {
 }
 
 func (u *User) ResetPassword() (string, error) {
-	tempPassword := utils.GenerateRandomPassword(8)
+	tempPassword, err := utils.GenerateRandomPassword(8)
+	if err != nil {
+		return "", err
+	}
 	hashedPassword, err := utils.HashPassword(tempPassword)
 	if err != nil {
 		return "", err

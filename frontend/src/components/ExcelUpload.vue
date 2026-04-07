@@ -1,157 +1,141 @@
 <template>
-  <div class="max-w-4xl mx-auto p-5">
-    <el-card shadow="hover" class="rounded-lg">
+  <div class="excel-upload-wrapper">
+    <t-card class="upload-card">
       <template #header>
-        <div class="flex justify-between items-center">
-          <span class="text-lg font-semibold">学生批量注册</span>
-          <el-button type="primary" size="small" @click="handleDownloadTemplate">
-            <el-icon><Download /></el-icon>
+        <div class="card-header">
+          <div class="header-left">
+            <t-icon name="file-excel" class="header-icon" />
+            <span class="header-title">学生批量注册</span>
+          </div>
+          <t-button theme="default" size="small" @click="handleDownloadTemplate" variant="outline">
             下载模板
-          </el-button>
+          </t-button>
         </div>
       </template>
 
-      <div 
-        class="relative border-2 border-dashed border-gray-300 rounded-lg p-16 text-center transition-all duration-300 cursor-pointer overflow-hidden hover:border-blue-500"
-        :class="{'border-blue-500 bg-blue-50': isDragover}"
-        @drop="handleDrop" 
-        @dragover.prevent 
-        @dragenter="handleDragEnter" 
+      <div
+        class="upload-dropzone"
+        :class="{'dragover': isDragover}"
+        @drop="handleDrop"
+        @dragover.prevent
+        @dragenter="handleDragEnter"
         @dragleave="handleDragLeave"
       >
-        
-        <input 
-          type="file" 
-          ref="fileInput" 
-          accept=".xlsx, .csv" 
-          class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          @change="handleFileChange" 
+        <input
+          type="file"
+          ref="fileInput"
+          accept=".xlsx, .csv"
+          class="file-input"
+          @change="handleFileChange"
         />
-        
-        <div class="flex flex-col items-center gap-4">
-          <el-icon class="text-blue-500 text-8xl"><UploadFilled /></el-icon>
-          <h3 class="text-xl font-medium text-gray-800">点击或拖拽文件到此处上传</h3>
-          <p class="text-gray-600">支持 .xlsx 和 .csv 格式文件</p>
-          <el-button type="primary" @click="triggerFileInput" :disabled="isUploading">
-            <el-icon><DocumentAdd /></el-icon>
+
+        <div class="dropzone-content">
+          <div class="dropzone-icon">
+            <t-icon name="cloud-upload" size="64px" />
+          </div>
+          <h3 class="dropzone-title">点击或拖拽文件到此处上传</h3>
+          <p class="dropzone-desc">支持 .xlsx 和 .csv 格式文件，最大 10MB</p>
+          <t-button theme="primary" size="large" @click="triggerFileInput" :disabled="isUploading" class="select-btn">
             选择文件
-          </el-button>
+          </t-button>
         </div>
       </div>
 
-      <!-- 文件信息 -->
-      <div v-if="selectedFile" class="mt-5 p-3 bg-gray-50 rounded-md">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="文件名">
-            {{ selectedFile.name }}
-          </el-descriptions-item>
-          <el-descriptions-item label="文件大小">
-            {{ formatFileSize(selectedFile.size) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="上传状态">
-            <el-tag :type="uploadStatus === 'success' ? 'success' : uploadStatus === 'error' ? 'danger' : ''">
-              {{ uploadStatusMap[uploadStatus] }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
+      <div v-if="selectedFile" class="file-info">
+        <div class="file-info-header">
+          <t-icon name="file" class="file-icon" />
+          <span class="file-name">{{ selectedFile.name }}</span>
+          <span class="file-size">{{ formatFileSize(selectedFile.size) }}</span>
+        </div>
+        <div class="file-status">
+          <t-tag :theme="statusTheme" size="small">
+            {{ uploadStatusMap[uploadStatus] }}
+          </t-tag>
+        </div>
       </div>
 
-      <!-- 上传进度 -->
-      <div v-if="isUploading" class="mt-5 flex items-center gap-3">
-        <el-progress 
-          :percentage="uploadProgress" 
-          status="active" 
-          :text-inside="true"
-          class="flex-1"
-        />
-        <el-button type="danger" size="small" @click="handleCancelUpload">
+      <div v-if="isUploading" class="upload-progress">
+        <div class="progress-bar-wrapper">
+          <t-progress
+            :percentage="uploadProgress"
+            :status="uploadProgress === 100 ? 'success' : 'active'"
+            size="large"
+            :show-overlay="true"
+          />
+        </div>
+        <t-button theme="default" size="small" @click="handleCancelUpload" variant="text" class="cancel-btn">
           取消上传
-        </el-button>
+        </t-button>
       </div>
 
-      <!-- 错误信息 -->
-      <div v-if="errorMessage" class="mt-5">
-        <el-alert 
-          title="上传失败" 
-          :description="errorMessage" 
-          type="error" 
-          show-icon 
-          :closable="true"
-          @close="errorMessage = ''"
-        />
-      </div>
+      <t-alert
+        v-if="errorMessage"
+        class="result-alert"
+        variant="error"
+        :message="errorMessage"
+        :closable="true"
+        @close="errorMessage = ''"
+      />
 
-      <!-- 成功信息 -->
-      <div v-if="successMessage" class="mt-5">
-        <el-alert 
-          title="上传成功" 
-          :description="successMessage" 
-          type="success" 
-          show-icon 
-          :closable="true"
-          @close="successMessage = ''"
-        />
-      </div>
+      <t-alert
+        v-if="successMessage"
+        class="result-alert"
+        variant="success"
+        :message="successMessage"
+        :closable="true"
+        @close="successMessage = ''"
+      />
 
-      <!-- 注册结果 -->
-      <div v-if="registerResult" class="mt-5">
-        <el-divider content-position="left">注册结果</el-divider>
-        <div class="flex gap-10 mt-5 p-5 bg-gray-50 rounded-lg">
-          <div class="flex items-center gap-3">
-            <span class="font-medium text-gray-600">总记录数:</span>
-            <span class="text-2xl font-bold text-blue-600">{{ registerResult.success_count + registerResult.failed_count }}</span>
+      <div v-if="registerResult" class="register-result">
+        <t-divider>
+          <span class="divider-text">注册结果</span>
+        </t-divider>
+        <div class="result-stats">
+          <div class="stat-item">
+            <span class="stat-label">总记录数</span>
+            <span class="stat-value">{{ registerResult.success_count + registerResult.failed_count }}</span>
           </div>
-          <div class="flex items-center gap-3">
-            <span class="font-medium text-gray-600">成功:</span>
-            <span class="text-2xl font-bold text-green-600">{{ registerResult.success_count }}</span>
+          <div class="stat-item success">
+            <span class="stat-label">成功</span>
+            <span class="stat-value">{{ registerResult.success_count }}</span>
           </div>
-          <div class="flex items-center gap-3">
-            <span class="font-medium text-gray-600">失败:</span>
-            <span class="text-2xl font-bold text-red-600">{{ registerResult.failed_count }}</span>
+          <div class="stat-item error">
+            <span class="stat-label">失败</span>
+            <span class="stat-value">{{ registerResult.failed_count }}</span>
           </div>
         </div>
 
-        <!-- 失败详情 -->
-        <div v-if="registerResult.failed_count > 0" class="mt-5">
-          <el-collapse v-model="activeNames">
-            <el-collapse-item title="查看失败详情" name="1">
-              <el-table :data="registerResult.errors" stripe border size="small">
-                <el-table-column prop="index" label="行号" width="80" />
-                <el-table-column prop="username" label="用户名" width="120" />
-                <el-table-column prop="error" label="错误信息" show-overflow-tooltip />
-              </el-table>
-            </el-collapse-item>
-          </el-collapse>
-        </div>
+        <t-collapsible v-if="registerResult.failed_count > 0" class="error-collapsible">
+          <template #header>
+            <div class="collapsible-header">
+              <span>查看失败详情</span>
+            </div>
+          </template>
+          <t-table :data="registerResult.errors" stripe size="small" class="error-table">
+            <t-table-column prop="index" label="行号" width="80" />
+            <t-table-column prop="username" label="用户名" width="140" />
+            <t-table-column prop="error" label="错误信息" />
+          </t-table>
+        </t-collapsible>
       </div>
 
-      <!-- 操作按钮 -->
-      <div v-if="selectedFile && !isUploading" class="mt-5 flex justify-center gap-3">
-        <el-button type="primary" @click="handleUpload" :loading="isUploading">
-          <el-icon><Upload /></el-icon>
+      <div v-if="selectedFile && !isUploading" class="action-buttons">
+        <t-button theme="primary" size="large" @click="handleUpload" :loading="isUploading" class="upload-btn">
           开始上传
-        </el-button>
-        <el-button @click="handleReset">
-          <el-icon><RefreshRight /></el-icon>
+        </t-button>
+        <t-button theme="default" size="large" @click="handleReset" variant="outline">
           重新选择
-        </el-button>
+        </t-button>
       </div>
-    </el-card>
+    </t-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { 
-  UploadFilled, 
-  Upload, 
-  DocumentAdd, 
-  Download, 
-  RefreshRight 
-} from '@element-plus/icons-vue'
+import { ref, computed } from 'vue'
+import { Message } from 'tdesign-vue-next'
 import UserApi from '@/apis/userApi'
 
-// 定义上传状态
 const UPLOAD_STATUS = {
   IDLE: 'idle',
   UPLOADING: 'uploading',
@@ -159,7 +143,6 @@ const UPLOAD_STATUS = {
   ERROR: 'error'
 } as const
 
-// 状态映射
 const uploadStatusMap = {
   [UPLOAD_STATUS.IDLE]: '未开始',
   [UPLOAD_STATUS.UPLOADING]: '上传中',
@@ -167,7 +150,14 @@ const uploadStatusMap = {
   [UPLOAD_STATUS.ERROR]: '上传失败'
 }
 
-// 响应式数据
+const statusTheme = computed(() => {
+  switch (uploadStatus.value) {
+    case UPLOAD_STATUS.SUCCESS: return 'success'
+    case UPLOAD_STATUS.ERROR: return 'danger'
+    default: return 'default'
+  }
+})
+
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
 const isUploading = ref(false)
@@ -177,9 +167,7 @@ const uploadStatus = ref<typeof UPLOAD_STATUS[keyof typeof UPLOAD_STATUS]>(UPLOA
 const errorMessage = ref('')
 const successMessage = ref('')
 const registerResult = ref<any>(null)
-const activeNames = ref(['1'])
 
-// 文件拖拽事件
 const handleDragEnter = (e: DragEvent) => {
   e.preventDefault()
   isDragover.value = true
@@ -190,26 +178,20 @@ const handleDragLeave = (e: DragEvent) => {
   isDragover.value = false
 }
 
-const handleDragOver = (e: DragEvent) => {
-  e.preventDefault()
-}
-
 const handleDrop = (e: DragEvent) => {
   e.preventDefault()
   isDragover.value = false
-  
+
   const files = e.dataTransfer?.files
   if (files && files.length > 0) {
     handleFileSelect(files[0])
   }
 }
 
-// 触发文件选择
 const triggerFileInput = () => {
   fileInput.value?.click()
 }
 
-// 文件选择事件
 const handleFileChange = (e: Event) => {
   const target = e.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
@@ -217,16 +199,13 @@ const handleFileChange = (e: Event) => {
   }
 }
 
-// 处理文件选择
 const handleFileSelect = (file: File) => {
-  // 验证文件类型
   const fileExtension = file.name.split('.').pop()?.toLowerCase()
   if (fileExtension !== 'xlsx' && fileExtension !== 'csv') {
     errorMessage.value = '请选择 .xlsx 或 .csv 格式的文件'
     return
   }
 
-  // 验证文件大小（最大10MB）
   if (file.size > 10 * 1024 * 1024) {
     errorMessage.value = '文件大小不能超过 10MB'
     return
@@ -239,7 +218,6 @@ const handleFileSelect = (file: File) => {
   registerResult.value = null
 }
 
-// 格式化文件大小
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
@@ -248,7 +226,6 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-// 重置状态
 const handleReset = () => {
   selectedFile.value = null
   isUploading.value = false
@@ -257,13 +234,11 @@ const handleReset = () => {
   errorMessage.value = ''
   successMessage.value = ''
   registerResult.value = null
-  // 清空文件输入
   if (fileInput.value) {
     fileInput.value.value = ''
   }
 }
 
-// 取消上传
 const handleCancelUpload = () => {
   isUploading.value = false
   uploadProgress.value = 0
@@ -271,17 +246,13 @@ const handleCancelUpload = () => {
   errorMessage.value = '上传已取消'
 }
 
-// 下载模板
 const handleDownloadTemplate = () => {
-  // 这里可以实现模板下载逻辑
-  // 目前只是模拟下载
   successMessage.value = '模板下载功能开发中...'
 }
 
-// 上传文件
 const handleUpload = async () => {
   if (!selectedFile.value) return
-  
+
   try {
     isUploading.value = true
     uploadStatus.value = UPLOAD_STATUS.UPLOADING
@@ -290,15 +261,12 @@ const handleUpload = async () => {
     successMessage.value = ''
     registerResult.value = null
 
-    // 调用实际的API，使用真实的进度跟踪
     const response = await UserApi.batchRegister(selectedFile.value, (progress) => {
       uploadProgress.value = progress
     })
-    
-    // 确保进度达到100%
+
     uploadProgress.value = 100
 
-    // 处理响应
     if (response.code === 200) {
       uploadStatus.value = UPLOAD_STATUS.SUCCESS
       successMessage.value = response.msg || '批量注册成功'
@@ -315,3 +283,227 @@ const handleUpload = async () => {
 }
 </script>
 
+<style scoped>
+.excel-upload-wrapper {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.upload-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-icon {
+  font-size: 20px;
+  color: #0052d9;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d2129;
+}
+
+.upload-dropzone {
+  position: relative;
+  border: 2px dashed #e5e6eb;
+  border-radius: 12px;
+  padding: 60px 24px;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+  background: #f7f8fa;
+}
+
+.upload-dropzone:hover,
+.upload-dropzone.dragover {
+  border-color: #0052d9;
+  background: rgba(0, 82, 217, 0.04);
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.dropzone-icon {
+  color: #c9cdd4;
+  transition: color 0.2s;
+}
+
+.upload-dropzone:hover .dropzone-icon,
+.upload-dropzone.dragover .dropzone-icon {
+  color: #0052d9;
+}
+
+.dropzone-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #1d2129;
+  margin: 0;
+}
+
+.dropzone-desc {
+  font-size: 14px;
+  color: #86909c;
+  margin: 0;
+}
+
+.select-btn {
+  border-radius: 8px;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.file-info {
+  margin-top: 24px;
+  padding: 16px 20px;
+  background: #f7f8fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-info-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.file-icon {
+  font-size: 20px;
+  color: #0052d9;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1d2129;
+}
+
+.file-size {
+  font-size: 13px;
+  color: #86909c;
+}
+
+.upload-progress {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.progress-bar-wrapper {
+  flex: 1;
+}
+
+.cancel-btn {
+  color: #e34d59;
+  flex-shrink: 0;
+}
+
+.result-alert {
+  margin-top: 20px;
+  border-radius: 8px;
+}
+
+.register-result {
+  margin-top: 28px;
+}
+
+.divider-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4e5969;
+}
+
+.result-stats {
+  display: flex;
+  gap: 40px;
+  margin-top: 20px;
+  padding: 24px;
+  background: linear-gradient(135deg, #f7f8fa 0%, #ffffff 100%);
+  border-radius: 12px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-item.success .stat-value {
+  color: #00a870;
+}
+
+.stat-item.error .stat-value {
+  color: #e34d59;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #86909c;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1d2129;
+}
+
+.error-collapsible {
+  margin-top: 20px;
+}
+
+.collapsible-header {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4e5969;
+}
+
+.error-table {
+  margin-top: 12px;
+  border-radius: 8px;
+}
+
+.action-buttons {
+  margin-top: 28px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.upload-btn {
+  border-radius: 8px;
+  font-weight: 500;
+  min-width: 140px;
+}
+</style>

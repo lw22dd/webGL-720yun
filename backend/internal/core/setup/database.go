@@ -100,6 +100,9 @@ func autoMigrate(db *gorm.DB) error {
 		&model.Teacher{},
 		&model.StudentTeacher{},
 		&model.UserSession{},
+		&model.ResSpace{},
+		&model.ResScene{},
+		&model.ResHotspot{},
 	)
 }
 
