@@ -70,6 +70,8 @@
             </span>
             <template #dropdown>
               <DropdownMenu>
+                <DropdownItem @click="navigateToUserCenter">用户中心</DropdownItem>
+                <DropdownItem v-if="isAdmin" @click="navigateToAdmin">后台管理</DropdownItem>
                 <DropdownItem @click="handleLogout">退出登录</DropdownItem>
               </DropdownMenu>
             </template>
@@ -160,7 +162,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   Message,
   Button,
@@ -175,6 +178,7 @@ import {
 import UserApi from '@/apis/userApi'
 import { useUserStore } from '@/stores/userStore'
 
+const router = useRouter()
 const searchKeyword = ref('')
 
 const handleSearch = () => {
@@ -186,6 +190,19 @@ const handleSearch = () => {
 }
 
 const userStore = useUserStore()
+
+const isAdmin = computed(() => {
+    const roleId = userStore.userInfo.role_id
+    return roleId === 1 || roleId === 2
+})
+
+const navigateToUserCenter = () => {
+    router.push('/user/center')
+}
+
+const navigateToAdmin = () => {
+    router.push('/admin')
+}
 
 const showLoginDialog = ref(false)
 const showRegisterDialog = ref(false)

@@ -1,12 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+interface UserInfo {
+  id?: string
+  name?: string
+  username?: string
+  email?: string
+  phone?: string
+  nickname?: string
+  role_id?: number
+}
+
 export const useUserStore = defineStore('user', () => {
-  // 登录状态
   const isLogin = ref(false)
-  // 用户基础信息
-  const userInfo = ref<{ id?: string; name?: string; email?: string }>({})
-  // 认证令牌
+  const userInfo = ref<UserInfo>({})
   const accessToken = ref('')
   const refreshToken = ref('')
 
@@ -14,8 +21,8 @@ export const useUserStore = defineStore('user', () => {
     isLogin.value = status
   }
 
-  function setUserInfo(info: { id?: string; name?: string; email?: string }) {
-    userInfo.value = info
+  function setUserInfo(info: UserInfo) {
+    userInfo.value = { ...userInfo.value, ...info }
   }
 
   function setToken(accessTokenStr: string, refreshTokenStr: string) {
@@ -30,21 +37,19 @@ export const useUserStore = defineStore('user', () => {
     refreshToken.value = ''
   }
 
-  return { 
-    isLogin, 
-    userInfo, 
-    accessToken, 
-    refreshToken, 
-    setLogin, 
-    setUserInfo, 
-    setToken, 
-    logout 
+  return {
+    isLogin,
+    userInfo,
+    accessToken,
+    refreshToken,
+    setLogin,
+    setUserInfo,
+    setToken,
+    logout
   }
 }, {
   persist: {
-    // 显式指定需要持久化的字段
     key: 'user',
     storage: localStorage,
-    // 使用localStorage作为存储
   },
 })

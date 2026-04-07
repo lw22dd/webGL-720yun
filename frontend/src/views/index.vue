@@ -10,15 +10,8 @@
             <t-button theme="primary" size="large" @click="navigateToPanorama" class="hero-btn primary">
               查看全景图
             </t-button>
-            <t-button theme="default" size="large" @click="navigateToUserManagement" class="hero-btn secondary">
-              用户管理
-            </t-button>
           </div>
         </div>
-      </div>
-      
-      <div class="excel-section">
-        <ExcelUpload />
       </div>
     </main>
   </div>
@@ -27,16 +20,11 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import Header from '@/components/Header.vue'
-import ExcelUpload from '@/components/ExcelUpload.vue'
 
 const router = useRouter()
 
 const navigateToPanorama = () => {
   router.push('/panorama')
-}
-
-const navigateToUserManagement = () => {
-  router.push('/user/list')
 }
 </script>
 
@@ -101,22 +89,5 @@ const navigateToUserManagement = () => {
 .hero-btn.primary:hover {
   box-shadow: 0 6px 16px rgba(0, 82, 217, 0.2);
   transform: translateY(-1px);
-}
-
-.hero-btn.secondary {
-  color: #4e5969;
-  border: 1px solid #e5e6eb;
-  background: #ffffff;
-  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
-}
-
-.hero-btn.secondary:hover {
-  color: #0052d9;
-  border-color: #0052d9;
-  background: rgba(0, 82, 217, 0.04);
-}
-
-.excel-section {
-  margin-top: 40px;
 }
 </style>
