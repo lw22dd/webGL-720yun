@@ -7,7 +7,6 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -33,10 +32,6 @@ func NewSpaceService(db *gorm.DB, minioClient *minio_client.MinIOClient) *SpaceS
 }
 
 func (s *SpaceService) CreateSpace(req *dto.CreateSpaceRequest, createdBy uint, coverFile *multipart.FileHeader) (*model.ResSpace, error) {
-	if err := s.validateSlug(req.Slug); err != nil {
-		return nil, err
-	}
-
 	exists, err := s.repo.CheckNameExists(req.Name, 0)
 	if err != nil {
 		return nil, fmt.Errorf("检查名称失败: %w", err)
@@ -45,17 +40,8 @@ func (s *SpaceService) CreateSpace(req *dto.CreateSpaceRequest, createdBy uint, 
 		return nil, errors.New("景区名称已存在")
 	}
 
-	exists, err = s.repo.CheckSlugExists(req.Slug, 0)
-	if err != nil {
-		return nil, fmt.Errorf("检查Slug失败: %w", err)
-	}
-	if exists {
-		return nil, errors.New("Slug已存在")
-	}
-
 	space := &model.ResSpace{
 		Name:        req.Name,
-		Slug:        req.Slug,
 		Description: req.Description,
 		Province:    req.Province,
 		City:        req.City,
@@ -68,7 +54,7 @@ func (s *SpaceService) CreateSpace(req *dto.CreateSpaceRequest, createdBy uint, 
 	}
 
 	if coverFile != nil {
-		coverURL, err := s.uploadCoverImage(coverFile, req.Slug)
+		coverURL, err := s.uploadCoverImage(coverFile, space.ID)
 		if err != nil {
 			return nil, fmt.Errorf("上传封面图失败: %w", err)
 		}
@@ -136,7 +122,7 @@ func (s *SpaceService) UpdateSpace(id uint, req *dto.UpdateSpaceRequest, userID 
 			}
 		}
 
-		coverURL, err := s.uploadCoverImage(coverFile, space.Slug)
+		coverURL, err := s.uploadCoverImage(coverFile, space.ID)
 		if err != nil {
 			return nil, fmt.Errorf("上传封面图失败: %w", err)
 		}
@@ -227,8 +213,8 @@ func (s *SpaceService) GetSpaceList(req *dto.SpaceListRequest) (*dto.SpaceListRe
 	}, nil
 }
 
-func (s *SpaceService) GetSpaceDetail(slug string) (*dto.SpaceDetailResponse, error) {
-	space, err := s.repo.FindBySlugWithScenes(slug)
+func (s *SpaceService) GetSpaceDetail(id uint) (*dto.SpaceDetailResponse, error) {
+	space, err := s.repo.FindByIDWithScenes(id)
 	if err != nil {
 		return nil, err
 	}
@@ -240,18 +226,7 @@ func (s *SpaceService) GetSpaceByID(id uint) (*model.ResSpace, error) {
 	return s.repo.FindByID(id)
 }
 
-func (s *SpaceService) validateSlug(slug string) error {
-	matched, err := regexp.MatchString("^[a-z0-9-]+$", slug)
-	if err != nil {
-		return fmt.Errorf("验证Slug失败: %w", err)
-	}
-	if !matched {
-		return errors.New("Slug只能包含小写字母、数字和中划线")
-	}
-	return nil
-}
-
-func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, slug string) (string, error) {
+func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, id uint) (string, error) {
 	src, err := file.Open()
 	if err != nil {
 		return "", fmt.Errorf("打开文件失败: %w", err)
@@ -259,7 +234,7 @@ func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, slug string)
 	defer src.Close()
 
 	ext := filepath.Ext(file.Filename)
-	objectName := fmt.Sprintf("spaces/%s/cover%s", slug, ext)
+	objectName := fmt.Sprintf("spaces/%d/cover%s", id, ext)
 
 	tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("upload_%d%s", time.Now().UnixNano(), ext))
 	dst, err := os.Create(tempFile)

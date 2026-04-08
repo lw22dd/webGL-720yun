@@ -46,10 +46,10 @@ func (s *ResourceInitService) SeedResourcesIfNeeded() error {
 func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSeed) error {
 	var existingSpot model.ResSpace
 
-	err := s.db.Where("slug = ?", spot.Slug).First(&existingSpot).Error
+	err := s.db.Where("name = ?", spot.Name).First(&existingSpot).Error
 	if err == nil {
 		logger.Infof("⏭️  景区 [%s] 已存在，跳过创建", spot.Name)
-		return s.checkAndSyncScenes(existingSpot.ID, spot)
+		return s.checkAndSyncScenes(existingSpot.ID, existingSpot.Name, spot)
 	}
 
 	if err != gorm.ErrRecordNotFound {
@@ -58,7 +58,6 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 
 	newSpot := model.ResSpace{
 		Name:        spot.Name,
-		Slug:        spot.Slug,
 		Description: spot.Description,
 		Province:    spot.Province,
 		City:        spot.City,
@@ -74,7 +73,7 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 
 	coverLocalPath := filepath.Join(s.seedBasePath, spot.LocalPath, spot.CoverFile)
 	if _, err := os.Stat(coverLocalPath); err == nil {
-		coverMinIOPath := fmt.Sprintf("%s/covers/cover.jpg", spot.Slug)
+		coverMinIOPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", newSpot.Name)
 
 		exists, _ := s.minioClient.ObjectExists(coverMinIOPath)
 		if !exists {
@@ -96,7 +95,7 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 	}
 
 	for _, sceneSeed := range spot.Scenes {
-		if err := s.seedSceneIfNotExists(newSpot.ID, spot.Slug, spot.LocalPath, sceneSeed); err != nil {
+		if err := s.seedSceneIfNotExists(newSpot.ID, newSpot.Name, spot.LocalPath, sceneSeed); err != nil {
 			logger.Warnf("导入场景 %s 失败: %v", sceneSeed.Title, err)
 		}
 	}
@@ -104,13 +103,13 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 	return nil
 }
 
-func (s *ResourceInitService) checkAndSyncScenes(spaceID uint, spot setup.ScenicSpotSeed) error {
+func (s *ResourceInitService) checkAndSyncScenes(spaceID uint, spaceName string, spot setup.ScenicSpotSeed) error {
 	for _, sceneSeed := range spot.Scenes {
 		var existingScene model.ResScene
 		err := s.db.Where("scene_code = ? AND space_id = ?", sceneSeed.SceneCode, spaceID).First(&existingScene).Error
 
 		if err == gorm.ErrRecordNotFound {
-			if seedErr := s.seedSceneIfNotExists(spaceID, spot.Slug, spot.LocalPath, sceneSeed); seedErr != nil {
+			if seedErr := s.seedSceneIfNotExists(spaceID, spaceName, spot.LocalPath, sceneSeed); seedErr != nil {
 				logger.Warnf("同步场景 %s 失败: %v", sceneSeed.Title, seedErr)
 			}
 		} else if err != nil {
@@ -120,7 +119,7 @@ func (s *ResourceInitService) checkAndSyncScenes(spaceID uint, spot setup.Scenic
 	return nil
 }
 
-func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceSlug, localPath string, scene setup.SceneSeed) error {
+func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, localPath string, scene setup.SceneSeed) error {
 	var existingScene model.ResScene
 
 	err := s.db.Where("scene_code = ?", scene.SceneCode).First(&existingScene).Error
@@ -134,7 +133,7 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceSlug, loca
 	}
 
 	localFilePath := filepath.Join(s.seedBasePath, localPath, scene.FileName)
-	minIOObjectPath := fmt.Sprintf("%s/sources/%s", spaceSlug, scene.FileName)
+	minIOObjectPath := fmt.Sprintf("spaces/%s/sources/%s", spaceName, scene.FileName)
 
 	fileInfo, err := os.Stat(localFilePath)
 	if err != nil {

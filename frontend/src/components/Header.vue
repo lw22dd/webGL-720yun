@@ -313,17 +313,15 @@ const handleLogout = async () => {
 
 <style scoped>
 .header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
+  position: relative;
+  flex-shrink: 0;
   background: #ffffff;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   height: 64px;
   display: flex;
   align-items: center;
   backdrop-filter: saturate(180%) blur(20px);
+  z-index: 1000;
 }
 
 .header-content {

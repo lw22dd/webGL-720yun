@@ -14,7 +14,6 @@ export const mockSpaces: MockSpace[] = [
   {
     id: 1,
     name: '北京故宫',
-    slug: 'beijing-gugong',
     cover_url: 'https://picsum.photos/seed/gugong/800/600',
     description: '明清两代的皇家宫殿',
     province: '北京市',
@@ -35,7 +34,6 @@ export const mockSpaces: MockSpace[] = [
   {
     id: 2,
     name: '上海外滩',
-    slug: 'shanghai-waitan',
     cover_url: 'https://picsum.photos/seed/waitan/800/600',
     description: '上海最著名的景观',
     province: '上海市',
@@ -55,7 +53,6 @@ export const mockSpaces: MockSpace[] = [
   {
     id: 3,
     name: '杭州西湖',
-    slug: 'hangzhou-xihu',
     cover_url: 'https://picsum.photos/seed/xihu/800/600',
     description: '世界文化遗产',
     province: '浙江省',
@@ -75,7 +72,6 @@ export const mockSpaces: MockSpace[] = [
   {
     id: 4,
     name: '都江堰',
-    slug: 'dujiangyan',
     cover_url: 'https://picsum.photos/seed/dujiangyan/800/600',
     description: '世界文化遗产，古代水利工程',
     province: '四川省',

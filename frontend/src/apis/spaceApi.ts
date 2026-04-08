@@ -7,8 +7,8 @@ export default class SpaceApi {
         return await Axios.get('/resource/spaces', { params });
     }
 
-    public static async getSpaceDetail(slug: string): Promise<Result<SpaceDetailResponse>> {
-        return await Axios.get(`/resource/spaces/${slug}`);
+    public static async getSpaceDetail(id: number): Promise<Result<SpaceDetailResponse>> {
+        return await Axios.get(`/resource/spaces/${id}`);
     }
 
     public static async createSpace(formData: FormData): Promise<Result<SpaceDetailResponse>> {
@@ -21,5 +21,9 @@ export default class SpaceApi {
 
     public static async deleteSpace(id: number): Promise<Result<{ message: string }>> {
         return await Axios.delete(`/resource/spaces/${id}`);
+    }
+
+    public static async deleteSpaceBatch(ids: number[]): Promise<Result<{ message: string }>> {
+        return await Axios.delete('/resource/spaces/batch', { data: { ids } });
     }
 }

@@ -83,7 +83,7 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 			spaces := resourceGroup.Group("/spaces")
 			{
 				spaces.GET("", handler.GetSpaceList(spaceService))
-				spaces.GET("/:slug", handler.GetSpaceDetail(spaceService))
+				spaces.GET("/:id", handler.GetSpaceDetail(spaceService))
 				spaces.POST("", authMiddleware.RequireAdmin(), handler.CreateSpace(spaceService))
 				spaces.PUT("/:id", handler.UpdateSpace(spaceService))
 				spaces.DELETE("/:id", handler.DeleteSpace(spaceService))

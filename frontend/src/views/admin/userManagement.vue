@@ -1,36 +1,43 @@
 <template>
   <div class="user-management">
-    <div class="table-container">
-      <t-table
-        :data="userList"
-        :columns="columns"
-        row-key="id"
-        hover
-        :pagination="paginationConfig"
-        @page-change="handlePageChange"
-      >
-        <template #operations="{ row }">
-          <t-space>
-            <t-button
-              theme="primary"
-              variant="text"
-              size="small"
-              @click="handleEditUser(row)"
-            >
-              编辑
-            </t-button>
-            <t-button
-              theme="danger"
-              variant="text"
-              size="small"
-              @click="handleDeleteUser(row.id.toString())"
-            >
-              删除
-            </t-button>
-          </t-space>
-        </template>
-      </t-table>
-    </div>
+    <AdminTable
+      ref="tableRef"
+      :data="userList"
+      :columns="columns"
+      :pagination="paginationConfig"
+      delete-item-name="用户"
+      @page-change="handlePageChange"
+      @delete="handleDeleteUser"
+      @batch-delete="handleBatchDeleteUser"
+    >
+      <template #title>用户管理</template>
+      <template #actionBar>
+        <t-button theme="primary" @click="handleAddUser">
+          <template #icon><t-icon-plus size="24" color="primary" /></template>
+          新建用户
+        </t-button>
+      </template>
+      <template #operations="{ row }">
+        <t-space>
+          <t-button
+            theme="primary"
+            variant="text"
+            size="small"
+            @click="handleEditUser(row)"
+          >
+            编辑
+          </t-button>
+          <t-button
+            theme="danger"
+            variant="text"
+            size="small"
+            @click="openDeleteDialog(row.id)"
+          >
+            删除
+          </t-button>
+        </t-space>
+      </template>
+    </AdminTable>
 
     <t-dialog
       v-model:visible="dialogVisible"
@@ -83,22 +90,13 @@
         </t-form-item>
       </t-form>
     </t-dialog>
-
-    <t-dialog
-      v-model:visible="deleteDialogVisible"
-      header="确认删除"
-      width="400px"
-      @confirm="confirmDelete"
-      @cancel="deleteDialogVisible = false"
-    >
-      <p>确定要删除该用户吗？此操作不可撤销。</p>
-    </t-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
+import AdminTable from '@/components/admin/AdminTable.vue'
 import UserApi from '@/apis/userApi'
 
 interface UserItem {
@@ -134,8 +132,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('新增用户')
 const formRef = ref()
 const submitLoading = ref(false)
-const deleteDialogVisible = ref(false)
-const deletingUserId = ref('')
+const tableRef = ref()
 
 const formData = reactive({
   id: '',
@@ -177,11 +174,16 @@ const roleOptions = [
 
 const columns = computed(() => [
   {
+    colKey: 'row-select',
+    type: 'multiple' as const,
+    width: 50
+  },
+  {
     colKey: 'id',
     title: 'ID',
     width: 80,
-    align: 'center',
-    fixed: 'left'
+    align: 'center' as const,
+    fixed: 'left' as const
   },
   {
     colKey: 'username',
@@ -205,7 +207,7 @@ const columns = computed(() => [
     colKey: 'role_id',
     title: '角色',
     width: 100,
-    align: 'center',
+    align: 'center' as const,
     cell: ({ row }: { row?: any }) => {
       if (!row) return '-'
       const role = roleOptions.find(r => r.value === row.role_id)
@@ -216,7 +218,7 @@ const columns = computed(() => [
     colKey: 'status',
     title: '状态',
     width: 80,
-    align: 'center',
+    align: 'center' as const,
     cell: ({ row }: { row?: any }) => {
       if (!row) return '-'
       return row.status === 1 ? '启用' : '禁用'
@@ -226,8 +228,8 @@ const columns = computed(() => [
     colKey: 'operations',
     title: '操作',
     width: 140,
-    align: 'center',
-    fixed: 'right'
+    align: 'center' as const,
+    fixed: 'right' as const
   }
 ])
 
@@ -294,23 +296,50 @@ const handleSubmit = async () => {
   }
 }
 
-const handleDeleteUser = (userId: string) => {
-  deletingUserId.value = userId
-  deleteDialogVisible.value = true
+const openDeleteDialog = (id: number) => {
+  tableRef.value?.openDeleteDialog(id)
 }
 
-const confirmDelete = async () => {
+const handleAddUser = () => {
+  dialogTitle.value = '新增用户'
+  Object.assign(formData, {
+    id: '',
+    username: '',
+    email: '',
+    password: '',
+    phone: '',
+    nickname: '',
+    role_id: 3,
+    status: 1
+  })
+  dialogVisible.value = true
+}
+
+const handleDeleteUser = async (id: string | number) => {
   try {
-    const result = await UserApi.deleteUser(deletingUserId.value)
+    const result = await UserApi.deleteUser(id.toString())
     if (result.code === 200) {
       MessagePlugin.success('删除成功')
-      deleteDialogVisible.value = false
       loadUserList()
     } else {
       MessagePlugin.error(result.msg || '删除失败')
     }
   } catch (error) {
     MessagePlugin.error('删除失败')
+  }
+}
+
+const handleBatchDeleteUser = async (ids: (string | number)[]) => {
+  try {
+    const result = await UserApi.deleteUserBatch(ids.map(id => id.toString()))
+    if (result.code === 200) {
+      MessagePlugin.success('批量删除成功')
+      loadUserList()
+    } else {
+      MessagePlugin.error(result.msg || '批量删除失败')
+    }
+  } catch (error) {
+    MessagePlugin.error('批量删除失败')
   }
 }
 
@@ -334,35 +363,5 @@ onMounted(() => {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-}
-
-.table-container {
-  background-color: #fff;
-  border-radius: 8px;
-  flex: 1;
-  min-height: 400px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.t-table) {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.t-table__content) {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.t-table__body-wrapper) {
-  flex: 1;
-}
-
-:deep(.t-pagination) {
-  margin-top: auto;
 }
 </style>

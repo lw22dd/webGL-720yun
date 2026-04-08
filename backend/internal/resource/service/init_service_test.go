@@ -118,7 +118,7 @@ func TestResourceInitService_RealMySQLAndMinIO(t *testing.T) {
 	assert.NoError(t, err)
 
 	var space model.ResSpace
-	err = db.Where("slug = ?", testSpot.Slug).First(&space).Error
+	err = db.Where("name = ?", testSpot.Name).First(&space).Error
 	if assert.NoError(t, err) {
 		assert.Equal(t, testSpot.Name, space.Name)
 	}

@@ -44,6 +44,7 @@ const searchKeyword = ref('')
 const searchResults = ref<MockSpace[]>([])
 
 let chartInstance: echarts.ECharts | null = null
+let resizeObserver: ResizeObserver | null = null
 
 const initMap = async () => {
   if (!mapContainer.value) return
@@ -67,8 +68,10 @@ const initMap = async () => {
       geo: {// 地图配置
         map: 'china',
         roam: false,
-        zoom: 1.2,
+        zoom: 1.1,
         center: [105, 36],
+        layoutCenter: ['50%', '50%'],
+        layoutSize: '95%',
         label: {
           color: '#000000'
         },
@@ -140,6 +143,13 @@ const initMap = async () => {
     }
     window.addEventListener('resize', handleResize)
 
+    resizeObserver = new ResizeObserver(() => {
+      chartInstance?.resize()
+    })
+    if (mapContainer.value) {
+      resizeObserver.observe(mapContainer.value)
+    }
+
   } catch (error) {
     console.error('Failed to load map:', error)
   }
@@ -177,6 +187,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null

@@ -52,30 +52,6 @@ func (r *SpaceRepository) FindByIDWithScenes(id uint) (*model.ResSpace, error) {
 	return &space, nil
 }
 
-func (r *SpaceRepository) FindBySlug(slug string) (*model.ResSpace, error) {
-	var space model.ResSpace
-	err := r.db.Where("slug = ?", slug).First(&space).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("空间不存在")
-		}
-		return nil, err
-	}
-	return &space, nil
-}
-
-func (r *SpaceRepository) FindBySlugWithScenes(slug string) (*model.ResSpace, error) {
-	var space model.ResSpace
-	err := r.db.Preload("Scenes").Where("slug = ?", slug).First(&space).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("空间不存在")
-		}
-		return nil, err
-	}
-	return &space, nil
-}
-
 type SpaceListQuery struct {
 	Page     int
 	PageSize int
@@ -129,18 +105,6 @@ func (r *SpaceRepository) GetList(query *SpaceListQuery) ([]*model.ResSpace, int
 func (r *SpaceRepository) CheckNameExists(name string, excludeID uint) (bool, error) {
 	var count int64
 	query := r.db.Model(&model.ResSpace{}).Where("name = ?", name)
-	if excludeID > 0 {
-		query = query.Where("id != ?", excludeID)
-	}
-	if err := query.Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
-}
-
-func (r *SpaceRepository) CheckSlugExists(slug string, excludeID uint) (bool, error) {
-	var count int64
-	query := r.db.Model(&model.ResSpace{}).Where("slug = ?", slug)
 	if excludeID > 0 {
 		query = query.Where("id != ?", excludeID)
 	}

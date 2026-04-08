@@ -1,35 +1,33 @@
 <template>
-  <transition name="slide">
-    <div v-if="visible" class="space-panel">
-      <div class="panel-header">
-        <h2 class="panel-title">{{ space?.name }}</h2>
-        <t-button theme="default" variant="text" @click="handleClose">
-          <CloseIcon />
-        </t-button>
+  <div class="space-panel" :class="{ 'space-panel--visible': visible }">
+    <div class="panel-header">
+      <h2 class="panel-title">{{ space?.name }}</h2>
+      <t-button theme="default" variant="text" @click="handleClose">
+        <CloseIcon />
+      </t-button>
+    </div>
+
+    <div class="panel-content">
+      <div class="space-info">
+        <img
+          :src="space?.cover_url"
+          :alt="space?.name"
+          class="space-cover"
+        />
+        <div class="space-meta">
+          <span class="space-location">
+            <LocationIcon /> {{ space?.province }} {{ space?.city }}
+          </span>
+        </div>
+        <p class="space-description">{{ space?.description }}</p>
       </div>
 
-      <div class="panel-content">
-        <div class="space-info">
-          <img
-            :src="space?.cover_url"
-            :alt="space?.name"
-            class="space-cover"
-          />
-          <div class="space-meta">
-            <span class="space-location">
-              <LocationIcon /> {{ space?.province }} {{ space?.city }}
-            </span>
-          </div>
-          <p class="space-description">{{ space?.description }}</p>
-        </div>
-
-        <div class="topology-section">
-          <h3 class="section-title">景点拓扑图</h3>
-          <SceneTopology :scenes="space?.scenes || []" @scene-click="handleSceneClick" />
-        </div>
+      <div class="topology-section">
+        <h3 class="section-title">景点拓扑图</h3>
+        <SceneTopology :scenes="space?.scenes || []" @scene-click="handleSceneClick" />
       </div>
     </div>
-  </transition>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -58,14 +56,20 @@ const handleSceneClick = (scene: MockScene) => {
 
 <style scoped>
 .space-panel {
-  position: relative;
-  width: 420px;
   height: 100%;
   background: #ffffff;
   border-left: 1px solid #e5e6eb;
   display: flex;
   flex-direction: column;
   box-shadow: -10px 0 40px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  overflow: hidden;
+  width: 0;
+  transition: width 0.3s ease;
+}
+
+.space-panel--visible {
+  width: 420px;
 }
 
 .panel-header {
@@ -148,15 +152,5 @@ const handleSceneClick = (scene: MockScene) => {
   height: 14px;
   background: linear-gradient(180deg, #0052d9, #4080ff);
   border-radius: 2px;
-}
-
-.slide-enter-active,
-.slide-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-  transform: translateX(100%);
 }
 </style>

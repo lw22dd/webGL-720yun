@@ -2,17 +2,15 @@
   <div class="page-wrapper">
     <Header />
     <main class="main-content">
-      <div class="map-section" :class="{ 'with-panel': panelVisible }">
-        <div class="map-container">
-          <ChinaMap ref="chinaMapRef" @space-click="handleSpaceClick" />
-        </div>
-        <SpaceDetailPanel
-          :visible="panelVisible"
-          :space="selectedSpace"
-          @close="handlePanelClose"
-          @scene-click="handleSceneClick"
-        />
+      <div class="map-section">
+        <ChinaMap ref="chinaMapRef" @space-click="handleSpaceClick" />
       </div>
+      <SpaceDetailPanel
+        :visible="panelVisible"
+        :space="selectedSpace"
+        @close="handlePanelClose"
+        @scene-click="handleSceneClick"
+      />
     </main>
   </div>
 </template>
@@ -46,33 +44,24 @@ const handleSceneClick = (scene: MockScene) => {
 
 <style scoped>
 .page-wrapper {
-  min-height: 100vh;
+  height: 100vh;
   background: #f5f7fa;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content {
   width: 100%;
-  height: calc(100vh - 64px);
-  padding-top: 64px;
+  flex: 1;
+  display: flex;
+  overflow: hidden;
 }
 
 .map-section {
   position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.map-section.with-panel {
-  display: flex;
-}
-
-.map-container {
   flex: 1;
   height: 100%;
-  transition: flex 0.3s ease;
-}
-
-.map-section.with-panel .map-container {
-  flex: 1;
+  min-width: 0;
 }
 </style>

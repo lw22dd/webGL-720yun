@@ -40,13 +40,13 @@ func GetSpaceList(svc *service.SpaceService) gin.HandlerFunc {
 
 func GetSpaceDetail(svc *service.SpaceService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		slug := c.Param("slug")
-		if slug == "" {
-			utils.BadRequest(c.Writer, "缺少slug参数")
+		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		if err != nil {
+			utils.BadRequest(c.Writer, "ID格式错误")
 			return
 		}
 
-		response, err := svc.GetSpaceDetail(slug)
+		response, err := svc.GetSpaceDetail(uint(id))
 		if err != nil {
 			utils.NotFound(c.Writer, err.Error())
 			return

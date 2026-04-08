@@ -168,7 +168,7 @@ func (s *UploadService) UploadChunk(uploadID string, chunkIndex int, chunkData *
 		return nil, fmt.Errorf("空间不存在: %w", err)
 	}
 
-	chunkObjectName := fmt.Sprintf("%s/temp/%s/chunk_%d", space.Slug, uploadID, chunkIndex)
+	chunkObjectName := fmt.Sprintf("spaces/%s/temp/%s/chunk_%d", space.Name, uploadID, chunkIndex)
 
 	src, err := chunkData.Open()
 	if err != nil {
@@ -277,7 +277,7 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*dto.MergeUpl
 	bucket := s.minioClient.GetConfig().Bucket
 
 	for i, chunkIndex := range uploadedChunks {
-		chunkObjectName := fmt.Sprintf("%s/temp/%s/chunk_%d", space.Slug, uploadID, chunkIndex)
+		chunkObjectName := fmt.Sprintf("spaces/%s/temp/%s/chunk_%d", space.Name, uploadID, chunkIndex)
 
 		obj, err := client.GetObject(ctx, bucket, chunkObjectName, minio.GetObjectOptions{})
 		if err != nil {
@@ -317,7 +317,7 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*dto.MergeUpl
 		return nil, fmt.Errorf("获取图片信息失败: %w", err)
 	}
 
-	sourceObjectName := fmt.Sprintf("%s/sources/%s_sphere.jpg", space.Slug, task.SceneCode)
+	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s_sphere.jpg", space.Name, task.SceneCode)
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, mergedFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传源文件失败: %w", err)
@@ -328,7 +328,7 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*dto.MergeUpl
 		return nil, fmt.Errorf("生成缩略图失败: %w", err)
 	}
 
-	thumbObjectName := fmt.Sprintf("%s/thumbnails/%s_thumb.jpg", space.Slug, task.SceneCode)
+	thumbObjectName := fmt.Sprintf("spaces/%s/thumbnails/%s_thumb.jpg", space.Name, task.SceneCode)
 	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传缩略图失败: %w", err)
@@ -354,7 +354,7 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*dto.MergeUpl
 	}
 
 	for _, chunkIndex := range uploadedChunks {
-		chunkObjectName := fmt.Sprintf("%s/temp/%s/chunk_%d", space.Slug, uploadID, chunkIndex)
+		chunkObjectName := fmt.Sprintf("spaces/%s/temp/%s/chunk_%d", space.Name, uploadID, chunkIndex)
 		client.RemoveObject(ctx, bucket, chunkObjectName, minio.RemoveObjectOptions{})
 	}
 
@@ -427,7 +427,7 @@ func (s *UploadService) CancelUpload(uploadID string, userID uint) error {
 		bucket := s.minioClient.GetConfig().Bucket
 
 		for i := 0; i < task.TotalChunks; i++ {
-			chunkObjectName := fmt.Sprintf("%s/temp/%s/chunk_%d", space.Slug, uploadID, i)
+			chunkObjectName := fmt.Sprintf("spaces/%s/temp/%s/chunk_%d", space.Name, uploadID, i)
 			client.RemoveObject(ctx, bucket, chunkObjectName, minio.RemoveObjectOptions{})
 		}
 	}

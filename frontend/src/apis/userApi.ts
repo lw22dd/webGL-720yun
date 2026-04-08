@@ -70,6 +70,10 @@ export default class UserApi {
         return await Axios.delete(`/user/admin/${userId}`);
     }
 
+    public static async deleteUserBatch(userIds: string[]): Promise<Result<boolean>> {
+        return await Axios.delete('/user/admin/batch', { data: { ids: userIds } });
+    }
+
     /**
      * 更新用户
      * @param userId 用户ID

@@ -8,7 +8,6 @@ export type SpaceListRequest = {
 
 export type CreateSpaceRequest = {
     name: string
-    slug: string
     description?: string
     province?: string
     city?: string
@@ -33,7 +32,6 @@ export type UpdateSpaceRequest = {
 export type SpaceListItem = {
     id: number
     name: string
-    slug: string
     cover_url: string
     description: string
     province: string
@@ -60,7 +58,6 @@ export type SceneSimple = {
 export type SpaceDetailResponse = {
     id: number
     name: string
-    slug: string
     cover_url: string
     description: string
     province: string

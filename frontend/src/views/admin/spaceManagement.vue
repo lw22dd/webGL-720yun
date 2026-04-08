@@ -8,7 +8,15 @@
       delete-item-name="空间"
       @page-change="handlePageChange"
       @delete="handleDeleteSpace"
+      @batch-delete="handleBatchDeleteSpace"
     >
+      <template #title>空间管理</template>
+      <template #actionBar>
+        <t-button theme="primary" @click="handleAddSpace">
+          <template #icon><t-icon-plus size="24" color="primary" /></template>
+          新建空间
+        </t-button>
+      </template>
       <template #operations="{ row }">
         <t-space>
           <t-button
@@ -79,13 +87,6 @@ const formFields: FormField[] = [
     placeholder: '请输入空间名称'
   },
   {
-    name: 'slug',
-    label: '空间标识',
-    type: 'input',
-    required: true,
-    placeholder: '请输入空间标识(英文唯一)'
-  },
-  {
     name: 'description',
     label: '描述',
     type: 'textarea',
@@ -140,6 +141,11 @@ const defaultFormData = {
 
 const columns = computed(() => [
   {
+    colKey: 'row-select',
+    type: 'multiple' as const,
+    width: 50
+  },
+  {
     colKey: 'id',
     title: 'ID',
     width: 80,
@@ -150,12 +156,6 @@ const columns = computed(() => [
     colKey: 'name',
     title: '空间名称',
     minWidth: 150,
-    ellipsis: true
-  },
-  {
-    colKey: 'slug',
-    title: '标识',
-    minWidth: 120,
     ellipsis: true
   },
   {
@@ -234,7 +234,6 @@ const handleEditSpace = (space: SpaceListItem) => {
   formDialogRef.value?.openEditDialog(
     {
       name: space.name,
-      slug: space.slug,
       description: space.description,
       province: space.province,
       city: space.city,
@@ -281,6 +280,20 @@ const handleSubmit = async (data: Record<string, any>) => {
 
 const openDeleteDialog = (id: number) => {
   tableRef.value?.openDeleteDialog(id)
+}
+
+const handleBatchDeleteSpace = async (ids: (string | number)[]) => {
+  try {
+    const result = await SpaceApi.deleteSpaceBatch(ids.map(id => Number(id)))
+    if (result.code === 200) {
+      MessagePlugin.success('批量删除成功')
+      loadSpaceList()
+    } else {
+      MessagePlugin.error(result.msg || '批量删除失败')
+    }
+  } catch (error) {
+    MessagePlugin.error('批量删除失败')
+  }
 }
 
 const handleDeleteSpace = async (id: string | number) => {

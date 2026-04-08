@@ -16,7 +16,6 @@ type SpaceListRequest struct {
 
 type CreateSpaceRequest struct {
 	Name        string  `json:"name" binding:"required,min=2,max=100"`
-	Slug        string  `json:"slug" binding:"required,min=2,max=100"`
 	Description string  `json:"description" binding:"max=1000"`
 	Province    string  `json:"province" binding:"max=50"`
 	City        string  `json:"city" binding:"max=50"`
@@ -46,7 +45,6 @@ type SpaceListResponse struct {
 type SpaceListItem struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
 	CoverURL    string    `json:"cover_url"`
 	Description string    `json:"description"`
 	Province    string    `json:"province"`
@@ -64,7 +62,6 @@ type SpaceListItem struct {
 type SpaceDetailResponse struct {
 	ID          uint           `json:"id"`
 	Name        string         `json:"name"`
-	Slug        string         `json:"slug"`
 	CoverURL    string         `json:"cover_url"`
 	Description string         `json:"description"`
 	Province    string         `json:"province"`
@@ -93,7 +90,6 @@ func ToSpaceListItem(space *model.ResSpace) *SpaceListItem {
 	return &SpaceListItem{
 		ID:          space.ID,
 		Name:        space.Name,
-		Slug:        space.Slug,
 		CoverURL:    space.CoverURL,
 		Description: space.Description,
 		Province:    space.Province,
@@ -113,7 +109,6 @@ func ToSpaceDetailResponse(space *model.ResSpace) *SpaceDetailResponse {
 	response := &SpaceDetailResponse{
 		ID:          space.ID,
 		Name:        space.Name,
-		Slug:        space.Slug,
 		CoverURL:    space.CoverURL,
 		Description: space.Description,
 		Province:    space.Province,
