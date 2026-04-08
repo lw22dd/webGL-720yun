@@ -96,9 +96,15 @@ func seedAdminUser(db *gorm.DB) error {
 	}
 
 	var count int64
-	db.Model(&model.User{}).Where("role_id = ?", adminRole.ID).Count(&count)
+	db.Model(&model.User{}).Where("role_id = ? AND is_super_admin = ?", adminRole.ID, true).Count(&count)
 	if count > 0 {
 		return nil
+	}
+
+	var existingAdmin model.User
+	if err := db.Where("role_id = ?", adminRole.ID).First(&existingAdmin).Error; err == nil {
+		existingAdmin.IsSuperAdmin = true
+		return db.Save(&existingAdmin).Error
 	}
 
 	hashedPassword, err := utils.HashPassword("admin123")
@@ -107,12 +113,12 @@ func seedAdminUser(db *gorm.DB) error {
 	}
 
 	admin := model.User{
-		Username:    "admin",
-		Password:    hashedPassword,
-		Email:       "admin@example.com",
-		Nickname:    "系统管理员",
-		RoleID:      adminRole.ID,
-		Status:      model.UserStatusActive,
+		Username:     "admin",
+		Password:     hashedPassword,
+		Email:        "admin@example.com",
+		Nickname:     "系统管理员",
+		RoleID:       adminRole.ID,
+		Status:       model.UserStatusActive,
 		IsSuperAdmin: true,
 	}
 
@@ -125,39 +131,47 @@ func seedTestClasses(db *gorm.DB) error {
 		return err
 	}
 
-	var count int64
-	db.Model(&model.User{}).Where("role_id = ?", teacherRole.ID).Count(&count)
-	if count > 0 {
+	var existingCount int64
+	db.Model(&model.Class{}).Count(&existingCount)
+	if existingCount > 0 {
 		return nil
 	}
 
-	hashedPassword, err := utils.HashPassword("teacher123")
-	if err != nil {
-		return err
+	var teachers []model.User
+	result := db.Where("role_id = ?", teacherRole.ID).Limit(2).Find(&teachers)
+	if result.Error != nil {
+		return result.Error
 	}
 
-	teachers := []model.User{
-		{
-			Username: "teacher1",
-			Password: hashedPassword,
-			Email:    "teacher1@example.com",
-			Nickname: "张老师",
-			RoleID:   teacherRole.ID,
-			Status:   model.UserStatusActive,
-		},
-		{
-			Username: "teacher2",
-			Password: hashedPassword,
-			Email:    "teacher2@example.com",
-			Nickname: "李老师",
-			RoleID:   teacherRole.ID,
-			Status:   model.UserStatusActive,
-		},
-	}
-
-	for i := range teachers {
-		if err := db.Create(&teachers[i]).Error; err != nil {
+	if len(teachers) < 2 {
+		hashedPassword, err := utils.HashPassword("teacher123")
+		if err != nil {
 			return err
+		}
+
+		teachers = []model.User{
+			{
+				Username: "teacher1",
+				Password: hashedPassword,
+				Email:    "teacher1@example.com",
+				Nickname: "张老师",
+				RoleID:   teacherRole.ID,
+				Status:   model.UserStatusActive,
+			},
+			{
+				Username: "teacher2",
+				Password: hashedPassword,
+				Email:    "teacher2@example.com",
+				Nickname: "李老师",
+				RoleID:   teacherRole.ID,
+				Status:   model.UserStatusActive,
+			},
+		}
+
+		for i := range teachers {
+			if err := db.Create(&teachers[i]).Error; err != nil {
+				return err
+			}
 		}
 	}
 
@@ -168,7 +182,7 @@ func seedTestClasses(db *gorm.DB) error {
 	}
 
 	for _, class := range classes {
-		if err := db.Create(&class).Error; err != nil {
+		if err := db.FirstOrCreate(&class, model.Class{Name: class.Name}).Error; err != nil {
 			return err
 		}
 	}

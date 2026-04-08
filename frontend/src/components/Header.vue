@@ -165,7 +165,6 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Message,
   Button,
   Dialog,
   Dropdown,
@@ -173,7 +172,8 @@ import {
   DropdownItem,
   Form,
   FormItem,
-  Input
+  Input,
+  Message
 } from 'tdesign-vue-next'
 import UserApi from '@/apis/userApi'
 import { useUserStore } from '@/stores/userStore'
@@ -192,8 +192,7 @@ const handleSearch = () => {
 const userStore = useUserStore()
 
 const isAdmin = computed(() => {
-    const roleId = userStore.userInfo.role_id
-    return roleId === 1 || roleId === 2
+    return userStore.userInfo.is_super_admin === true
 })
 
 const navigateToUserCenter = () => {
@@ -233,10 +232,14 @@ const handleLogin = async () => {
         if (result.code === 200) {
             userStore.setLogin(true)
 
-            userStore.setUserInfo({
-                id: result.data?.user_id,
-                email: loginForm.username
-            })
+            if (result.data?.user) {
+                userStore.setUserInfo(result.data.user)
+            } else {
+                userStore.setUserInfo({
+                    id: result.data?.user_id,
+                    email: loginForm.username
+                })
+            }
 
             if (result.data && result.data?.access_token) {
                 userStore.setToken(result.data.access_token, result.data.refresh_token)

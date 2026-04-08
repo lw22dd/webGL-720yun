@@ -9,6 +9,7 @@ interface UserInfo {
   phone?: string
   nickname?: string
   role_id?: number
+  is_super_admin?: boolean
 }
 
 export const useUserStore = defineStore('user', () => {

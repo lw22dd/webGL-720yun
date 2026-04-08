@@ -100,17 +100,18 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { Message } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
 import Header from '@/components/Header.vue'
 import { useUserStore } from '@/stores/userStore'
 
 const userStore = useUserStore()
 
 const roleLabel = computed(() => {
+  if (userStore.userInfo.is_super_admin) {
+    return '超级管理员'
+  }
   const roleId = userStore.userInfo.role_id
   switch (roleId) {
-    case 1:
-      return '超级管理员'
     case 2:
       return '教师'
     case 3:
@@ -121,6 +122,9 @@ const roleLabel = computed(() => {
 })
 
 const roleTheme = computed(() => {
+  if (userStore.userInfo.is_super_admin) {
+    return 'danger'
+  }
   const roleId = userStore.userInfo.role_id
   switch (roleId) {
     case 1:
@@ -171,7 +175,7 @@ const handlePasswordSubmit = async () => {
   if (valid) {
     passwordLoading.value = true
     try {
-      Message.success('密码修改功能开发中...')
+      MessagePlugin.success('密码修改功能开发中...')
     } finally {
       passwordLoading.value = false
     }

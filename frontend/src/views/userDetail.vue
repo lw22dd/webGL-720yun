@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Message } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
 import UserApi from '@/apis/userApi'
 
 const route = useRoute()
@@ -76,10 +76,10 @@ const getUserDetail = async () => {
     if (result.code === 200) {
       userInfo.value = result.data
     } else {
-      Message.error(result.msg || '获取用户详情失败')
+      MessagePlugin.error(result.msg || '获取用户详情失败')
     }
   } catch (error) {
-    Message.error('获取用户详情失败，请重试')
+    MessagePlugin.error('获取用户详情失败，请重试')
   } finally {
     loading.value = false
   }
@@ -95,13 +95,13 @@ const handleDelete = async () => {
   try {
     const result = await UserApi.deleteUser(userId.value)
     if (result.code === 200) {
-      Message.success('删除用户成功')
+      MessagePlugin.success('删除用户成功')
       router.push('/user/list')
     } else {
-      Message.error(result.msg || '删除用户失败')
+      MessagePlugin.error(result.msg || '删除用户失败')
     }
   } catch (error) {
-    Message.error('删除用户失败，请重试')
+    MessagePlugin.error('删除用户失败，请重试')
   }
 }
 
