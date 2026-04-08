@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Graph, type NodeConfig } from '@antv/g6'
+import { Graph, type NodeData } from '@antv/g6'
 import type { MockScene } from '@/utils/mockData'
 
 interface Props {
@@ -38,7 +38,7 @@ const initGraph = () => {
   const centerLng = props.scenes[0].longitude
   const centerLat = props.scenes[0].latitude
 
-  const nodes: NodeConfig[] = props.scenes.map((scene, index) => {
+  const nodes: NodeData[] = props.scenes.map((scene) => {
     const offsetLng = (scene.longitude - centerLng) * 10000
     const offsetLat = (scene.latitude - centerLat) * 10000
 
@@ -52,11 +52,11 @@ const initGraph = () => {
         x: width / 2 + offsetLng,
         y: height / 2 - offsetLat,
         size: 60,
-        fill: '#0a0e27',
-        stroke: '#00f0ff',
+        fill: '#ffffff',
+        stroke: '#0052d9',
         lineWidth: 2,
-        shadowColor: '#00f0ff',
-        shadowBlur: 20,
+        shadowColor: 'rgba(0, 82, 217, 0.3)',
+        shadowBlur: 15,
         cursor: 'pointer'
       }
     }
@@ -69,13 +69,13 @@ const initGraph = () => {
       source: nodes[i].id,
       target: nodes[i + 1].id,
       style: {
-        stroke: '#00f0ff',
-        lineWidth: 1,
-        opacity: 0.5,
+        stroke: '#4080ff',
+        lineWidth: 1.5,
+        opacity: 0.6,
         lineDash: [5, 5],
         endArrow: {
           path: 'M 0 0 L 6 3 L 6 -3 Z',
-          fill: '#00f0ff'
+          fill: '#4080ff'
         }
       }
     })
@@ -85,9 +85,6 @@ const initGraph = () => {
     container: topologyContainer.value,
     width,
     height,
-    modes: {
-      default: ['drag-canvas', 'zoom-canvas']
-    },
     data: {
       nodes,
       edges
@@ -96,14 +93,14 @@ const initGraph = () => {
       type: 'circle',
       style: {
         size: 60,
-        fill: '#0a0e27',
-        stroke: '#00f0ff',
+        fill: '#ffffff',
+        stroke: '#0052d9',
         lineWidth: 2,
-        shadowColor: '#00f0ff',
-        shadowBlur: 15,
+        shadowColor: 'rgba(0, 82, 217, 0.3)',
+        shadowBlur: 12,
         cursor: 'pointer',
         labelText: (d: any) => d.data?.label || '',
-        labelFill: '#fff',
+        labelFill: '#1d2129',
         labelFontSize: 12,
         labelFontWeight: 500,
         labelOffsetY: 35
@@ -111,17 +108,18 @@ const initGraph = () => {
       state: {
         hover: {
           lineWidth: 3,
-          shadowBlur: 30,
-          fill: 'rgba(0, 240, 255, 0.1)'
+          shadowBlur: 20,
+          fill: '#e6f0ff',
+          stroke: '#4080ff'
         }
       }
     },
     edge: {
       type: 'line',
       style: {
-        stroke: '#00f0ff',
-        lineWidth: 1,
-        opacity: 0.5,
+        stroke: '#4080ff',
+        lineWidth: 1.5,
+        opacity: 0.6,
         lineDash: [5, 5]
       }
     },
@@ -195,32 +193,33 @@ onUnmounted(() => {
 .topology-container {
   width: 100%;
   height: 300px;
-  background: rgba(0, 0, 0, 0.3);
+  background: #ffffff;
   border-radius: 12px;
-  border: 1px solid rgba(0, 240, 255, 0.15);
+  border: 1px solid #e5e6eb;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .topology-tooltip {
   position: fixed;
-  background: rgba(10, 14, 39, 0.95);
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  background: #ffffff;
+  border: 1px solid #e5e6eb;
   border-radius: 8px;
   padding: 10px 14px;
   pointer-events: none;
   z-index: 1000;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .tooltip-title {
-  color: #fff;
+  color: #000000;
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
 }
 
 .tooltip-views {
-  color: rgba(255, 255, 255, 0.5);
+  color: #86909c;
   font-size: 12px;
 }
 </style>

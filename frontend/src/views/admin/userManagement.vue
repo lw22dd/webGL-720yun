@@ -251,47 +251,6 @@ const loadUserList = async () => {
   }
 }
 
-const handleFieldUpdate = async (row: UserItem, field: string, value: any) => {
-  const originalValue = row[field]
-  if (originalValue === value) {
-    return
-  }
-
-  try {
-    const result = await UserApi.updateUser(row.id.toString(), { [field]: value })
-    if (result.code === 200) {
-      MessagePlugin.success('更新成功')
-    } else {
-      MessagePlugin.error(result.msg || '更新失败')
-      row[field] = originalValue
-    }
-  } catch (error) {
-    MessagePlugin.error('更新失败')
-    row[field] = originalValue
-  }
-}
-
-const handleSearch = () => {
-  pagination.currentPage = 1
-  paginationConfig.current = 1
-  loadUserList()
-}
-
-const handleAddUser = () => {
-  dialogTitle.value = '新增用户'
-  Object.assign(formData, {
-    id: '',
-    username: '',
-    email: '',
-    password: '',
-    phone: '',
-    nickname: '',
-    role_id: 3,
-    status: 1
-  })
-  dialogVisible.value = true
-}
-
 const handleEditUser = (user: UserItem) => {
   dialogTitle.value = '编辑用户'
   Object.assign(formData, {

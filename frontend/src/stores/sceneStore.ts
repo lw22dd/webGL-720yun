@@ -170,7 +170,6 @@ export const useSceneStore = defineStore('scene', () => {
 }, {
   persist: {
     key: 'scene-upload-tasks',
-    storage: localStorage,
-    paths: ['uploadTasks']
+    storage: localStorage
   }
 })

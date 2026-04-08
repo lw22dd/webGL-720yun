@@ -64,28 +64,31 @@ const initMap = async () => {
 
     const option: echarts.EChartsOption = {
       backgroundColor: 'transparent',
-      geo: {
+      geo: {// 地图配置
         map: 'china',
         roam: false,
         zoom: 1.2,
         center: [105, 36],
         label: {
-          show: false
+          color: '#000000'
         },
-        itemStyle: {
-          areaColor: 'rgba(48, 74, 216, 0.1)',
-          borderColor: '#304AD8',
+        itemStyle: { // 地图区域样式
+          areaColor: '#e6f0ff',
+          borderColor: '#4080ff',
           borderWidth: 1,
-          shadowColor: 'rgba(48, 74, 216, 0.3)',
-          shadowBlur: 10
+          shadowColor: 'rgba(0, 82, 217, 0.15)',
+          shadowBlur: 8
         },
-        emphasis: {
+        emphasis: { // 地图区域选中样式
+          label: {
+            color: '#000000'
+          },
           itemStyle: {
-            areaColor: 'rgba(48, 74, 216, 0.2)'
+            areaColor: '#c8dfff',
           }
         }
       },
-      series: [
+      series: [ // 散点图配置
         {
           type: 'scatter',
           coordinateSystem: 'geo',
@@ -93,29 +96,32 @@ const initMap = async () => {
           symbolSize: 20,
           symbol: 'circle',
           itemStyle: {
-            color: '#304AD8',
-            shadowBlur: 20,
-            shadowColor: '#304AD8'
+            color: '#0052d9',
+            shadowBlur: 15,
+            shadowColor: 'rgba(0, 82, 217, 0.4)'
           },
-          emphasis: {
+          emphasis: { // 散点图选中样式
             scale: 1.5,
             itemStyle: {
-              shadowBlur: 30,
-              shadowColor: '#304AD8'
+              shadowBlur: 25,
+              shadowColor: 'rgba(0, 82, 217, 0.5)',
+              color: '#4080ff'
             }
           },
-          label: {
+          label: { // 散点图标签样式
             show: true,
             formatter: '{b}',
             position: 'top',
-            color: '#fff',
+            color: '#000000',
             fontSize: 12,
             fontWeight: 'bold',
-            backgroundColor: 'rgba(48, 74, 216, 0.8)',
+            backgroundColor: '#ffffff',
             padding: [4, 8],
             borderRadius: 4,
-            borderColor: 'rgba(48, 74, 216, 0.5)',
-            borderWidth: 1
+            borderColor: '#e5e6eb',
+            borderWidth: 1,
+            shadowBlur: 4,
+            shadowColor: 'rgba(0, 0, 0, 0.1)'
           }
         }
       ]
@@ -183,7 +189,7 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #1a2a6c 0%, #304AD8 50%, #1a2a6c 100%);
+  background: #f5f7fa;
 }
 
 .map-wrapper {
@@ -204,20 +210,20 @@ onUnmounted(() => {
   top: 100%;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(48, 74, 216, 0.3);
+  background: #ffffff;
+  border: 1px solid #e5e6eb;
   border-radius: 8px;
   margin-top: 8px;
   max-height: 300px;
   overflow-y: auto;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .search-result-item {
   padding: 12px 16px;
   cursor: pointer;
   transition: all 0.2s;
-  border-bottom: 1px solid rgba(48, 74, 216, 0.1);
+  border-bottom: 1px solid #f2f3f5;
 }
 
 .search-result-item:last-child {
@@ -225,19 +231,19 @@ onUnmounted(() => {
 }
 
 .search-result-item:hover {
-  background: rgba(48, 74, 216, 0.1);
+  background: #f2f3f5;
 }
 
 .result-name {
   display: block;
-  color: #1a2a6c;
+  color: #1d2129;
   font-size: 14px;
   font-weight: 500;
 }
 
 .result-location {
   display: block;
-  color: rgba(26, 42, 108, 0.6);
+  color: #86909c;
   font-size: 12px;
   margin-top: 4px;
 }

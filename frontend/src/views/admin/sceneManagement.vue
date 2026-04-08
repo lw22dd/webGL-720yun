@@ -305,7 +305,7 @@ const openAddDialog = () => {
   addDialogVisible.value = true
 }
 
-const handleEditScene = (scene: SceneListItem) => {
+const handleEditScene = (scene: any) => {
   isEditing.value = true
   editingSceneId.value = scene.id
   Object.assign(formData, {
@@ -358,7 +358,7 @@ const handleSubmit = async () => {
         spaceId: selectedSpaceId.value!,
         sceneCode: formData.scene_code,
         title: formData.title,
-        onComplete: (data) => {
+        onComplete: () => {
           MessagePlugin.success('上传成功')
           addDialogVisible.value = false
           loadSceneList()

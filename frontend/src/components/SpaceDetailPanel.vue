@@ -58,18 +58,14 @@ const handleSceneClick = (scene: MockScene) => {
 
 <style scoped>
 .space-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
+  position: relative;
   width: 420px;
-  height: 100vh;
-  background: rgba(10, 14, 39, 0.95);
-  backdrop-filter: blur(20px);
-  border-left: 1px solid rgba(0, 240, 255, 0.2);
-  z-index: 1000;
+  height: 100%;
+  background: #ffffff;
+  border-left: 1px solid #e5e6eb;
   display: flex;
   flex-direction: column;
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.1);
 }
 
 .panel-header {
@@ -77,15 +73,15 @@ const handleSceneClick = (scene: MockScene) => {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+  border-bottom: 1px solid #e5e6eb;
 }
 
 .panel-title {
-  color: #fff;
+  color: #1d2129;
   font-size: 20px;
   font-weight: 600;
   margin: 0;
-  background: linear-gradient(135deg, #00f0ff, #7b2fff);
+  background: linear-gradient(135deg, #0052d9, #4080ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -106,7 +102,7 @@ const handleSceneClick = (scene: MockScene) => {
   height: 180px;
   object-fit: cover;
   border-radius: 12px;
-  border: 1px solid rgba(0, 240, 255, 0.2);
+  border: 1px solid #e5e6eb;
   margin-bottom: 16px;
 }
 
@@ -121,12 +117,12 @@ const handleSceneClick = (scene: MockScene) => {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: rgba(255, 255, 255, 0.6);
+  color: #86909c;
   font-size: 13px;
 }
 
 .space-description {
-  color: rgba(255, 255, 255, 0.8);
+  color: #4e5969;
   font-size: 14px;
   line-height: 1.6;
   margin: 0;
@@ -137,7 +133,7 @@ const handleSceneClick = (scene: MockScene) => {
 }
 
 .section-title {
-  color: #fff;
+  color: #1d2129;
   font-size: 14px;
   font-weight: 500;
   margin: 0 0 16px;
@@ -150,7 +146,7 @@ const handleSceneClick = (scene: MockScene) => {
   content: '';
   width: 3px;
   height: 14px;
-  background: linear-gradient(180deg, #00f0ff, #7b2fff);
+  background: linear-gradient(180deg, #0052d9, #4080ff);
   border-radius: 2px;
 }
 

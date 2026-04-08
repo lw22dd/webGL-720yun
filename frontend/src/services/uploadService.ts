@@ -6,9 +6,7 @@ import type {
   MergeUploadResponse,
   UploadStatusResponse,
   UploadOptions,
-  UploadTask,
-  ProgressData,
-  CompleteData
+  UploadTask
 } from '@/models/UploadModel'
 import Axios from '@/utils/axios'
 import { useSceneStore } from '@/stores/sceneStore'
@@ -217,16 +215,12 @@ class UploadService {
         }
 
         const completedUploads = await Promise.allSettled(activeUploads)
-        const stillRunning: Promise<void>[] = []
-        
+
         for (let i = 0; i < completedUploads.length; i++) {
-          if (completedUploads[i].status === 'pending') {
-            stillRunning.push(activeUploads[i])
+          if (completedUploads[i].status === 'rejected') {
+            throw new Error(`Chunk upload failed`)
           }
         }
-        
-        activeUploads.length = 0
-        activeUploads.push(...stillRunning)
       }
 
       await Promise.all(activeUploads)

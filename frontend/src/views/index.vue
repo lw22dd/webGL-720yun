@@ -2,8 +2,10 @@
   <div class="page-wrapper">
     <Header />
     <main class="main-content">
-      <div class="map-section">
-        <ChinaMap ref="chinaMapRef" @space-click="handleSpaceClick" />
+      <div class="map-section" :class="{ 'with-panel': panelVisible }">
+        <div class="map-container">
+          <ChinaMap ref="chinaMapRef" @space-click="handleSpaceClick" />
+        </div>
         <SpaceDetailPanel
           :visible="panelVisible"
           :space="selectedSpace"
@@ -45,7 +47,7 @@ const handleSceneClick = (scene: MockScene) => {
 <style scoped>
 .page-wrapper {
   min-height: 100vh;
-  background: #0a0e27;
+  background: #f5f7fa;
 }
 
 .main-content {
@@ -58,5 +60,19 @@ const handleSceneClick = (scene: MockScene) => {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+.map-section.with-panel {
+  display: flex;
+}
+
+.map-container {
+  flex: 1;
+  height: 100%;
+  transition: flex 0.3s ease;
+}
+
+.map-section.with-panel .map-container {
+  flex: 1;
 }
 </style>
