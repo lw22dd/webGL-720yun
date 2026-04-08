@@ -5,6 +5,7 @@ import adminLayout from '@/views/admin/adminLayout.vue'
 import userDetail from '@/views/userDetail.vue'
 import userManagement from '@/views/admin/userManagement.vue'
 import spaceManagement from '@/views/admin/spaceManagement.vue'
+import sceneManagement from '@/views/admin/sceneManagement.vue'
 import ExcelUpload from '@/components/ExcelUpload.vue'
 import PanoramaViewer from '@/components/PanoramaViewer.vue'
 
@@ -20,7 +21,8 @@ const routes: RouteRecordRaw[] = [
       { path: '', redirect: '/admin/users' },
       { path: 'users', component: userManagement, name: 'adminUsers' },
       { path: 'batch-register', component: ExcelUpload, name: 'adminBatchRegister' },
-      { path: 'spaces', component: spaceManagement, name: 'adminSpaces' }
+      { path: 'spaces', component: spaceManagement, name: 'adminSpaces' },
+      { path: 'scenes', component: sceneManagement, name: 'adminScenes' }
     ]
   },
   { path: '/panorama', component: PanoramaViewer, name: 'panorama' },

@@ -16,11 +16,13 @@ import (
 	"webGL-720yun/internal/core/router"
 	"webGL-720yun/internal/core/setup"
 	"webGL-720yun/internal/resource/service"
+	upload_service "webGL-720yun/internal/upload/service"
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/logger"
 	"webGL-720yun/pkg/minio_client"
 	"webGL-720yun/pkg/redis"
+	"webGL-720yun/pkg/websocket"
 )
 
 func Run() {
@@ -60,6 +62,18 @@ func Run() {
 	sceneService := service.NewSceneService(db.GetDB(), minioClient)
 	hotspotService := service.NewHotspotService(db.GetDB())
 
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+
+	uploadService := upload_service.NewUploadService(
+		nil,
+		nil,
+		nil,
+		minioClient,
+		wsHub,
+	)
+	uploadService = router.NewUploadService(db.GetDB(), minioClient, redisClient, wsHub)
+
 	if err := setup.SeedTestData(db.GetDB()); err != nil {
 		logger.Fatal("种子数据初始化失败:", err)
 	}
@@ -81,9 +95,13 @@ func Run() {
 		SpaceService:   spaceService,
 		SceneService:   sceneService,
 		HotspotService: hotspotService,
+		UploadService:  uploadService,
 		AuthMiddleware: authMiddleware,
 		RBACMiddleware: rbacMiddleware,
 		MinIOClient:    minioClient,
+		RedisService:   redisClient,
+		JWTService:     jwtService,
+		WsHub:          wsHub,
 	}
 
 	if config.Conf.App.Debug {

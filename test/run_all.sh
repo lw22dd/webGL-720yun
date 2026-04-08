@@ -14,6 +14,7 @@ chmod +x "$(dirname "$0")"/*.sh
 "$(dirname "$0")/auth.sh"
 "$(dirname "$0")/user.sh"
 "$(dirname "$0")/admin.sh"
+"$(dirname "$0")/upload_test.sh"
 
 log_info "#######################################"
 log_info "#            全部测试完成             #"

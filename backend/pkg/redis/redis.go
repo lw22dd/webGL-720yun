@@ -47,6 +47,9 @@ const (
 	KeyPrefixTokenBlacklist = "token:blacklist:"
 	KeyPrefixUserInfo       = "user:info:"
 	KeyPrefixLock           = "lock:"
+	KeyPrefixUploadTask     = "upload:task:"
+	KeyPrefixUploadChunks   = "upload:chunks:"
+	KeyPrefixUploadUser     = "upload:user:"
 )
 
 func (s *RedisService) SaveUserSession(userID uint, accessToken, refreshToken string, expiresIn time.Duration) error {
@@ -192,4 +195,123 @@ func (s *RedisService) Close() error {
 		return nil
 	}
 	return s.client.Close()
+}
+
+func (s *RedisService) CreateUploadTask(uploadID string, taskData map[string]interface{}, expiresIn time.Duration) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixUploadTask, uploadID)
+	data, err := json.Marshal(taskData)
+	if err != nil {
+		return err
+	}
+	return s.client.Set(key, data, expiresIn).Err()
+}
+
+func (s *RedisService) GetUploadTask(uploadID string) (map[string]interface{}, error) {
+	key := fmt.Sprintf("%s%s", KeyPrefixUploadTask, uploadID)
+	data, err := s.client.Get(key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var taskData map[string]interface{}
+	if err := json.Unmarshal([]byte(data), &taskData); err != nil {
+		return nil, err
+	}
+	return taskData, nil
+}
+
+func (s *RedisService) UpdateUploadTask(uploadID string, taskData map[string]interface{}) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixUploadTask, uploadID)
+	data, err := json.Marshal(taskData)
+	if err != nil {
+		return err
+	}
+	ttl, err := s.client.TTL(key).Result()
+	if err != nil {
+		return err
+	}
+	return s.client.Set(key, data, ttl).Err()
+}
+
+func (s *RedisService) DeleteUploadTask(uploadID string) error {
+	taskKey := fmt.Sprintf("%s%s", KeyPrefixUploadTask, uploadID)
+	chunksKey := fmt.Sprintf("%s%s", KeyPrefixUploadChunks, uploadID)
+	s.client.Del(chunksKey)
+	return s.client.Del(taskKey).Err()
+}
+
+func (s *RedisService) AddUploadedChunk(uploadID string, chunkIndex int) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixUploadChunks, uploadID)
+	return s.client.SAdd(key, chunkIndex).Err()
+}
+
+func (s *RedisService) GetUploadedChunks(uploadID string) ([]int, error) {
+	key := fmt.Sprintf("%s%s", KeyPrefixUploadChunks, uploadID)
+	result, err := s.client.SMembers(key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	chunks := make([]int, 0, len(result))
+	for _, v := range result {
+		var chunkIndex int
+		if _, err := fmt.Sscanf(v, "%d", &chunkIndex); err == nil {
+			chunks = append(chunks, chunkIndex)
+		}
+	}
+	return chunks, nil
+}
+
+func (s *RedisService) IsChunkUploaded(uploadID string, chunkIndex int) (bool, error) {
+	key := fmt.Sprintf("%s%s", KeyPrefixUploadChunks, uploadID)
+	return s.client.SIsMember(key, chunkIndex).Result()
+}
+
+func (s *RedisService) GetUploadedChunkCount(uploadID string) (int, error) {
+	key := fmt.Sprintf("%s%s", KeyPrefixUploadChunks, uploadID)
+	result, err := s.client.SCard(key).Result()
+	if err != nil {
+		return 0, err
+	}
+	return int(result), nil
+}
+
+func (s *RedisService) IncrementUserUploadCount(userID uint) (int, error) {
+	key := fmt.Sprintf("%s%d:count", KeyPrefixUploadUser, userID)
+	result, err := s.client.Incr(key).Result()
+	if err != nil {
+		return 0, err
+	}
+	return int(result), nil
+}
+
+func (s *RedisService) DecrementUserUploadCount(userID uint) (int, error) {
+	key := fmt.Sprintf("%s%d:count", KeyPrefixUploadUser, userID)
+	result, err := s.client.Decr(key).Result()
+	if err != nil {
+		return 0, err
+	}
+	return int(result), nil
+}
+
+func (s *RedisService) GetUserUploadCount(userID uint) (int, error) {
+	key := fmt.Sprintf("%s%d:count", KeyPrefixUploadUser, userID)
+	result, err := s.client.Get(key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return 0, nil
+		}
+		return 0, err
+	}
+	var count int
+	fmt.Sscanf(result, "%d", &count)
+	return count, nil
+}
+
+func (s *RedisService) SetUserUploadCount(userID uint, count int, expiresIn time.Duration) error {
+	key := fmt.Sprintf("%s%d:count", KeyPrefixUploadUser, userID)
+	return s.client.Set(key, count, expiresIn).Err()
 }

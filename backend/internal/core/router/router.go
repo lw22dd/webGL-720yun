@@ -5,12 +5,20 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/internal/resource/handler"
+	"webGL-720yun/internal/resource/repository"
 	"webGL-720yun/internal/resource/service"
+	upload_handler "webGL-720yun/internal/upload/handler"
+	upload_repository "webGL-720yun/internal/upload/repository"
+	upload_service "webGL-720yun/internal/upload/service"
 	"webGL-720yun/internal/user"
+	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/minio_client"
+	"webGL-720yun/pkg/redis"
+	"webGL-720yun/pkg/websocket"
 )
 
 type ServiceContext struct {
@@ -18,9 +26,13 @@ type ServiceContext struct {
 	SpaceService   *service.SpaceService
 	SceneService   *service.SceneService
 	HotspotService *service.HotspotService
+	UploadService  *upload_service.UploadService
 	AuthMiddleware *middleware.AuthMiddleware
 	RBACMiddleware *middleware.RBACMiddleware
 	MinIOClient    *minio_client.MinIOClient
+	RedisService   *redis.RedisService
+	JWTService     *jwt.JWTService
+	WsHub          *websocket.Hub
 }
 
 func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
@@ -28,7 +40,10 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	spaceService := ctx.SpaceService
 	sceneService := ctx.SceneService
 	hotspotService := ctx.HotspotService
+	uploadService := ctx.UploadService
 	authMiddleware := ctx.AuthMiddleware
+	wsHub := ctx.WsHub
+	jwtService := ctx.JWTService
 
 	api := r.Group("/api/v1")
 	{
@@ -93,6 +108,18 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 				hotspots.DELETE("/:id", handler.DeleteHotspot(hotspotService))
 			}
 		}
+
+		uploadGroup := api.Group("/upload")
+		uploadGroup.Use(authMiddleware.RequireAuth())
+		{
+			uploadGroup.POST("/init", upload_handler.InitUpload(uploadService))
+			uploadGroup.POST("/chunk", upload_handler.UploadChunk(uploadService))
+			uploadGroup.POST("/merge", upload_handler.MergeChunks(uploadService))
+			uploadGroup.GET("/status/:upload_id", upload_handler.GetUploadStatus(uploadService))
+			uploadGroup.DELETE("/:upload_id", upload_handler.CancelUpload(uploadService))
+		}
+
+		api.GET("/ws", upload_handler.HandleWebSocket(wsHub, jwtService))
 	}
 
 	r.GET("/health", func(c *gin.Context) {
@@ -101,4 +128,11 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 			"time":   time.Now().Format(time.RFC3339),
 		})
 	})
+}
+
+func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService, wsHub *websocket.Hub) *upload_service.UploadService {
+	uploadRepo := upload_repository.NewUploadRepository(redisService)
+	sceneRepo := repository.NewSceneRepository(db)
+	spaceRepo := repository.NewSpaceRepository(db)
+	return upload_service.NewUploadService(uploadRepo, sceneRepo, spaceRepo, minioClient, wsHub)
 }

@@ -20,16 +20,16 @@ const (
 
 type User struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
-	Username    string         `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
-	Password    string         `gorm:"type:varchar(255);not null" json:"-"`
-	Email       string         `gorm:"type:varchar(100);uniqueIndex" json:"email"`
-	Phone       string         `gorm:"type:varchar(20)" json:"phone"`
-	Nickname    string         `gorm:"type:varchar(50)" json:"nickname"`
-	Avatar      string         `gorm:"type:varchar(255)" json:"avatar"`
-	RoleID      uint           `gorm:"not null;index" json:"role_id"`
+	Username    string         `gorm:"type:varchar(50);uniqueIndex;not null;comment:用户名" json:"username"`
+	Password    string         `gorm:"type:varchar(255);not null;comment:密码" json:"-"`
+	Email       string         `gorm:"type:varchar(100);uniqueIndex;comment:邮箱" json:"email"`
+	Phone       string         `gorm:"type:varchar(20);comment:手机号" json:"phone"`
+	Nickname    string         `gorm:"type:varchar(50);comment:昵称" json:"nickname"`
+	Avatar      string         `gorm:"type:varchar(255);comment:头像" json:"avatar"`
+	RoleID      uint           `gorm:"not null;index;comment:角色ID" json:"role_id"`
 	Role        Role           `gorm:"foreignKey:RoleID" json:"role"`
-	IsSuperAdmin bool          `gorm:"default:false" json:"is_super_admin"`
-	Status      int            `gorm:"default:1;index" json:"status"`
+	IsSuperAdmin bool          `gorm:"default:false;comment:是否超级管理员" json:"is_super_admin"`
+	Status      int            `gorm:"default:1;index;comment:状态(1启用0禁用)" json:"status"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
@@ -83,8 +83,8 @@ func (Teacher) TableName() string {
 
 type Student struct {
 	User
-	StudentID string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"student_id"`
-	ClassID   uint      `gorm:"not null;index" json:"class_id"`
+	StudentID string    `gorm:"type:varchar(20);uniqueIndex;not null;comment:学号" json:"student_id"`
+	ClassID   uint      `gorm:"not null;index;comment:班级ID" json:"class_id"`
 	Class     Class     `gorm:"foreignKey:ClassID" json:"class"`
 	Teachers  []Teacher `gorm:"many2many:sys_student_teachers;" json:"teachers"`
 }
@@ -95,13 +95,13 @@ func (Student) TableName() string {
 
 type UserSession struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
-	UserID       uint      `gorm:"not null;index" json:"user_id"`
+	UserID       uint      `gorm:"not null;index;comment:用户ID" json:"user_id"`
 	User         User      `gorm:"foreignKey:UserID" json:"user"`
-	AccessToken  string    `gorm:"type:text;not null" json:"-"`
-	RefreshToken string    `gorm:"type:text;not null" json:"-"`
-	IP           string    `json:"ip"`
-	UserAgent    string    `json:"user_agent"`
-	ExpiresAt    time.Time `json:"expires_at"`
+	AccessToken  string    `gorm:"type:text;not null;comment:访问令牌" json:"-"`
+	RefreshToken string    `gorm:"type:text;not null;comment:刷新令牌" json:"-"`
+	IP           string    `gorm:"type:varchar(50);comment:IP地址" json:"ip"`
+	UserAgent    string    `gorm:"type:varchar(500);comment:用户代理" json:"user_agent"`
+	ExpiresAt    time.Time `gorm:"comment:过期时间" json:"expires_at"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

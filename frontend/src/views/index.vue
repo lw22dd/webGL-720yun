@@ -2,92 +2,61 @@
   <div class="page-wrapper">
     <Header />
     <main class="main-content">
-      <div class="hero-section">
-        <div class="hero-content">
-          <h1 class="hero-title">720° 全景云平台</h1>
-          <p class="hero-subtitle">沉浸式全景体验，让世界触手可及</p>
-          <div class="hero-buttons">
-            <t-button theme="primary" size="large" @click="navigateToPanorama" class="hero-btn primary">
-              查看全景图
-            </t-button>
-          </div>
-        </div>
+      <div class="map-section">
+        <ChinaMap ref="chinaMapRef" @space-click="handleSpaceClick" />
+        <SpaceDetailPanel
+          :visible="panelVisible"
+          :space="selectedSpace"
+          @close="handlePanelClose"
+          @scene-click="handleSceneClick"
+        />
       </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '@/components/Header.vue'
+import ChinaMap from '@/components/ChinaMap.vue'
+import SpaceDetailPanel from '@/components/SpaceDetailPanel.vue'
+import type { MockSpace, MockScene } from '@/utils/mockData'
 
 const router = useRouter()
+const chinaMapRef = ref<InstanceType<typeof ChinaMap> | null>(null)
+const panelVisible = ref(false)
+const selectedSpace = ref<MockSpace | null>(null)
 
-const navigateToPanorama = () => {
-  router.push('/panorama')
+const handleSpaceClick = (space: MockSpace) => {
+  selectedSpace.value = space
+  panelVisible.value = true
+}
+
+const handlePanelClose = () => {
+  panelVisible.value = false
+}
+
+const handleSceneClick = (scene: MockScene) => {
+  router.push(`/panorama?scene=${scene.scene_code}`)
 }
 </script>
 
 <style scoped>
 .page-wrapper {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f7f8fa 0%, #ffffff 100%);
+  background: #0a0e27;
 }
 
 .main-content {
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 120px 24px 80px;
+  height: calc(100vh - 64px);
+  padding-top: 64px;
 }
 
-.hero-section {
-  text-align: center;
-  padding: 60px 0 80px;
-}
-
-.hero-content {
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-.hero-title {
-  font-size: 44px;
-  font-weight: 700;
-  color: #1d2129;
-  margin: 0 0 16px;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.hero-subtitle {
-  font-size: 16px;
-  color: #86909c;
-  margin: 0 0 40px;
-  line-height: 1.6;
-}
-
-.hero-buttons {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-}
-
-.hero-btn {
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 15px;
-  height: 44px;
-  padding: 0 28px;
-}
-
-.hero-btn.primary {
-  box-shadow: 0 4px 12px rgba(0, 82, 217, 0.15);
-  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
-}
-
-.hero-btn.primary:hover {
-  box-shadow: 0 6px 16px rgba(0, 82, 217, 0.2);
-  transform: translateY(-1px);
+.map-section {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 </style>
