@@ -123,6 +123,6 @@ func (r *SpaceRepository) DeleteScenesBySpaceID(spaceID uint) error {
 }
 
 func (r *SpaceRepository) DeleteHotspotsBySpaceID(spaceID uint) error {
-	return r.db.Where("scene_id IN (SELECT id FROM res_scenes WHERE space_id = ?)", spaceID).
+	return r.db.Where("scene_id IN (SELECT id FROM res_scene WHERE space_id = ?)", spaceID).
 		Delete(&model.ResHotspot{}).Error
 }

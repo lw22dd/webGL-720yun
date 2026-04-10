@@ -66,11 +66,7 @@ func CreateSpace(svc *service.SpaceService) gin.HandlerFunc {
 			return
 		}
 
-		coverFile, err := c.FormFile("cover")
-		if err != nil {
-			utils.BadRequest(c.Writer, "请上传封面图")
-			return
-		}
+		coverFile, _ := c.FormFile("cover")
 
 		space, err := svc.CreateSpace(&req, userID, coverFile)
 		if err != nil {
@@ -100,11 +96,7 @@ func UpdateSpace(svc *service.SpaceService) gin.HandlerFunc {
 			return
 		}
 
-		coverFile, err := c.FormFile("cover")
-		if err != nil {
-			utils.BadRequest(c.Writer, "请上传封面图")
-			return
-		}
+		coverFile, _ := c.FormFile("cover")
 
 		space, err := svc.UpdateSpace(uint(id), &req, userID, isAdmin, coverFile)
 		if err != nil {
@@ -134,5 +126,30 @@ func DeleteSpace(svc *service.SpaceService) gin.HandlerFunc {
 		}
 
 		utils.Success(c.Writer, gin.H{"message": "删除成功"})
+	}
+}
+
+type DeleteSpaceBatchRequest struct {
+	IDs []uint `json:"ids" binding:"required,min=1"`
+}
+
+func DeleteSpaceBatch(svc *service.SpaceService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _, _ := middleware.GetCurrentUser(c)
+		isSuperAdmin, _ := c.Get("is_super_admin")
+		isAdmin := isSuperAdmin.(bool)
+
+		var req DeleteSpaceBatchRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.BadRequest(c.Writer, "请求参数错误: ids不能为空")
+			return
+		}
+
+		if err := svc.DeleteSpaceBatch(req.IDs, userID, isAdmin); err != nil {
+			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		utils.Success(c.Writer, gin.H{"message": "批量删除成功"})
 	}
 }

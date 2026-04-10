@@ -109,7 +109,9 @@ const resetStoreAndRedirect = () => {
 serviceAxios.interceptors.request.use(
     (config) => {
         if (config.method?.toLowerCase() !== 'get' && !config.headers['Content-Type']) {
-            config.headers['Content-Type'] = 'application/json';
+            if (config.data && !(config.data instanceof FormData)) {
+                config.headers['Content-Type'] = 'application/json';
+            }
         }
 
         const token = getToken();

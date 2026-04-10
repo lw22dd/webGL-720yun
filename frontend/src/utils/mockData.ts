@@ -68,24 +68,5 @@ export const mockSpaces: MockSpace[] = [
     scenes: [
       { id: 301, title: '断桥残雪', scene_code: 'xihu-duanqiao', thumbnail_url: 'https://picsum.photos/seed/xh1/200/150', view_count: 3456, sort_order: 1, longitude: 120.15507, latitude: 30.246143 }
     ]
-  },
-  {
-    id: 4,
-    name: '都江堰',
-    cover_url: 'https://picsum.photos/seed/dujiangyan/800/600',
-    description: '世界文化遗产，古代水利工程',
-    province: '四川省',
-    city: '成都市',
-    longitude: 103.611329,
-    latitude: 31.001546,
-    zoom_level: 15,
-    sort_order: 4,
-    status: 1,
-    scene_count: 1,
-    created_at: '2024-01-04T00:00:00Z',
-    updated_at: '2024-01-04T00:00:00Z',
-    scenes: [
-      { id: 401, title: '鱼嘴分水堤', scene_code: 'dujiangyan-yuzui', thumbnail_url: 'https://picsum.photos/seed/djy1/200/150', view_count: 4567, sort_order: 1, longitude: 103.611329, latitude: 31.001546 }
-    ]
   }
 ]

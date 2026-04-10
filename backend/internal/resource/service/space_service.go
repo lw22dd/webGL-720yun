@@ -176,6 +176,20 @@ func (s *SpaceService) DeleteSpace(id uint, userID uint, isAdmin bool) error {
 	return nil
 }
 
+func (s *SpaceService) DeleteSpaceBatch(ids []uint, userID uint, isAdmin bool) error {
+	if len(ids) == 0 {
+		return errors.New("ids不能为空")
+	}
+
+	for _, id := range ids {
+		if err := s.DeleteSpace(id, userID, isAdmin); err != nil {
+			return fmt.Errorf("删除空间ID %d 失败: %w", id, err)
+		}
+	}
+
+	return nil
+}
+
 func (s *SpaceService) GetSpaceList(req *dto.SpaceListRequest) (*dto.SpaceListResponse, error) {
 	if req.Page == 0 {
 		req.Page = 1

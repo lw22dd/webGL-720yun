@@ -12,20 +12,20 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	AccessToken  string       `json:"access_token"`
-	RefreshToken string       `json:"refresh_token"`
-	TokenType    string       `json:"token_type"`
-	User         *model.User  `json:"user"`
+	AccessToken  string      `json:"access_token"`
+	RefreshToken string      `json:"refresh_token"`
+	TokenType    string      `json:"token_type"`
+	User         *model.User `json:"user"`
 }
 
 type RegisterRequest struct {
+	ID         uint   `json:"id" binding:"omitempty"` // 用户ID，学生角色时必填（作为学号），其他角色自增
 	Username   string `json:"username" binding:"required,min=3,max=20"`
 	Password   string `json:"password" binding:"required,min=6"`
 	Email      string `json:"email" binding:"required,email"`
 	Phone      string `json:"phone" binding:"omitempty,len=11"`
 	Nickname   string `json:"nickname" binding:"omitempty,max=50"`
 	RoleID     uint   `json:"role_id" binding:"required"`
-	StudentID  string `json:"student_id" binding:"omitempty"`
 	ClassID    uint   `json:"class_id" binding:"omitempty"`
 	TeacherIDs []uint `json:"teacher_ids" binding:"omitempty"`
 }

@@ -34,7 +34,7 @@ func NewUserService(db *gorm.DB, jwtService *jwt.JWTService, redisService *redis
 
 func (s *UserService) Register(req *RegisterRequest) (*model.User, error) {
 	existingUser, err := s.repo.FindUserByUsername(req.Username)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
 		return nil, err
 	}
 	if existingUser != nil {
@@ -75,6 +75,7 @@ func (s *UserService) Register(req *RegisterRequest) (*model.User, error) {
 			Email:    req.Email,
 			Nickname: req.Nickname,
 			RoleID:   req.RoleID,
+			ClassID:  req.ClassID,
 			Status:   model.UserStatusActive,
 		}
 
@@ -82,36 +83,25 @@ func (s *UserService) Register(req *RegisterRequest) (*model.User, error) {
 			user.Phone = req.Phone
 		}
 
-		if err := tx.Create(user).Error; err != nil {
-			return fmt.Errorf("用户创建失败: %v", err)
-		}
-
 		role, err := s.repo.FindRoleByID(req.RoleID)
 		if err != nil {
 			return fmt.Errorf("获取角色信息失败: %v", err)
 		}
 
+		// 学生角色时，使用传入的 ID 作为学号
 		if role.Name == model.RoleStudent {
-			if req.StudentID != "" {
-				existingStudent, err := s.repo.FindStudentByStudentID(req.StudentID)
-				if err != nil {
-					return err
-				}
-				if existingStudent != nil {
-					return errors.New("学号已存在")
-				}
+			if req.ID == 0 {
+				return errors.New("学生角色必须提供学号(ID)")
 			}
+			user.ID = req.ID
+		}
 
-			student := &model.Student{
-				User:      *user,
-				StudentID: req.StudentID,
-				ClassID:   req.ClassID,
-			}
+		if err := tx.Create(user).Error; err != nil {
+			return fmt.Errorf("用户创建失败: %v", err)
+		}
 
-			if err := tx.Save(student).Error; err != nil {
-				return fmt.Errorf("学生信息保存失败: %v", err)
-			}
-
+		// 学生角色处理 - 关联教师
+		if role.Name == model.RoleStudent {
 			if len(req.TeacherIDs) > 0 {
 				for _, teacherID := range req.TeacherIDs {
 					studentTeacher := &model.StudentTeacher{
@@ -760,6 +750,7 @@ func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegister
 	var errs []map[string]interface{}
 
 	for _, student := range students {
+		// 批量注册学生 - 使用学号作为用户名
 		req := &RegisterRequest{
 			Username:   student.StudentID,
 			Password:   "123456",
@@ -767,7 +758,6 @@ func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegister
 			Phone:      student.Phone,
 			Nickname:   student.Name,
 			RoleID:     3,
-			StudentID:  student.StudentID,
 			ClassID:    student.ClassID,
 			TeacherIDs: student.TeacherIDs,
 		}

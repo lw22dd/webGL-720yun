@@ -1,43 +1,113 @@
 <template>
   <div class="space-management">
-    <AdminTable
-      ref="tableRef"
-      :data="spaceList"
-      :columns="columns"
-      :pagination="paginationConfig"
-      delete-item-name="空间"
-      @page-change="handlePageChange"
-      @delete="handleDeleteSpace"
-      @batch-delete="handleBatchDeleteSpace"
-    >
-      <template #title>空间管理</template>
-      <template #actionBar>
+    <div class="header-actions">
+      <div class="page-title">空间管理</div>
+      <div class="header-right">
+        <t-input
+          v-model="searchKeyword"
+          placeholder="搜索空间名称"
+          clearable
+          @enter="handleSearch"
+          @clear="handleSearch"
+        >
+          <template #suffix-icon>
+            <t-icon name="search" />
+          </template>
+        </t-input>
         <t-button theme="primary" @click="handleAddSpace">
-          <template #icon><t-icon-plus size="24" color="primary" /></template>
+          <template #icon><t-icon name="add" /></template>
           新建空间
         </t-button>
-      </template>
-      <template #operations="{ row }">
-        <t-space>
-          <t-button
-            theme="primary"
-            variant="text"
-            size="small"
-            @click="handleEditSpace(row)"
-          >
-            编辑
-          </t-button>
-          <t-button
-            theme="danger"
-            variant="text"
-            size="small"
-            @click="openDeleteDialog(row.id)"
-          >
-            删除
-          </t-button>
-        </t-space>
-      </template>
-    </AdminTable>
+      </div>
+
+    </div>
+
+    <div class="space-list-container">
+      <div class="space-list">
+        <div
+          v-for="space in spaceList"
+          :key="space.id"
+          class="space-list-item"
+        >
+          <div class="item-cover">
+            <img
+              v-if="space.cover_url"
+              :src="space.cover_url"
+              :alt="space.name"
+            />
+            <div v-else class="no-cover">
+              <t-icon name="image" size="32" />
+            </div>
+            <div class="space-status" :class="{ active: space.status === 1 }">
+              {{ space.status === 1 ? '启用' : '禁用' }}
+            </div>
+          </div>
+
+          <div class="item-content">
+            <div class="item-main">
+              <div class="item-title">{{ space.name }}</div>
+              <div class="item-description">{{ space.description || '暂无描述' }}</div>
+            </div>
+
+            <div class="item-info">
+              <div class="info-item">
+                <t-icon name="location" size="14" />
+                <span>{{ space.province || '-' }} {{ space.city || '' }}</span>
+              </div>
+              <div class="info-item">
+                <t-icon name="view-module" size="14" />
+                <span>场景数: {{ space.scene_count || 0 }}</span>
+              </div>
+              <div class="info-item">
+                <t-icon name="time" size="14" />
+                <span>{{ formatDate(space.created_at) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="item-actions">
+            <t-button
+              theme="primary"
+              variant="text"
+              size="small"
+              @click="handleEditSpace(space)"
+            >
+              <template #icon><t-icon name="edit" /></template>
+              编辑
+            </t-button>
+            <t-button
+              theme="danger"
+              variant="text"
+              size="small"
+              @click="openDeleteDialog(space.id)"
+            >
+              <template #icon><t-icon name="delete" /></template>
+              删除
+            </t-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pagination-wrapper">
+      <t-pagination
+        v-model="paginationConfig.current"
+        v-model:pageSize="paginationConfig.pageSize"
+        :total="paginationConfig.total"
+        :show-jumper="paginationConfig.showJumper"
+        @change="handlePageChange"
+      />
+    </div>
+
+    <t-dialog
+      v-model:visible="deleteDialogVisible"
+      header="确认删除"
+      width="400px"
+      @confirm="confirmDelete"
+      @cancel="deleteDialogVisible = false"
+    >
+      <p>确定要删除该空间吗？此操作不可撤销。</p>
+    </t-dialog>
 
     <FormDialog
       ref="formDialogRef"
@@ -49,9 +119,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
-import AdminTable from '@/components/admin/AdminTable.vue'
 import FormDialog, { type FormField } from '@/components/admin/FormDialog.vue'
 import SpaceApi from '@/apis/spaceApi'
 import type { SpaceListItem } from '@/models/SpaceModel'
@@ -61,22 +130,23 @@ const spaceList = ref<SpaceListItem[]>([])
 
 const paginationConfig = reactive({
   current: 1,
-  pageSize: 10,
+  pageSize: 12,
   total: 0,
   defaultCurrent: 1,
-  defaultPageSize: 10,
+  defaultPageSize: 12,
   showJumper: true
 })
 
 const pagination = reactive({
   currentPage: 1,
-  pageSize: 10,
+  pageSize: 12,
   total: 0
 })
 
-const tableRef = ref()
 const formDialogRef = ref()
 const submitLoading = ref(false)
+const deleteDialogVisible = ref(false)
+const deletingId = ref<number | null>(null)
 
 const formFields: FormField[] = [
   {
@@ -139,73 +209,11 @@ const defaultFormData = {
   status: 1
 }
 
-const columns = computed(() => [
-  {
-    colKey: 'row-select',
-    type: 'multiple' as const,
-    width: 50
-  },
-  {
-    colKey: 'id',
-    title: 'ID',
-    width: 80,
-    align: 'center' as const,
-    fixed: 'left' as const
-  },
-  {
-    colKey: 'name',
-    title: '空间名称',
-    minWidth: 150,
-    ellipsis: true
-  },
-  {
-    colKey: 'description',
-    title: '描述',
-    minWidth: 180,
-    ellipsis: true
-  },
-  {
-    colKey: 'province',
-    title: '省份',
-    width: 100,
-    ellipsis: true
-  },
-  {
-    colKey: 'city',
-    title: '城市',
-    width: 100,
-    ellipsis: true
-  },
-  {
-    colKey: 'scene_count',
-    title: '场景数',
-    width: 80,
-    align: 'center' as const
-  },
-  {
-    colKey: 'status',
-    title: '状态',
-    width: 80,
-    align: 'center' as const,
-    cell: ({ row }: { row?: any }) => {
-      if (!row) return '-'
-      return row.status === 1 ? '启用' : '禁用'
-    }
-  },
-  {
-    colKey: 'created_at',
-    title: '创建时间',
-    width: 180,
-    ellipsis: true
-  },
-  {
-    colKey: 'operations',
-    title: '操作',
-    width: 140,
-    align: 'center' as const,
-    fixed: 'right' as const
-  }
-])
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN')
+}
 
 const loadSpaceList = async () => {
   try {
@@ -271,34 +279,25 @@ const handleSubmit = async (data: Record<string, any>) => {
     } else {
       MessagePlugin.error(result.msg || '操作失败')
     }
-  } catch (error) {
-    MessagePlugin.error('操作失败')
+  } catch (error: any) {
+    console.error('提交失败:', error)
+    const errorMessage = error?.message || error?.msg || '操作失败'
+    MessagePlugin.error(`操作失败: ${errorMessage}`)
   } finally {
     submitLoading.value = false
   }
 }
 
 const openDeleteDialog = (id: number) => {
-  tableRef.value?.openDeleteDialog(id)
+  deletingId.value = id
+  deleteDialogVisible.value = true
 }
 
-const handleBatchDeleteSpace = async (ids: (string | number)[]) => {
+const confirmDelete = async () => {
+  if (deletingId.value === null) return
+  
   try {
-    const result = await SpaceApi.deleteSpaceBatch(ids.map(id => Number(id)))
-    if (result.code === 200) {
-      MessagePlugin.success('批量删除成功')
-      loadSpaceList()
-    } else {
-      MessagePlugin.error(result.msg || '批量删除失败')
-    }
-  } catch (error) {
-    MessagePlugin.error('批量删除失败')
-  }
-}
-
-const handleDeleteSpace = async (id: string | number) => {
-  try {
-    const result = await SpaceApi.deleteSpace(Number(id))
+    const result = await SpaceApi.deleteSpace(deletingId.value)
     if (result.code === 200) {
       MessagePlugin.success('删除成功')
       loadSpaceList()
@@ -307,6 +306,9 @@ const handleDeleteSpace = async (id: string | number) => {
     }
   } catch (error) {
     MessagePlugin.error('删除失败')
+  } finally {
+    deleteDialogVisible.value = false
+    deletingId.value = null
   }
 }
 
@@ -315,6 +317,12 @@ const handlePageChange = (context: { current: number; pageSize: number }) => {
   paginationConfig.current = context.current
   pagination.pageSize = context.pageSize
   paginationConfig.pageSize = context.pageSize
+  loadSpaceList()
+}
+
+const handleSearch = () => {
+  pagination.currentPage = 1
+  paginationConfig.current = 1
   loadSpaceList()
 }
 
@@ -334,5 +342,164 @@ defineExpose({
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  padding: 16px;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--td-text-color-primary);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-right :deep(.t-input) {
+  width: 240px;
+}
+
+.space-list-container {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+
+.space-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.space-list-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background-color: var(--td-bg-color-container);
+  border-radius: 8px;
+  border: 1px solid var(--td-component-border);
+  transition: all 0.3s ease;
+}
+
+.space-list-item:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.item-cover {
+  position: relative;
+  width: 120px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.item-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-cover .no-cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #86909c;
+}
+
+.space-status {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: rgba(245, 63, 63, 0.9);
+  color: #fff;
+}
+
+.space-status.active {
+  background-color: rgba(0, 168, 112, 0.9);
+}
+
+.item-content {
+  flex: 1;
+  margin-left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.item-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--td-text-color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 6px;
+}
+
+.item-description {
+  font-size: 13px;
+  color: var(--td-text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-info {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--td-text-color-secondary);
+}
+
+.info-item :deep(.t-icon) {
+  color: var(--td-brand-color);
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+.pagination-wrapper {
+  margin-top: auto;
+  padding-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

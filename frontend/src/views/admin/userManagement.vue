@@ -52,6 +52,11 @@
         label-width="100px"
         @submit="handleSubmit"
       >
+        <!-- 学生角色时显示学号输入 -->
+        <t-form-item v-if="formData.role_id === 3" label="学号" name="id">
+          <t-input v-model="formData.id" placeholder="请输入学号" />
+        </t-form-item>
+
         <t-form-item label="用户名" name="username">
           <t-input v-model="formData.username" placeholder="请输入用户名" />
         </t-form-item>
@@ -98,6 +103,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import AdminTable from '@/components/admin/AdminTable.vue'
 import UserApi from '@/apis/userApi'
+import { User } from '@/models/UserModel'
 
 interface UserItem {
   id: number
@@ -146,6 +152,9 @@ const formData = reactive({
 })
 
 const formRules = {
+  id: [
+    { required: true, message: '请输入学号', trigger: 'blur', type: 'number' }
+  ],
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度应在3-20个字符之间', trigger: 'blur' }
@@ -256,7 +265,7 @@ const loadUserList = async () => {
 const handleEditUser = (user: UserItem) => {
   dialogTitle.value = '编辑用户'
   Object.assign(formData, {
-    id: user.id,
+    id: user.role_id === 3 ? user.id : undefined,
     username: user.username,
     email: user.email,
     phone: user.phone || '',
@@ -279,6 +288,7 @@ const handleSubmit = async () => {
         result = await UserApi.updateUser(formData.id, formData)
       } else {
         result = await UserApi.addUser(formData as any)
+        console.log("新增用户结果:", result)
       }
 
       if (result.code === 200) {
@@ -288,8 +298,10 @@ const handleSubmit = async () => {
       } else {
         MessagePlugin.error(result.msg || '操作失败')
       }
-    } catch (error) {
-      MessagePlugin.error('操作失败')
+    } catch (error: any) {
+      console.error('提交失败:', error)
+      const errorMessage = error?.message || error?.msg || '操作失败'
+      MessagePlugin.error(`操作失败: ${errorMessage}`)
     } finally {
       submitLoading.value = false
     }
@@ -303,7 +315,7 @@ const openDeleteDialog = (id: number) => {
 const handleAddUser = () => {
   dialogTitle.value = '新增用户'
   Object.assign(formData, {
-    id: '',
+    id: undefined,
     username: '',
     email: '',
     password: '',

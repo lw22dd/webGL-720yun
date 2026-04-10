@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Graph, type NodeData } from '@antv/g6'
+import { Graph, type NodeConfig } from '@antv/g6'
 import type { MockScene } from '@/utils/mockData'
 
 interface Props {
@@ -38,7 +38,7 @@ const initGraph = () => {
   const centerLng = props.scenes[0].longitude
   const centerLat = props.scenes[0].latitude
 
-  const nodes: NodeData[] = props.scenes.map((scene) => {
+  const nodes: NodeConfig[] = props.scenes.map((scene, index) => {
     const offsetLng = (scene.longitude - centerLng) * 10000
     const offsetLat = (scene.latitude - centerLat) * 10000
 
@@ -70,8 +70,8 @@ const initGraph = () => {
       target: nodes[i + 1].id,
       style: {
         stroke: '#4080ff',
-        lineWidth: 1.5,
-        opacity: 0.6,
+        lineWidth: 1,
+        opacity: 0.5,
         lineDash: [5, 5],
         endArrow: {
           path: 'M 0 0 L 6 3 L 6 -3 Z',
@@ -85,6 +85,9 @@ const initGraph = () => {
     container: topologyContainer.value,
     width,
     height,
+    modes: {
+      default: ['drag-canvas', 'zoom-canvas']
+    },
     data: {
       nodes,
       edges
@@ -97,7 +100,7 @@ const initGraph = () => {
         stroke: '#0052d9',
         lineWidth: 2,
         shadowColor: 'rgba(0, 82, 217, 0.3)',
-        shadowBlur: 12,
+        shadowBlur: 15,
         cursor: 'pointer',
         labelText: (d: any) => d.data?.label || '',
         labelFill: '#1d2129',
@@ -108,9 +111,8 @@ const initGraph = () => {
       state: {
         hover: {
           lineWidth: 3,
-          shadowBlur: 20,
-          fill: '#e6f0ff',
-          stroke: '#4080ff'
+          shadowBlur: 25,
+          fill: '#e6f0ff'
         }
       }
     },
@@ -118,8 +120,8 @@ const initGraph = () => {
       type: 'line',
       style: {
         stroke: '#4080ff',
-        lineWidth: 1.5,
-        opacity: 0.6,
+        lineWidth: 1,
+        opacity: 0.5,
         lineDash: [5, 5]
       }
     },
@@ -166,11 +168,15 @@ const destroyGraph = () => {
   }
 }
 
-watch(() => props.scenes, () => {
-  destroyGraph()
-  nextTick(() => {
-    initGraph()
-  })
+watch(() => props.scenes, (newScenes) => {
+  if (newScenes && newScenes.length > 0) {
+    setTimeout(() => {
+      destroyGraph()
+      nextTick(() => {
+        initGraph()
+      })
+    }, 350)
+  }
 }, { deep: true })
 
 onMounted(() => {
@@ -193,11 +199,10 @@ onUnmounted(() => {
 .topology-container {
   width: 100%;
   height: 300px;
-  background: #ffffff;
+  background: #f5f7fa;
   border-radius: 12px;
   border: 1px solid #e5e6eb;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .topology-tooltip {
@@ -212,7 +217,7 @@ onUnmounted(() => {
 }
 
 .tooltip-title {
-  color: #000000;
+  color: #1d2129;
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;

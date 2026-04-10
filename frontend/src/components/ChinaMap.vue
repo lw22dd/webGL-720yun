@@ -203,7 +203,8 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   height: 100%;
-  background: #f5f7fa;
+
+  background: #213e6a; /** 地图背景颜色 */
 }
 
 .map-wrapper {

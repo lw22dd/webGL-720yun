@@ -15,26 +15,26 @@ type SpaceListRequest struct {
 }
 
 type CreateSpaceRequest struct {
-	Name        string  `json:"name" binding:"required,min=2,max=100"`
-	Description string  `json:"description" binding:"max=1000"`
-	Province    string  `json:"province" binding:"max=50"`
-	City        string  `json:"city" binding:"max=50"`
-	Longitude   float64 `json:"longitude" binding:"min=-180,max=180"`
-	Latitude    float64 `json:"latitude" binding:"min=-90,max=90"`
-	ZoomLevel   int     `json:"zoom_level" binding:"min=1,max=20"`
-	SortOrder   int     `json:"sort_order"`
+	Name        string  `form:"name" json:"name" binding:"required,min=2,max=100"`
+	Description string  `form:"description" json:"description" binding:"max=1000"`
+	Province    string  `form:"province" json:"province" binding:"max=50"`
+	City        string  `form:"city" json:"city" binding:"max=50"`
+	Longitude   float64 `form:"longitude" json:"longitude" binding:"min=-180,max=180"`
+	Latitude    float64 `form:"latitude" json:"latitude" binding:"min=-90,max=90"`
+	ZoomLevel   int     `form:"zoom_level" json:"zoom_level" binding:"min=0,max=20"`
+	SortOrder   int     `form:"sort_order" json:"sort_order"`
 }
 
 type UpdateSpaceRequest struct {
-	Name        string  `json:"name" binding:"omitempty,min=2,max=100"`
-	Description string  `json:"description" binding:"omitempty,max=1000"`
-	Province    string  `json:"province" binding:"omitempty,max=50"`
-	City        string  `json:"city" binding:"omitempty,max=50"`
-	Longitude   float64 `json:"longitude" binding:"omitempty,min=-180,max=180"`
-	Latitude    float64 `json:"latitude" binding:"omitempty,min=-90,max=90"`
-	ZoomLevel   int     `json:"zoom_level" binding:"omitempty,min=1,max=20"`
-	SortOrder   int     `json:"sort_order"`
-	Status      *uint8  `json:"status" binding:"omitempty"`
+	Name        string  `form:"name" json:"name" binding:"omitempty,min=2,max=100"`
+	Description string  `form:"description" json:"description" binding:"omitempty,max=1000"`
+	Province    string  `form:"province" json:"province" binding:"omitempty,max=50"`
+	City        string  `form:"city" json:"city" binding:"omitempty,max=50"`
+	Longitude   float64 `form:"longitude" json:"longitude" binding:"omitempty,min=-180,max=180"`
+	Latitude    float64 `form:"latitude" json:"latitude" binding:"omitempty,min=-90,max=90"`
+	ZoomLevel   int     `form:"zoom_level" json:"zoom_level" binding:"omitempty,min=0,max=20"`
+	SortOrder   int     `form:"sort_order" json:"sort_order"`
+	Status      *uint8  `form:"status" json:"status" binding:"omitempty"`
 }
 
 type SpaceListResponse struct {
@@ -78,12 +78,12 @@ type SpaceDetailResponse struct {
 }
 
 type SceneSimple struct {
-	ID           uint    `json:"id"`
-	Title        string  `json:"title"`
-	SceneCode    string  `json:"scene_code"`
-	ThumbnailURL string  `json:"thumbnail_url"`
-	ViewCount    int64   `json:"view_count"`
-	SortOrder    int     `json:"sort_order"`
+	ID           uint   `json:"id"`
+	Title        string `json:"title"`
+	SceneCode    string `json:"scene_code"`
+	ThumbnailURL string `json:"thumbnail_url"`
+	ViewCount    int64  `json:"view_count"`
+	SortOrder    int    `json:"sort_order"`
 }
 
 func ToSpaceListItem(space *model.ResSpace) *SpaceListItem {

@@ -81,13 +81,14 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		resourceGroup.Use(authMiddleware.RequireAuth())
 		{
 			spaces := resourceGroup.Group("/spaces")
-			{
-				spaces.GET("", handler.GetSpaceList(spaceService))
-				spaces.GET("/:id", handler.GetSpaceDetail(spaceService))
-				spaces.POST("", authMiddleware.RequireAdmin(), handler.CreateSpace(spaceService))
-				spaces.PUT("/:id", handler.UpdateSpace(spaceService))
-				spaces.DELETE("/:id", handler.DeleteSpace(spaceService))
-			}
+		{
+			spaces.GET("", handler.GetSpaceList(spaceService))
+			spaces.GET("/:id", handler.GetSpaceDetail(spaceService))
+			spaces.POST("", authMiddleware.RequireAdmin(), handler.CreateSpace(spaceService))
+			spaces.PUT("/:id", handler.UpdateSpace(spaceService))
+			spaces.DELETE("/:id", handler.DeleteSpace(spaceService))
+			spaces.DELETE("/batch", authMiddleware.RequireAdmin(), handler.DeleteSpaceBatch(spaceService))
+		}
 
 			scenes := resourceGroup.Group("/scenes")
 			{

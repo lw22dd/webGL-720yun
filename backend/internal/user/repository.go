@@ -35,7 +35,7 @@ func (r *Repository) FindUserByUsername(username string) (*model.User, error) {
 	var user model.User
 	if err := r.db.Preload("Role").Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("用户不存在")
+			return nil, nil
 		}
 		return nil, err
 	}
