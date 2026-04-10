@@ -36,7 +36,7 @@ type ResScene struct {
 	ID           uint   `gorm:"primaryKey;column:id" json:"id"`
 	SpaceID      uint   `gorm:"not null;index;column:space_id;comment:空间ID" json:"space_id"`
 	Title        string `gorm:"type:varchar(200);not null;column:title;comment:场景标题" json:"title"`
-	SceneCode    string `gorm:"type:varchar(50);not null;uniqueIndex;column:scene_code;comment:场景编码" json:"scene_code"`
+	SceneCode    string `gorm:"type:varchar(50);not null;uniqueIndex;column:scene_code;comment:场景编码，记录经纬度" json:"scene_code"`
 	PanoramaType string `gorm:"type:varchar(20);default:equirectangular;column:panorama_type;comment:全景类型" json:"panorama_type"`
 
 	SourceURL      string `gorm:"type:varchar(500);column:source_url;comment:源文件URL" json:"source_url"`

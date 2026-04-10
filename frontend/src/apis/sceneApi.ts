@@ -1,5 +1,5 @@
 import type { Result } from "@/models/Result";
-import type { SceneListRequest, SceneDetailResponse, SceneListResponse, BatchImportResponse } from "@/models/SceneModel";
+import type { SceneListRequest, SceneDetailResponse, SceneListResponse, BatchImportResponse, GraphDataResponse, UpdatePositionRequest, BatchUpdatePositionRequest } from "@/models/SceneModel";
 import Axios from "@/utils/axios";
 
 export default class SceneApi {
@@ -36,5 +36,17 @@ export default class SceneApi {
                 }
             }
         });
+    }
+
+    public static async getSpaceGraph(spaceId: number): Promise<Result<GraphDataResponse>> {
+        return await Axios.get(`/resource/spaces/${spaceId}/graph`);
+    }
+
+    public static async updateScenePosition(id: number, data: UpdatePositionRequest): Promise<Result<{ message: string }>> {
+        return await Axios.put(`/resource/scenes/${id}/position`, data);
+    }
+
+    public static async batchUpdateScenePosition(data: BatchUpdatePositionRequest): Promise<Result<{ message: string }>> {
+        return await Axios.put('/resource/scenes/batch-position', data);
     }
 }

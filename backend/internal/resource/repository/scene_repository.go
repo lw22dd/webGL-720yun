@@ -179,3 +179,44 @@ func (r *SceneRepository) IncrementViewCount(id uint) error {
 	return r.db.Model(&model.ResScene{}).Where("id = ?", id).
 		UpdateColumn("view_count", gorm.Expr("view_count + ?", 1)).Error
 }
+
+func (r *SceneRepository) FindBySpaceIDWithHotspots(spaceID uint) ([]*model.ResScene, error) {
+	var scenes []*model.ResScene
+	err := r.db.Where("space_id = ?", spaceID).
+		Preload("Hotspots").
+		Order("sort_order ASC, created_at DESC").
+		Find(&scenes).Error
+	if err != nil {
+		return nil, err
+	}
+	return scenes, nil
+}
+
+func (r *SceneRepository) UpdatePosition(id uint, longitude, latitude float64) error {
+	return r.db.Model(&model.ResScene{}).Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"longitude": longitude,
+			"latitude":  latitude,
+		}).Error
+}
+
+type ScenePositionUpdate struct {
+	ID        uint
+	Longitude float64
+	Latitude  float64
+}
+
+func (r *SceneRepository) BatchUpdatePosition(positions []ScenePositionUpdate) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for _, pos := range positions {
+			if err := tx.Model(&model.ResScene{}).Where("id = ?", pos.ID).
+				Updates(map[string]interface{}{
+					"longitude": pos.Longitude,
+					"latitude":  pos.Latitude,
+				}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}

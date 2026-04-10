@@ -72,11 +72,14 @@ func (s *UserService) Register(req *RegisterRequest) (*model.User, error) {
 		user = &model.User{
 			Username: req.Username,
 			Password: hashedPassword,
-			Email:    req.Email,
 			Nickname: req.Nickname,
 			RoleID:   req.RoleID,
 			ClassID:  req.ClassID,
 			Status:   model.UserStatusActive,
+		}
+
+		if req.Email != "" {
+			user.Email = req.Email
 		}
 
 		if req.Phone != "" {

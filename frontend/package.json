@@ -11,6 +11,8 @@
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
     "@antv/g6": "^5.1.0",
+    "@antv/x6": "^3.1.7",
+    "@antv/x6-vue-shape": "^3.0.2",
     "@photo-sphere-viewer/core": "^5.14.1",
     "@tailwindcss/vite": "^4.1.18",
     "@types/three": "^0.182.0",

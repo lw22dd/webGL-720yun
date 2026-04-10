@@ -67,6 +67,15 @@
 
           <div class="item-actions">
             <t-button
+              theme="default"
+              variant="text"
+              size="small"
+              @click="goToGraphEditor(space.id)"
+            >
+              <template #icon><t-icon name="map-location" /></template>
+              图编辑
+            </t-button>
+            <t-button
               theme="primary"
               variant="text"
               size="small"
@@ -120,11 +129,13 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import FormDialog, { type FormField } from '@/components/admin/FormDialog.vue'
 import SpaceApi from '@/apis/spaceApi'
 import type { SpaceListItem } from '@/models/SpaceModel'
 
+const router = useRouter()
 const searchKeyword = ref('')
 const spaceList = ref<SpaceListItem[]>([])
 
@@ -324,6 +335,10 @@ const handleSearch = () => {
   pagination.currentPage = 1
   paginationConfig.current = 1
   loadSpaceList()
+}
+
+const goToGraphEditor = (spaceId: number) => {
+  router.push(`/admin/spaces/${spaceId}/graph`)
 }
 
 onMounted(() => {

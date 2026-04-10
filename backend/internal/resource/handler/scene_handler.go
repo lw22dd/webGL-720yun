@@ -160,3 +160,69 @@ func BatchImportScenes(svc *service.SceneService) gin.HandlerFunc {
 		utils.Success(c.Writer, response)
 	}
 }
+
+func GetSpaceGraph(svc *service.SceneService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		spaceID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		if err != nil {
+			utils.BadRequest(c.Writer, "空间ID格式错误")
+			return
+		}
+
+		response, err := svc.GetSpaceGraphData(uint(spaceID))
+		if err != nil {
+			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		utils.Success(c.Writer, response)
+	}
+}
+
+func UpdateScenePosition(svc *service.SceneService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _, _ := middleware.GetCurrentUser(c)
+		isSuperAdmin, _ := c.Get("is_super_admin")
+		isAdmin := isSuperAdmin.(bool)
+
+		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		if err != nil {
+			utils.BadRequest(c.Writer, "场景ID格式错误")
+			return
+		}
+
+		var req dto.UpdatePositionRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.BadRequest(c.Writer, "请求参数错误: "+err.Error())
+			return
+		}
+
+		if err := svc.UpdateScenePosition(uint(id), req.Longitude, req.Latitude, userID, isAdmin); err != nil {
+			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		utils.Success(c.Writer, gin.H{"message": "坐标更新成功"})
+	}
+}
+
+func BatchUpdateScenePosition(svc *service.SceneService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _, _ := middleware.GetCurrentUser(c)
+		isSuperAdmin, _ := c.Get("is_super_admin")
+		isAdmin := isSuperAdmin.(bool)
+
+		var req dto.BatchUpdatePositionRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.BadRequest(c.Writer, "请求参数错误: "+err.Error())
+			return
+		}
+
+		if err := svc.BatchUpdateScenePosition(req.Positions, userID, isAdmin); err != nil {
+			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		utils.Success(c.Writer, gin.H{"message": "批量坐标更新成功"})
+	}
+}

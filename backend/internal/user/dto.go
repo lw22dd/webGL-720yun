@@ -19,10 +19,10 @@ type LoginResponse struct {
 }
 
 type RegisterRequest struct {
-	ID         uint   `json:"id" binding:"omitempty"` // 用户ID，学生角色时必填（作为学号），其他角色自增
+	ID         uint   `json:"id" binding:"omitempty"` // 学生角色时必填（作为学号），其他角色自增
 	Username   string `json:"username" binding:"required,min=3,max=20"`
 	Password   string `json:"password" binding:"required,min=6"`
-	Email      string `json:"email" binding:"required,email"`
+	Email      string `json:"email" binding:"omitempty,email"`
 	Phone      string `json:"phone" binding:"omitempty,len=11"`
 	Nickname   string `json:"nickname" binding:"omitempty,max=50"`
 	RoleID     uint   `json:"role_id" binding:"required"`

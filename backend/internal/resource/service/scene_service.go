@@ -465,3 +465,88 @@ func (s *SceneService) extractObjectName(url string) string {
 	}
 	return ""
 }
+
+func (s *SceneService) GetSpaceGraphData(spaceID uint) (*dto.GraphDataResponse, error) {
+	space, err := s.spaceRepo.FindByID(spaceID)
+	if err != nil {
+		return nil, fmt.Errorf("空间不存在: %w", err)
+	}
+
+	scenes, err := s.repo.FindBySpaceIDWithHotspots(spaceID)
+	if err != nil {
+		return nil, fmt.Errorf("获取场景列表失败: %w", err)
+	}
+
+	var nodes []*dto.SceneNodeData
+	var unplaced []*dto.SceneNodeData
+	var edges []*dto.EdgeData
+
+	sceneMap := make(map[uint]bool)
+	for _, scene := range scenes {
+		sceneMap[scene.ID] = true
+		nodeData := dto.ToSceneNodeData(scene)
+		if nodeData.HasPosition {
+			nodes = append(nodes, nodeData)
+		} else {
+			unplaced = append(unplaced, nodeData)
+		}
+
+		for _, hotspot := range scene.Hotspots {
+			if hotspot.Type == model.HotspotTypeSwitch && hotspot.TargetSceneID != nil {
+				if sceneMap[*hotspot.TargetSceneID] {
+					edges = append(edges, dto.ToEdgeData(&hotspot))
+				}
+			}
+		}
+	}
+
+	return &dto.GraphDataResponse{
+		SpaceInfo: dto.ToSpaceInfoForGraph(space),
+		Nodes:     nodes,
+		Edges:     edges,
+		Unplaced:  unplaced,
+	}, nil
+}
+
+func (s *SceneService) UpdateScenePosition(id uint, longitude, latitude float64, userID uint, isAdmin bool) error {
+	scene, err := s.repo.FindByIDWithSpace(id)
+	if err != nil {
+		return err
+	}
+
+	if !isAdmin && scene.Space.CreatedBy != userID {
+		return errors.New("无权限修改此场景")
+	}
+
+	return s.repo.UpdatePosition(id, longitude, latitude)
+}
+
+func (s *SceneService) BatchUpdateScenePosition(positions []dto.ScenePosition, userID uint, isAdmin bool) error {
+	if len(positions) == 0 {
+		return nil
+	}
+
+	var updates []repository.ScenePositionUpdate
+	for _, pos := range positions {
+		scene, err := s.repo.FindByIDWithSpace(pos.SceneID)
+		if err != nil {
+			continue
+		}
+
+		if !isAdmin && scene.Space.CreatedBy != userID {
+			continue
+		}
+
+		updates = append(updates, repository.ScenePositionUpdate{
+			ID:        pos.SceneID,
+			Longitude: pos.Longitude,
+			Latitude:  pos.Latitude,
+		})
+	}
+
+	if len(updates) == 0 {
+		return errors.New("没有可更新的场景")
+	}
+
+	return s.repo.BatchUpdatePosition(updates)
+}

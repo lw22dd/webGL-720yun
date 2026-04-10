@@ -231,6 +231,47 @@ func DeleteUser(service *UserService) gin.HandlerFunc {
 	}
 }
 
+// DeleteUserBatchRequest 批量删除用户请求
+type DeleteUserBatchRequest struct {
+	IDs []uint `json:"ids" binding:"required,min=1"`
+}
+
+func DeleteUserBatch(service *UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req DeleteUserBatchRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.BadRequest(c.Writer, "请求参数错误: 需要提供ids数组")
+			return
+		}
+
+		var failedIDs []uint
+		var successCount int
+
+		for _, id := range req.IDs {
+			if err := service.DeleteUser(id); err != nil {
+				failedIDs = append(failedIDs, id)
+			} else {
+				successCount++
+			}
+		}
+
+		if len(failedIDs) > 0 {
+			utils.Success(c.Writer, gin.H{
+				"message":       "批量删除部分成功",
+				"success_count": successCount,
+				"failed_count":  len(failedIDs),
+				"failed_ids":    failedIDs,
+			})
+			return
+		}
+
+		utils.Success(c.Writer, gin.H{
+			"message":       "批量删除成功",
+			"success_count": successCount,
+		})
+	}
+}
+
 func BatchRegister(service *UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		file, header, err := c.Request.FormFile("file")

@@ -61,28 +61,12 @@
           <t-input v-model="formData.username" placeholder="请输入用户名" />
         </t-form-item>
 
-        <t-form-item label="邮箱" name="email">
-          <t-input v-model="formData.email" placeholder="请输入邮箱" />
-        </t-form-item>
-
-        <t-form-item label="手机号" name="phone">
-          <t-input v-model="formData.phone" placeholder="请输入手机号" />
-        </t-form-item>
-
-        <t-form-item label="昵称" name="nickname">
-          <t-input v-model="formData.nickname" placeholder="请输入昵称" />
-        </t-form-item>
-
         <t-form-item label="密码" name="password">
           <t-input v-model="formData.password" type="password" placeholder="请输入密码" />
         </t-form-item>
 
         <t-form-item label="角色" name="role_id">
           <t-select v-model="formData.role_id" :options="roleOptions" placeholder="请选择角色" />
-        </t-form-item>
-
-        <t-form-item label="状态" name="status">
-          <t-switch v-model="formData.status" :label="['启用', '禁用']" />
         </t-form-item>
 
         <t-form-item style="margin-top: 20px">
@@ -139,6 +123,7 @@ const dialogTitle = ref('新增用户')
 const formRef = ref()
 const submitLoading = ref(false)
 const tableRef = ref()
+const isEditMode = ref(false)
 
 const formData = reactive({
   id: '',
@@ -159,19 +144,12 @@ const formRules = {
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度应在3-20个字符之间', trigger: 'blur' }
   ],
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
-  ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6个字符', trigger: 'blur' }
   ],
   role_id: [
     { required: true, message: '请选择角色', trigger: 'change' }
-  ],
-  status: [
-    { required: true, message: '请选择状态', trigger: 'change' }
   ]
 }
 
@@ -217,10 +195,13 @@ const columns = computed(() => [
     title: '角色',
     width: 100,
     align: 'center' as const,
-    cell: ({ row }: { row?: any }) => {
-      if (!row) return '-'
+    cell: (h, { row }) => {
+      if (!row) return h('span', {}, '-')
+      if (row.role && row.role.name) {
+        return h('span', {}, row.role.name)
+      }
       const role = roleOptions.find(r => r.value === row.role_id)
-      return role ? role.label : '-'
+      return h('span', {}, role ? role.label : '-')
     }
   },
   {
@@ -228,9 +209,9 @@ const columns = computed(() => [
     title: '状态',
     width: 80,
     align: 'center' as const,
-    cell: ({ row }: { row?: any }) => {
-      if (!row) return '-'
-      return row.status === 1 ? '启用' : '禁用'
+    cell: (h, { row }) => {
+      if (!row) return h('span', {}, '-')
+      return h('span', {}, row.status === 1 ? '启用' : '禁用')
     }
   },
   {
@@ -264,8 +245,9 @@ const loadUserList = async () => {
 
 const handleEditUser = (user: UserItem) => {
   dialogTitle.value = '编辑用户'
+  isEditMode.value = true
   Object.assign(formData, {
-    id: user.role_id === 3 ? user.id : undefined,
+    id: user.id,
     username: user.username,
     email: user.email,
     phone: user.phone || '',
@@ -278,21 +260,27 @@ const handleEditUser = (user: UserItem) => {
 
 const handleSubmit = async () => {
   if (!formRef.value) return
+  console.log(formData)
 
   const valid = await (formRef.value as any).validate()
   if (valid) {
     submitLoading.value = true
     try {
       let result
-      if (formData.id) {
-        result = await UserApi.updateUser(formData.id, formData)
+      if (isEditMode.value) {
+        console.log("进入更新用户:")
+        result = await UserApi.updateUser(formData.id.toString(), formData)
       } else {
-        result = await UserApi.addUser(formData as any)
+        const { status, created_at, updated_at, role, id, ...createData } = formData as any;
+        if (id && id !== '') {
+          createData.id = Number(id);
+        }
+        result = await UserApi.addUser(createData)
         console.log("新增用户结果:", result)
       }
 
       if (result.code === 200) {
-        MessagePlugin.success(formData.id ? '编辑用户成功' : '新增用户成功')
+        MessagePlugin.success(isEditMode.value ? '编辑用户成功' : '新增用户成功')
         dialogVisible.value = false
         loadUserList()
       } else {
@@ -314,8 +302,9 @@ const openDeleteDialog = (id: number) => {
 
 const handleAddUser = () => {
   dialogTitle.value = '新增用户'
+  isEditMode.value = false
   Object.assign(formData, {
-    id: undefined,
+    id: '',
     username: '',
     email: '',
     password: '',
@@ -343,7 +332,7 @@ const handleDeleteUser = async (id: string | number) => {
 
 const handleBatchDeleteUser = async (ids: (string | number)[]) => {
   try {
-    const result = await UserApi.deleteUserBatch(ids.map(id => id.toString()))
+    const result = await UserApi.deleteUserBatch({ ids: ids.map(id => Number(id)) })
     if (result.code === 200) {
       MessagePlugin.success('批量删除成功')
       loadUserList()

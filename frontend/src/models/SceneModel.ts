@@ -115,3 +115,52 @@ export type BatchImportResponse = {
     results: BatchImportResult[]
     errors?: BatchImportError[]
 }
+
+export type SpaceInfoForGraph = {
+    id: number
+    name: string
+    longitude: number
+    latitude: number
+    zoom_level: number
+}
+
+export type SceneNodeData = {
+    id: number
+    title: string
+    scene_code: string
+    thumbnail_url: string
+    longitude: number
+    latitude: number
+    has_position: boolean
+    view_count: number
+}
+
+export type EdgeData = {
+    id: number
+    source_id: number
+    target_id: number
+    hotspot_id: number
+    hotspot_title: string
+}
+
+export type GraphDataResponse = {
+    space_info: SpaceInfoForGraph
+    nodes: SceneNodeData[]
+    edges: EdgeData[]
+    unplaced: SceneNodeData[]
+}
+
+export type UpdatePositionRequest = {
+    longitude: number
+    latitude: number
+}
+
+export type ScenePosition = {
+    scene_id: number
+    longitude: number
+    latitude: number
+}
+
+export type BatchUpdatePositionRequest = {
+    positions: ScenePosition[]
+}

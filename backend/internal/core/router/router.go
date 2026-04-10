@@ -72,6 +72,7 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 					admin.POST("/create", user.Register(userService))
 					admin.PUT("/:id", user.UpdateUser(userService))
 					admin.DELETE("/:id", user.DeleteUser(userService))
+					admin.DELETE("/batch", user.DeleteUserBatch(userService))
 					admin.POST("/batch-register", user.BatchRegister(userService))
 				}
 			}
@@ -81,14 +82,15 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		resourceGroup.Use(authMiddleware.RequireAuth())
 		{
 			spaces := resourceGroup.Group("/spaces")
-		{
-			spaces.GET("", handler.GetSpaceList(spaceService))
-			spaces.GET("/:id", handler.GetSpaceDetail(spaceService))
-			spaces.POST("", authMiddleware.RequireAdmin(), handler.CreateSpace(spaceService))
-			spaces.PUT("/:id", handler.UpdateSpace(spaceService))
-			spaces.DELETE("/:id", handler.DeleteSpace(spaceService))
-			spaces.DELETE("/batch", authMiddleware.RequireAdmin(), handler.DeleteSpaceBatch(spaceService))
-		}
+			{
+				spaces.GET("", handler.GetSpaceList(spaceService))
+				spaces.GET("/:id", handler.GetSpaceDetail(spaceService))
+				spaces.GET("/:id/graph", handler.GetSpaceGraph(sceneService))
+				spaces.POST("", authMiddleware.RequireAdmin(), handler.CreateSpace(spaceService))
+				spaces.PUT("/:id", handler.UpdateSpace(spaceService))
+				spaces.DELETE("/:id", handler.DeleteSpace(spaceService))
+				spaces.DELETE("/batch", authMiddleware.RequireAdmin(), handler.DeleteSpaceBatch(spaceService))
+			}
 
 			scenes := resourceGroup.Group("/scenes")
 			{
@@ -96,6 +98,8 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 				scenes.GET("/:id", handler.GetSceneDetail(sceneService))
 				scenes.POST("", authMiddleware.RequireAdmin(), handler.CreateScene(sceneService))
 				scenes.PUT("/:id", handler.UpdateScene(sceneService))
+				scenes.PUT("/:id/position", handler.UpdateScenePosition(sceneService))
+				scenes.PUT("/batch-position", handler.BatchUpdateScenePosition(sceneService))
 				scenes.DELETE("/:id", handler.DeleteScene(sceneService))
 				scenes.POST("/batch-import", authMiddleware.RequireAdmin(), handler.BatchImportScenes(sceneService))
 			}
