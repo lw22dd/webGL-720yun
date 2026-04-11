@@ -33,12 +33,16 @@ func Run() {
 
 	logger.Setup(&config.Conf.Logger)
 
-	db, err := setup.NewDatabase(&config.Conf.Database)
+	var db *setup.Database
+	var err error
+	db, err = setup.NewDatabase(&config.Conf.Database)
 	if err != nil {
-		logger.Fatal("初始化数据库失败:", err)
+		logger.Warnf("数据库初始化失败（非致命）: %v", err)
 	}
 
-	logger.Infof("数据库配置: host=%s, port=%d, database=%s", config.Conf.Database.Host, config.Conf.Database.Port, config.Conf.Database.Database)
+	if db != nil {
+		logger.Infof("数据库配置: host=%s, port=%d, database=%s", config.Conf.Database.Host, config.Conf.Database.Port, config.Conf.Database.Database)
+	}
 
 	redisClient := redis.NewRedisService(&config.Conf.Redis)
 
@@ -56,33 +60,49 @@ func Run() {
 
 	jwtService := jwt.NewJWTService(&config.Conf.JWT)
 
-	userService := user.NewUserService(db.GetDB(), jwtService, redisClient)
+	var userService *user.UserService
+	var spaceService *service.SpaceService
+	var sceneService *service.SceneService
+	var hotspotService *service.HotspotService
+	var uploadService *upload_service.UploadService
 
-	spaceService := service.NewSpaceService(db.GetDB(), minioClient)
-	sceneService := service.NewSceneService(db.GetDB(), minioClient)
-	hotspotService := service.NewHotspotService(db.GetDB())
+	if db != nil {
+		userService = user.NewUserService(db.GetDB(), jwtService, redisClient)
+		spaceService = service.NewSpaceService(db.GetDB(), minioClient)
+		sceneService = service.NewSceneService(db.GetDB(), minioClient)
+		hotspotService = service.NewHotspotService(db.GetDB())
+		
+		if err := setup.SeedTestData(db.GetDB()); err != nil {
+			logger.Warnf("种子数据初始化失败（非致命）: %v", err)
+		}
+
+		if minioClient != nil {
+			resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, ".")
+			if initErr := resourceInitService.SeedResourcesIfNeeded(); initErr != nil {
+				logger.Warnf("全景资源初始化失败（非致命）: %v", initErr)
+			}
+		}
+	} else {
+		// 使用空实现，允许服务启动但功能受限
+		userService = &user.UserService{}
+		spaceService = &service.SpaceService{}
+		sceneService = &service.SceneService{}
+		hotspotService = &service.HotspotService{}
+	}
 
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	uploadService := upload_service.NewUploadService(
-		nil,
-		nil,
-		nil,
-		minioClient,
-		wsHub,
-	)
-	uploadService = router.NewUploadService(db.GetDB(), minioClient, redisClient, wsHub)
-
-	if err := setup.SeedTestData(db.GetDB()); err != nil {
-		logger.Fatal("种子数据初始化失败:", err)
-	}
-
-	if minioClient != nil {
-		resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, ".")
-		if initErr := resourceInitService.SeedResourcesIfNeeded(); initErr != nil {
-			logger.Warnf("全景资源初始化失败（非致命）: %v", initErr)
-		}
+	if db != nil {
+		uploadService = router.NewUploadService(db.GetDB(), minioClient, redisClient, wsHub)
+	} else {
+		uploadService = upload_service.NewUploadService(
+			nil,
+			nil,
+			nil,
+			minioClient,
+			wsHub,
+		)
 	}
 
 	noAuthPaths := config.Conf.NoAuth
