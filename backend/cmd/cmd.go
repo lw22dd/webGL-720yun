@@ -108,7 +108,13 @@ func Run() {
 	noAuthPaths := config.Conf.NoAuth
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, redisClient, noAuthPaths)
 
-	rbacMiddleware := middleware.NewRBACMiddleware(db.GetDB())
+	var rbacMiddleware *middleware.RBACMiddleware
+	if db != nil {
+		rbacMiddleware = middleware.NewRBACMiddleware(db.GetDB())
+	} else {
+		// 使用空实现
+		rbacMiddleware = &middleware.RBACMiddleware{}
+	}
 
 	serviceContext := &router.ServiceContext{
 		UserService:    userService,
