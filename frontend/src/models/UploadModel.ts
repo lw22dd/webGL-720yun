@@ -1,20 +1,18 @@
 export type InitUploadRequest = {
-  file_name: string
+  filename: string
   file_size: number
-  file_md5: string
-  space_id: number
-  scene_code: string
-  title?: string
+  file_hash: string
 }
 
 export type InitUploadResponse = {
-  upload_id: string
-  skip_upload: boolean
-  scene_id?: number
-  chunk_size: number
-  total_chunks: number
-  uploaded_chunks: number[]
-  upload_task_exist: boolean
+  upload_id?: string
+  instant: boolean
+  file_id?: string
+  source_url?: string
+  thumb_url?: string
+  chunk_size?: number
+  total_chunks?: number
+  uploaded_chunks?: number[]
 }
 
 export type ChunkUploadResponse = {
@@ -24,14 +22,16 @@ export type ChunkUploadResponse = {
   upload_id: string
 }
 
-export type MergeUploadRequest = {
+export type CompleteUploadRequest = {
   upload_id: string
+  file_hash: string
 }
 
-export type MergeUploadResponse = {
-  scene_id: number
+export type CompleteUploadResponse = {
+  file_id: string
   source_url: string
-  thumbnail_url: string
+  thumb_url: string
+  file_size: number
 }
 
 export type UploadStatusResponse = {
@@ -50,9 +50,6 @@ export type UploadTask = {
   fileName: string
   fileSize: number
   fileMd5: string
-  spaceId: number
-  sceneCode: string
-  title: string
   totalChunks: number
   uploadedChunks: number[]
   status: 'pending' | 'uploading' | 'merging' | 'completed' | 'failed' | 'paused'
@@ -63,10 +60,10 @@ export type UploadTask = {
 }
 
 export type WebSocketMessage = {
-  type: 'progress' | 'complete' | 'error' | 'merge_start' | 'merge_progress'
-  upload_id: string
+  type: 'progress' | 'complete' | 'error' | 'merge_start' | 'merge_progress' | 'slice_progress' | 'slice_complete' | 'slice_error'
+  upload_id?: string
   user_id: number
-  data: ProgressData | CompleteData | ErrorData | MergeProgressData
+  data: ProgressData | CompleteData | ErrorData | MergeProgressData | SliceProgressData | SliceCompleteData | SliceErrorData
   timestamp: number
 }
 
@@ -96,11 +93,44 @@ export type MergeProgressData = {
   message: string
 }
 
+export type SliceProgressData = {
+  task_id: string
+  scene_id: number
+  status: string
+  progress: number
+  stage: string
+  message: string
+  timestamp: number
+}
+
+export type SliceCompleteData = {
+  task_id: string
+  scene_id: number
+  status: string
+  tile_url: string
+  preview_url: string
+  timestamp: number
+}
+
+export type SliceErrorData = {
+  task_id: string
+  scene_id: number
+  error: string
+  timestamp: number
+}
+
 export type UploadOptions = {
-  spaceId: number
-  sceneCode: string
-  title: string
   onProgress?: (progress: ProgressData) => void
-  onComplete?: (data: CompleteData) => void
+  onComplete?: (data: { file_id: string; source_url: string; thumb_url: string }) => void
   onError?: (error: ErrorData) => void
+}
+
+export type FileInfo = {
+  file_id: string
+  source_url: string
+  thumb_url: string
+  file_size: number
+  width: number
+  height: number
+  created_at: string
 }

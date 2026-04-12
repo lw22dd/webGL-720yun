@@ -68,13 +68,7 @@ func CreateScene(svc *service.SceneService) gin.HandlerFunc {
 			return
 		}
 
-		panoramaFile, err := c.FormFile("panorama")
-		if err != nil {
-			utils.BadRequest(c.Writer, "请上传全景图")
-			return
-		}
-
-		scene, err := svc.CreateScene(&req, userID, isAdmin, panoramaFile)
+		scene, err := svc.CreateSceneWithFileID(&req, userID, isAdmin)
 		if err != nil {
 			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
 			return

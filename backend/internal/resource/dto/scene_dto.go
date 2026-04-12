@@ -19,6 +19,7 @@ type CreateSceneRequest struct {
 	SpaceID      uint    `json:"space_id" binding:"required"`
 	Title        string  `json:"title" binding:"required,min=2,max=200"`
 	SceneCode    string  `json:"scene_code" binding:"required,min=2,max=50"`
+	FileID       string  `json:"file_id" binding:"required"`
 	PanoramaType string  `json:"panorama_type" binding:"omitempty,oneof=equirectangular cubemap"`
 	InitialFOV   float64 `json:"initial_fov" binding:"omitempty,min=30,max=150"`
 	InitialPitch float64 `json:"initial_pitch" binding:"omitempty,min=-90,max=90"`
@@ -27,6 +28,14 @@ type CreateSceneRequest struct {
 	Longitude    float64 `json:"longitude" binding:"omitempty,min=-180,max=180"`
 	Latitude     float64 `json:"latitude" binding:"omitempty,min=-90,max=90"`
 	SortOrder    int     `json:"sort_order"`
+}
+
+type CreateSceneResponse struct {
+	SceneID     uint   `json:"scene_id"`
+	Title       string `json:"title"`
+	SceneCode   string `json:"scene_code"`
+	SliceStatus string `json:"slice_status"`
+	TaskID      string `json:"task_id"`
 }
 
 type UpdateSceneRequest struct {
@@ -48,19 +57,20 @@ type SceneListResponse struct {
 }
 
 type SceneListItem struct {
-	ID            uint      `json:"id"`
-	SpaceID       uint      `json:"space_id"`
-	Title         string    `json:"title"`
-	SceneCode     string    `json:"scene_code"`
-	PanoramaType  string    `json:"panorama_type"`
-	ThumbnailURL  string    `json:"thumbnail_url"`
-	SourceWidth   int       `json:"source_width"`
-	SourceHeight  int       `json:"source_height"`
-	ViewCount     int64     `json:"view_count"`
-	SortOrder     int       `json:"sort_order"`
-	Status        uint8     `json:"status"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID           uint      `json:"id"`
+	SpaceID      uint      `json:"space_id"`
+	Title        string    `json:"title"`
+	SceneCode    string    `json:"scene_code"`
+	PanoramaType string    `json:"panorama_type"`
+	ThumbnailURL string    `json:"thumbnail_url"`
+	SourceWidth  int       `json:"source_width"`
+	SourceHeight int       `json:"source_height"`
+	ViewCount    int64     `json:"view_count"`
+	SliceStatus  string    `json:"slice_status"`
+	SortOrder    int       `json:"sort_order"`
+	Status       uint8     `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type SceneDetailResponse struct {
@@ -69,11 +79,18 @@ type SceneDetailResponse struct {
 	Title          string           `json:"title"`
 	SceneCode      string           `json:"scene_code"`
 	PanoramaType   string           `json:"panorama_type"`
+	FileID         string           `json:"file_id"`
 	SourceURL      string           `json:"source_url"`
 	SourceWidth    int              `json:"source_width"`
 	SourceHeight   int              `json:"source_height"`
 	SourceFileSize int64            `json:"source_file_size"`
 	SourceFileMD5  string           `json:"source_file_md5"`
+	TileURL        string           `json:"tile_url"`
+	PreviewURL     string           `json:"preview_url"`
+	CubemapURL     string           `json:"cubemap_url"`
+	IsConverted    bool             `json:"is_converted"`
+	SliceStatus    string           `json:"slice_status"`
+	TaskID         string           `json:"task_id"`
 	ThumbnailURL   string           `json:"thumbnail_url"`
 	CoverImageURL  string           `json:"cover_image_url"`
 	InitialFOV     float64          `json:"initial_fov"`
@@ -91,12 +108,12 @@ type SceneDetailResponse struct {
 }
 
 type HotspotSimple struct {
-	ID     uint    `json:"id"`
-	Type   uint8   `json:"type"`
-	Title  string  `json:"title"`
-	Pitch  float64 `json:"pitch"`
-	Yaw    float64 `json:"yaw"`
-	IconURL string `json:"icon_url"`
+	ID      uint    `json:"id"`
+	Type    uint8   `json:"type"`
+	Title   string  `json:"title"`
+	Pitch   float64 `json:"pitch"`
+	Yaw     float64 `json:"yaw"`
+	IconURL string  `json:"icon_url"`
 }
 
 type BatchImportRequest struct {
@@ -112,10 +129,10 @@ type BatchImportItem struct {
 }
 
 type BatchImportResponse struct {
-	SuccessCount int                   `json:"success_count"`
-	FailedCount  int                   `json:"failed_count"`
-	Results      []BatchImportResult   `json:"results"`
-	Errors       []BatchImportError    `json:"errors,omitempty"`
+	SuccessCount int                 `json:"success_count"`
+	FailedCount  int                 `json:"failed_count"`
+	Results      []BatchImportResult `json:"results"`
+	Errors       []BatchImportError  `json:"errors,omitempty"`
 }
 
 type BatchImportResult struct {
@@ -143,6 +160,7 @@ func ToSceneListItem(scene *model.ResScene) *SceneListItem {
 		SourceWidth:  scene.SourceWidth,
 		SourceHeight: scene.SourceHeight,
 		ViewCount:    scene.ViewCount,
+		SliceStatus:  scene.SliceStatus,
 		SortOrder:    scene.SortOrder,
 		Status:       scene.Status,
 		CreatedAt:    scene.CreatedAt,
@@ -157,11 +175,18 @@ func ToSceneDetailResponse(scene *model.ResScene) *SceneDetailResponse {
 		Title:          scene.Title,
 		SceneCode:      scene.SceneCode,
 		PanoramaType:   scene.PanoramaType,
+		FileID:         scene.FileID,
 		SourceURL:      scene.SourceURL,
 		SourceWidth:    scene.SourceWidth,
 		SourceHeight:   scene.SourceHeight,
 		SourceFileSize: scene.SourceFileSize,
 		SourceFileMD5:  scene.SourceFileMD5,
+		TileURL:        scene.TileURL,
+		PreviewURL:     scene.PreviewURL,
+		CubemapURL:     scene.CubemapURL,
+		IsConverted:    scene.IsConverted,
+		SliceStatus:    scene.SliceStatus,
+		TaskID:         scene.TaskID,
 		ThumbnailURL:   scene.ThumbnailURL,
 		CoverImageURL:  scene.CoverImageURL,
 		InitialFOV:     scene.InitialFOV,

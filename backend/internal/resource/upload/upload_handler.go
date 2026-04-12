@@ -5,35 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	gorillaws "github.com/gorilla/websocket"
 
 	"webGL-720yun/internal/core/middleware"
-	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/utils"
-	"webGL-720yun/pkg/websocket"
 )
-
-var upgrader = gorillaws.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
-type UploadHandler struct {
-	uploadService *UploadService
-	wsHub         *websocket.Hub
-	jwtService    *jwt.JWTService
-}
-
-func NewUploadHandler(uploadService *UploadService, wsHub *websocket.Hub, jwtService *jwt.JWTService) *UploadHandler {
-	return &UploadHandler{
-		uploadService: uploadService,
-		wsHub:         wsHub,
-		jwtService:    jwtService,
-	}
-}
 
 func InitUpload(svc *UploadService) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -93,17 +68,17 @@ func UploadChunk(svc *UploadService) gin.HandlerFunc {
 	}
 }
 
-func MergeChunks(svc *UploadService) gin.HandlerFunc {
+func CompleteUpload(svc *UploadService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
 
-		var req MergeUploadRequest
+		var req CompleteUploadRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			utils.BadRequest(c.Writer, "请求参数错误: "+err.Error())
 			return
 		}
 
-		response, err := svc.MergeChunks(req.UploadID, userID)
+		response, err := svc.CompleteUpload(&req, userID)
 		if err != nil {
 			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
 			return
@@ -153,29 +128,25 @@ func CancelUpload(svc *UploadService) gin.HandlerFunc {
 	}
 }
 
-func HandleWebSocket(wsHub *websocket.Hub, jwtService *jwt.JWTService) gin.HandlerFunc {
+func GetFileInfo(svc *UploadService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token := c.Query("token")
-		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "缺少认证token"})
+		fileID := c.Param("file_id")
+		if fileID == "" {
+			utils.BadRequest(c.Writer, "缺少 file_id 参数")
 			return
 		}
 
-		claims, err := jwtService.ParseToken(token)
+		fileInfo, err := svc.GetFileInfo(fileID)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的token"})
+			utils.Error(c.Writer, http.StatusInternalServerError, "获取文件信息失败")
 			return
 		}
 
-		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-		if err != nil {
+		if fileInfo == nil {
+			utils.Error(c.Writer, http.StatusNotFound, "文件不存在")
 			return
 		}
 
-		client := websocket.NewClient(wsHub, conn, claims.UserID)
-		wsHub.Register(client)
-
-		go client.WritePump()
-		go client.ReadPump()
+		utils.Success(c.Writer, fileInfo)
 	}
 }

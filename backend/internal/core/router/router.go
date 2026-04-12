@@ -9,9 +9,9 @@ import (
 
 	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/internal/resource/handler"
-	"webGL-720yun/internal/resource/repository"
 	"webGL-720yun/internal/resource/service"
 	"webGL-720yun/internal/resource/upload"
+	"webGL-720yun/internal/slice"
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/minio_client"
@@ -31,6 +31,8 @@ type ServiceContext struct {
 	RedisService   *redis.RedisService
 	JWTService     *jwt.JWTService
 	WsHub          *websocket.Hub
+	SliceQueue     *slice.SliceQueue
+	WorkerPool     *slice.WorkerPool
 }
 
 func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
@@ -41,7 +43,6 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	uploadService := ctx.UploadService
 	authMiddleware := ctx.AuthMiddleware
 	wsHub := ctx.WsHub
-	jwtService := ctx.JWTService
 
 	api := r.Group("/api/v1")
 	{
@@ -117,12 +118,13 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		{
 			uploadGroup.POST("/init", upload.InitUpload(uploadService))
 			uploadGroup.POST("/chunk", upload.UploadChunk(uploadService))
-			uploadGroup.POST("/merge", upload.MergeChunks(uploadService))
+			uploadGroup.POST("/complete", upload.CompleteUpload(uploadService))
 			uploadGroup.GET("/status/:upload_id", upload.GetUploadStatus(uploadService))
 			uploadGroup.DELETE("/:upload_id", upload.CancelUpload(uploadService))
+			uploadGroup.GET("/file/:file_id", upload.GetFileInfo(uploadService))
 		}
 
-		api.GET("/ws", upload.HandleWebSocket(wsHub, jwtService))
+		api.GET("/ws", websocket.HandleWebSocket(wsHub))
 	}
 
 	r.GET("/health", func(c *gin.Context) {
@@ -133,9 +135,15 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	})
 }
 
-func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService, wsHub *websocket.Hub) *upload.UploadService {
+func NewUploadService(minioClient *minio_client.MinIOClient, redisService *redis.RedisService) *upload.UploadService {
 	uploadRepo := upload.NewUploadRepository(redisService)
-	sceneRepo := repository.NewSceneRepository(db)
-	spaceRepo := repository.NewSpaceRepository(db)
-	return upload.NewUploadService(uploadRepo, sceneRepo, spaceRepo, minioClient, wsHub)
+	return upload.NewUploadService(uploadRepo, minioClient)
+}
+
+func NewSliceQueue(redisService *redis.RedisService) *slice.SliceQueue {
+	return slice.NewSliceQueue(redisService)
+}
+
+func NewWorkerPool(queue *slice.SliceQueue, db *gorm.DB, minioClient *minio_client.MinIOClient, wsHub *websocket.Hub, workerCount int) *slice.WorkerPool {
+	return slice.NewWorkerPool(queue, db, minioClient, wsHub, workerCount)
 }

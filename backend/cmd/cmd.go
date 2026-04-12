@@ -16,7 +16,6 @@ import (
 	"webGL-720yun/internal/core/router"
 	"webGL-720yun/internal/core/setup"
 	"webGL-720yun/internal/resource/service"
-	"webGL-720yun/internal/resource/upload"
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/logger"
@@ -24,6 +23,8 @@ import (
 	"webGL-720yun/pkg/redis"
 	"webGL-720yun/pkg/websocket"
 )
+
+const DefaultWorkerCount = 3
 
 func Run() {
 	if err := config.Init(); err != nil {
@@ -59,20 +60,18 @@ func Run() {
 	userService := user.NewUserService(db.GetDB(), jwtService, redisClient)
 
 	spaceService := service.NewSpaceService(db.GetDB(), minioClient)
-	sceneService := service.NewSceneService(db.GetDB(), minioClient)
+
+	sliceQueue := router.NewSliceQueue(redisClient)
+	sceneService := service.NewSceneServiceWithSliceQueue(db.GetDB(), minioClient, sliceQueue, redisClient)
 	hotspotService := service.NewHotspotService(db.GetDB())
 
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	uploadService := upload.NewUploadService(
-		nil,
-		nil,
-		nil,
-		minioClient,
-		wsHub,
-	)
-	uploadService = router.NewUploadService(db.GetDB(), minioClient, redisClient, wsHub)
+	uploadService := router.NewUploadService(minioClient, redisClient)
+
+	workerPool := router.NewWorkerPool(sliceQueue, db.GetDB(), minioClient, wsHub, DefaultWorkerCount)
+	go workerPool.Start()
 
 	if err := setup.SeedTestData(db.GetDB()); err != nil {
 		logger.Fatal("种子数据初始化失败:", err)
@@ -102,6 +101,8 @@ func Run() {
 		RedisService:   redisClient,
 		JWTService:     jwtService,
 		WsHub:          wsHub,
+		SliceQueue:     sliceQueue,
+		WorkerPool:     workerPool,
 	}
 
 	if config.Conf.App.Debug {
@@ -141,6 +142,9 @@ func Run() {
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Error("强制关闭服务", "error", err)
 	}
+
+	workerPool.Stop()
+	logger.Info("Worker Pool 已停止")
 
 	if err := redisClient.Close(); err != nil {
 		logger.Error("关闭Redis连接失败", "error", err)

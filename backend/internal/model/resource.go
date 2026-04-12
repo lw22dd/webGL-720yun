@@ -39,14 +39,19 @@ type ResScene struct {
 	SceneCode    string `gorm:"type:varchar(50);not null;uniqueIndex;column:scene_code;comment:场景编码，记录经纬度" json:"scene_code"`
 	PanoramaType string `gorm:"type:varchar(20);default:equirectangular;column:panorama_type;comment:全景类型" json:"panorama_type"`
 
+	FileID      string `gorm:"type:varchar(50);index;column:file_id;comment:关联的文件ID" json:"file_id"`
 	SourceURL      string `gorm:"type:varchar(500);column:source_url;comment:源文件URL" json:"source_url"`
 	SourceWidth    int    `gorm:"column:source_width;comment:源文件宽度" json:"source_width"`
 	SourceHeight   int    `gorm:"column:source_height;comment:源文件高度" json:"source_height"`
 	SourceFileSize int64  `gorm:"column:source_file_size;comment:源文件大小" json:"source_file_size"`
 	SourceFileMD5  string `gorm:"type:varchar(32);index;column:source_file_md5;comment:源文件MD5" json:"source_file_md5"`
 
-	CubemapURL  string `gorm:"type:varchar(500);column:cubemap_url;comment:立方体纹理URL" json:"cubemap_url"`
-	IsConverted bool   `gorm:"default:false;column:is_converted;comment:是否已转换" json:"is_converted"`
+	TileURL      string `gorm:"type:varchar(500);column:tile_url;comment:瓦片目录URL" json:"tile_url"`
+	PreviewURL   string `gorm:"type:varchar(500);column:preview_url;comment:预览图URL" json:"preview_url"`
+	CubemapURL   string `gorm:"type:varchar(500);column:cubemap_url;comment:立方体纹理URL" json:"cubemap_url"`
+	IsConverted  bool   `gorm:"default:false;column:is_converted;comment:是否已转换" json:"is_converted"`
+	SliceStatus  string `gorm:"type:varchar(20);default:pending;column:slice_status;comment:切片状态" json:"slice_status"`
+	TaskID       string `gorm:"type:varchar(50);column:task_id;comment:切片任务ID" json:"task_id"`
 
 	ThumbnailURL  string `gorm:"type:varchar(500);column:thumbnail_url;comment:缩略图URL" json:"thumbnail_url"`
 	CoverImageURL string `gorm:"type:varchar(500);column:cover_image_url;comment:封面图URL" json:"cover_image_url"`
@@ -69,6 +74,13 @@ type ResScene struct {
 	Space    ResSpace     `gorm:"foreignKey:SpaceID" json:"space,omitempty"`
 	Hotspots []ResHotspot `gorm:"foreignKey:SceneID" json:"hotspots,omitempty"`
 }
+
+const (
+	SliceStatusPending   = "pending"
+	SliceStatusSlicing   = "slicing"
+	SliceStatusReady     = "ready"
+	SliceStatusFailed    = "failed"
+)
 
 func (ResScene) TableName() string {
 	return "res_scene"

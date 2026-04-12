@@ -1,22 +1,28 @@
 package upload
 
+import "time"
+
 type InitUploadRequest struct {
-	FileName  string `json:"file_name" binding:"required"`
-	FileSize  int64  `json:"file_size" binding:"required,min=1"`
-	FileMD5   string `json:"file_md5" binding:"required,len=32"`
-	SpaceID   uint   `json:"space_id" binding:"required"`
-	SceneCode string `json:"scene_code" binding:"required"`
-	Title     string `json:"title"`
+	FileName string `json:"filename" binding:"required"`
+	FileSize int64  `json:"file_size" binding:"required,min=1"`
+	FileMD5  string `json:"file_hash" binding:"required,len=32"`
 }
 
 type InitUploadResponse struct {
-	UploadID        string `json:"upload_id"`
-	SkipUpload      bool   `json:"skip_upload"`
-	SceneID         *uint  `json:"scene_id,omitempty"`
-	ChunkSize       int    `json:"chunk_size"`
-	TotalChunks     int    `json:"total_chunks"`
-	UploadedChunks  []int  `json:"uploaded_chunks"`
-	UploadTaskExist bool   `json:"upload_task_exist"`
+	UploadID       string `json:"upload_id,omitempty"`
+	Instant        bool   `json:"instant"`
+	FileID         string `json:"file_id,omitempty"`
+	SourceURL      string `json:"source_url,omitempty"`
+	ThumbURL       string `json:"thumb_url,omitempty"`
+	ChunkSize      int    `json:"chunk_size,omitempty"`
+	TotalChunks    int    `json:"total_chunks,omitempty"`
+	UploadedChunks []int  `json:"uploaded_chunks,omitempty"`
+}
+
+type ChunkUploadRequest struct {
+	UploadID   string `form:"upload_id" binding:"required"`
+	ChunkIndex int    `form:"chunk_index" binding:"required,min=0"`
+	ChunkMD5   string `form:"chunk_hash" binding:"required,len=32"`
 }
 
 type ChunkUploadResponse struct {
@@ -26,14 +32,16 @@ type ChunkUploadResponse struct {
 	UploadID       string `json:"upload_id"`
 }
 
-type MergeUploadRequest struct {
+type CompleteUploadRequest struct {
 	UploadID string `json:"upload_id" binding:"required"`
+	FileMD5  string `json:"file_hash" binding:"required,len=32"`
 }
 
-type MergeUploadResponse struct {
-	SceneID      uint   `json:"scene_id"`
-	SourceURL    string `json:"source_url"`
-	ThumbnailURL string `json:"thumbnail_url"`
+type CompleteUploadResponse struct {
+	FileID    string `json:"file_id"`
+	SourceURL string `json:"source_url"`
+	ThumbURL  string `json:"thumb_url"`
+	FileSize  int64  `json:"file_size"`
 }
 
 type UploadStatusResponse struct {
@@ -46,15 +54,22 @@ type UploadStatusResponse struct {
 	FileSize       int64  `json:"file_size"`
 }
 
+type FileInfo struct {
+	FileID    string    `json:"file_id"`
+	SourceURL string    `json:"source_url"`
+	ThumbURL  string    `json:"thumb_url"`
+	FileSize  int64     `json:"file_size"`
+	Width     int       `json:"width"`
+	Height    int       `json:"height"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type UploadTask struct {
 	UploadID      string `json:"upload_id"`
 	UserID        uint   `json:"user_id"`
 	FileName      string `json:"file_name"`
 	FileSize      int64  `json:"file_size"`
 	FileMD5       string `json:"file_md5"`
-	SpaceID       uint   `json:"space_id"`
-	SceneCode     string `json:"scene_code"`
-	Title         string `json:"title"`
 	TotalChunks   int    `json:"total_chunks"`
 	ChunkSize     int    `json:"chunk_size"`
 	Status        string `json:"status"`

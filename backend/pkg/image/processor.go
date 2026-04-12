@@ -39,7 +39,7 @@ type Processor struct {
 
 func NewProcessor() *Processor {
 	return &Processor{
-		maxFileSize:     5 * 1024 * 1024,
+		maxFileSize:     500 * 1024 * 1024,
 		thumbnailWidth:  512,
 		thumbnailHeight: 256,
 	}

@@ -11,15 +11,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
+
 	"webGL-720yun/internal/model"
 	"webGL-720yun/internal/resource/dto"
 	"webGL-720yun/internal/resource/repository"
+	"webGL-720yun/internal/slice"
 	"webGL-720yun/pkg/image"
 	"webGL-720yun/pkg/minio_client"
+	"webGL-720yun/pkg/redis"
 	"webGL-720yun/pkg/utils"
-
-	"github.com/xuri/excelize/v2"
-	"gorm.io/gorm"
 )
 
 type SceneService struct {
@@ -27,6 +30,8 @@ type SceneService struct {
 	spaceRepo      *repository.SpaceRepository
 	minioClient    *minio_client.MinIOClient
 	imageProcessor *image.Processor
+	sliceQueue     *slice.SliceQueue
+	redisService   *redis.RedisService
 }
 
 func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient) *SceneService {
@@ -35,6 +40,17 @@ func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient) *SceneS
 		spaceRepo:      repository.NewSpaceRepository(db),
 		minioClient:    minioClient,
 		imageProcessor: image.NewProcessor(),
+	}
+}
+
+func NewSceneServiceWithSliceQueue(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQueue *slice.SliceQueue, redisService *redis.RedisService) *SceneService {
+	return &SceneService{
+		repo:           repository.NewSceneRepository(db),
+		spaceRepo:      repository.NewSpaceRepository(db),
+		minioClient:    minioClient,
+		imageProcessor: image.NewProcessor(),
+		sliceQueue:     sliceQueue,
+		redisService:   redisService,
 	}
 }
 
@@ -89,6 +105,111 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 	}
 
 	return scene, nil
+}
+
+func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID uint, isAdmin bool) (*dto.CreateSceneResponse, error) {
+	space, err := s.spaceRepo.FindByID(req.SpaceID)
+	if err != nil {
+		return nil, fmt.Errorf("空间不存在: %w", err)
+	}
+
+	if !isAdmin && space.CreatedBy != userID {
+		return nil, errors.New("无权限在此空间创建场景")
+	}
+
+	exists, err := s.repo.CheckSceneCodeExists(req.SceneCode, 0)
+	if err != nil {
+		return nil, fmt.Errorf("检查场景编码失败: %w", err)
+	}
+	if exists {
+		return nil, errors.New("场景编码已存在")
+	}
+
+	fileInfo, err := s.redisService.GetFileInfo(req.FileID)
+	if err != nil {
+		return nil, fmt.Errorf("获取文件信息失败: %w", err)
+	}
+	if fileInfo == nil {
+		return nil, errors.New("文件不存在，请先上传")
+	}
+
+	sourceURL, _ := fileInfo["source_url"].(string)
+	thumbURL, _ := fileInfo["thumb_url"].(string)
+	var fileSize int64
+	if fs, ok := fileInfo["file_size"].(float64); ok {
+		fileSize = int64(fs)
+	}
+
+	scene := &model.ResScene{
+		SpaceID:        req.SpaceID,
+		Title:          req.Title,
+		SceneCode:      req.SceneCode,
+		FileID:         req.FileID,
+		PanoramaType:   req.PanoramaType,
+		InitialFOV:     req.InitialFOV,
+		InitialPitch:   req.InitialPitch,
+		InitialYaw:     req.InitialYaw,
+		NorthOffset:    req.NorthOffset,
+		Longitude:      req.Longitude,
+		Latitude:       req.Latitude,
+		SortOrder:      req.SortOrder,
+		Status:         1,
+		SourceURL:      sourceURL,
+		ThumbnailURL:   thumbURL,
+		SourceFileSize: fileSize,
+		SliceStatus:    model.SliceStatusPending,
+	}
+
+	if scene.InitialFOV == 0 {
+		scene.InitialFOV = 100
+	}
+	if scene.PanoramaType == "" {
+		scene.PanoramaType = "equirectangular"
+	}
+
+	if w, ok := fileInfo["width"].(float64); ok {
+		scene.SourceWidth = int(w)
+	}
+	if h, ok := fileInfo["height"].(float64); ok {
+		scene.SourceHeight = int(h)
+	}
+
+	if err := s.repo.Create(scene); err != nil {
+		return nil, fmt.Errorf("创建场景失败: %w", err)
+	}
+
+	taskID := uuid.New().String()
+	scene.TaskID = taskID
+
+	if s.sliceQueue != nil {
+		task := &slice.SliceTask{
+			TaskID:    taskID,
+			SceneID:   scene.ID,
+			SceneCode: scene.SceneCode,
+			FileID:    scene.FileID,
+			UserID:    userID,
+			CreatedAt: time.Now().Unix(),
+		}
+
+		if err := s.sliceQueue.PushTask(task); err != nil {
+			scene.SliceStatus = model.SliceStatusFailed
+			s.repo.Update(scene)
+			return nil, fmt.Errorf("推送切片任务失败: %w", err)
+		}
+
+		scene.SliceStatus = model.SliceStatusSlicing
+		if err := s.repo.Update(scene); err != nil {
+			return nil, fmt.Errorf("更新场景状态失败: %w", err)
+		}
+	}
+
+	return &dto.CreateSceneResponse{
+		SceneID:     scene.ID,
+		Title:       scene.Title,
+		SceneCode:   scene.SceneCode,
+		SliceStatus: scene.SliceStatus,
+		TaskID:      taskID,
+	}, nil
 }
 
 func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipart.FileHeader, spaceName string) error {

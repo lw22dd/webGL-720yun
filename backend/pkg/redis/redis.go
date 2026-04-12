@@ -50,6 +50,8 @@ const (
 	KeyPrefixUploadTask     = "upload:task:"
 	KeyPrefixUploadChunks   = "upload:chunks:"
 	KeyPrefixUploadUser     = "upload:user:"
+	KeyPrefixFileMD5        = "file:md5:"
+	KeyPrefixFileInfo       = "file:info:"
 )
 
 func (s *RedisService) SaveUserSession(userID uint, accessToken, refreshToken string, expiresIn time.Duration) error {
@@ -314,4 +316,52 @@ func (s *RedisService) GetUserUploadCount(userID uint) (int, error) {
 func (s *RedisService) SetUserUploadCount(userID uint, count int, expiresIn time.Duration) error {
 	key := fmt.Sprintf("%s%d:count", KeyPrefixUploadUser, userID)
 	return s.client.Set(key, count, expiresIn).Err()
+}
+
+func (s *RedisService) GetFileIDByMD5(md5 string) (string, error) {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileMD5, md5)
+	result, err := s.client.Get(key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "", nil
+		}
+		return "", err
+	}
+	return result, nil
+}
+
+func (s *RedisService) SaveFileMD5(md5 string, fileID string) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileMD5, md5)
+	return s.client.Set(key, fileID, 0).Err()
+}
+
+func (s *RedisService) SaveFileInfo(fileID string, info map[string]interface{}) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileInfo, fileID)
+	data, err := json.Marshal(info)
+	if err != nil {
+		return err
+	}
+	return s.client.Set(key, data, 30*24*time.Hour).Err()
+}
+
+func (s *RedisService) GetFileInfo(fileID string) (map[string]interface{}, error) {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileInfo, fileID)
+	data, err := s.client.Get(key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var info map[string]interface{}
+	if err := json.Unmarshal([]byte(data), &info); err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func (s *RedisService) DeleteFileInfo(fileID string) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileInfo, fileID)
+	return s.client.Del(key).Err()
 }

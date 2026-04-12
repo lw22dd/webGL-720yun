@@ -3,13 +3,13 @@ import type {
   InitUploadRequest,
   InitUploadResponse,
   ChunkUploadResponse,
-  MergeUploadResponse,
+  CompleteUploadResponse,
   UploadStatusResponse,
   UploadOptions,
   UploadTask
 } from '@/models/UploadModel'
 import Axios from '@/utils/axios'
-import { useSceneStore } from '@/stores/sceneStore'
+import { useUploadStore } from '@/stores/uploadStore'
 
 const CHUNK_SIZE = 5 * 1024 * 1024
 const MAX_CONCURRENT = 4
@@ -46,10 +46,11 @@ class UploadService {
     return await Axios.post('/upload/init', params)
   }
 
-  async uploadChunk(uploadId: string, chunkIndex: number, chunk: Blob): Promise<Result<ChunkUploadResponse>> {
+  async uploadChunk(uploadId: string, chunkIndex: number, chunk: Blob, chunkMd5: string): Promise<Result<ChunkUploadResponse>> {
     const formData = new FormData()
     formData.append('upload_id', uploadId)
     formData.append('chunk_index', chunkIndex.toString())
+    formData.append('chunk_hash', chunkMd5)
     formData.append('chunk_data', chunk)
 
     return await Axios.post('/upload/chunk', formData, {
@@ -60,8 +61,11 @@ class UploadService {
     })
   }
 
-  async mergeChunks(uploadId: string): Promise<Result<MergeUploadResponse>> {
-    return await Axios.post('/upload/merge', { upload_id: uploadId })
+  async completeUpload(uploadId: string, fileHash: string): Promise<Result<CompleteUploadResponse>> {
+    return await Axios.post('/upload/complete', { 
+      upload_id: uploadId, 
+      file_hash: fileHash 
+    })
   }
 
   async getUploadStatus(uploadId: string): Promise<Result<UploadStatusResponse>> {
@@ -70,6 +74,17 @@ class UploadService {
 
   async cancelUpload(uploadId: string): Promise<Result<{ message: string }>> {
     return await Axios.delete(`/upload/${uploadId}`)
+  }
+
+  async getFileInfo(fileId: string): Promise<Result<{
+    file_id: string
+    source_url: string
+    thumb_url: string
+    file_size: number
+    width: number
+    height: number
+  }>> {
+    return await Axios.get(`/upload/file/${fileId}`)
   }
 
   private createChunks(file: File): { index: number; chunk: Blob }[] {
@@ -94,22 +109,23 @@ class UploadService {
     uploadId: string,
     chunkIndex: number,
     chunk: Blob,
+    chunkMd5: string,
     retries = 0
   ): Promise<Result<ChunkUploadResponse>> {
     try {
-      return await this.uploadChunk(uploadId, chunkIndex, chunk)
+      return await this.uploadChunk(uploadId, chunkIndex, chunk, chunkMd5)
     } catch (error) {
       if (retries < this.maxRetries) {
         const delay = this.retryDelays[retries] || this.retryDelays[this.retryDelays.length - 1]
         await new Promise(resolve => setTimeout(resolve, delay))
-        return this.uploadChunkWithRetry(uploadId, chunkIndex, chunk, retries + 1)
+        return this.uploadChunkWithRetry(uploadId, chunkIndex, chunk, chunkMd5, retries + 1)
       }
       throw error
     }
   }
 
-  async uploadFile(file: File, options: UploadOptions): Promise<void> {
-    const sceneStore = useSceneStore()
+  async uploadFile(file: File, options: UploadOptions): Promise<{ file_id: string; source_url: string; thumb_url: string }> {
+    const uploadStore = useUploadStore()
 
     if (file.size > MAX_FILE_SIZE) {
       throw new Error('文件大小超过限制（最大500MB）')
@@ -118,29 +134,25 @@ class UploadService {
     const fileMd5 = await this.calculateMD5(file)
 
     const initResponse = await this.initUpload({
-      file_name: file.name,
+      filename: file.name,
       file_size: file.size,
-      file_md5: fileMd5,
-      space_id: options.spaceId,
-      scene_code: options.sceneCode,
-      title: options.title
+      file_hash: fileMd5
     })
 
     if (initResponse.code !== 200 || !initResponse.data) {
       throw new Error(initResponse.msg || '初始化上传失败')
     }
 
-    if (initResponse.data.skip_upload) {
-      options.onComplete?.({
-        scene_id: initResponse.data.scene_id!,
-        source_url: '',
-        thumbnail_url: ''
-      })
-      return
+    if (initResponse.data.instant) {
+      return {
+        file_id: initResponse.data.file_id!,
+        source_url: initResponse.data.source_url!,
+        thumb_url: initResponse.data.thumb_url!
+      }
     }
 
-    const uploadId = initResponse.data.upload_id
-    const totalChunks = initResponse.data.total_chunks
+    const uploadId = initResponse.data.upload_id!
+    const totalChunks = initResponse.data.total_chunks!
     const uploadedChunks = new Set(initResponse.data.uploaded_chunks || [])
 
     const task: UploadTask = {
@@ -149,9 +161,6 @@ class UploadService {
       fileName: file.name,
       fileSize: file.size,
       fileMd5,
-      spaceId: options.spaceId,
-      sceneCode: options.sceneCode,
-      title: options.title,
       totalChunks,
       uploadedChunks: Array.from(uploadedChunks),
       status: 'uploading',
@@ -161,7 +170,7 @@ class UploadService {
       uploadedBytes: uploadedChunks.size * this.chunkSize
     }
 
-    sceneStore.addUploadTask(task)
+    uploadStore.addUploadTask(task)
 
     const chunks = this.createChunks(file)
     const pendingChunks = chunks.filter(c => !uploadedChunks.has(c.index))
@@ -174,7 +183,9 @@ class UploadService {
         const item = uploadQueue.shift()
         if (!item) break
 
-        const uploadPromise = this.uploadChunkWithRetry(uploadId, item.index, item.chunk)
+        const chunkMd5 = await this.calculateChunkMD5(item.chunk)
+        
+        const uploadPromise = this.uploadChunkWithRetry(uploadId, item.index, item.chunk, chunkMd5)
           .then(response => {
             if (response.code === 200 && response.data) {
               uploadedChunks.add(item.index)
@@ -186,7 +197,7 @@ class UploadService {
               const speed = task.uploadedBytes / elapsed
               task.speed = this.formatSpeed(speed)
 
-              sceneStore.updateUploadTask(uploadId, {
+              uploadStore.updateUploadTask(uploadId, {
                 uploadedChunks: task.uploadedChunks,
                 percentage: task.percentage,
                 uploadedBytes: task.uploadedBytes,
@@ -232,21 +243,44 @@ class UploadService {
       throw new Error('上传不完整')
     }
 
-    sceneStore.updateUploadTask(uploadId, { status: 'merging' })
+    uploadStore.updateUploadTask(uploadId, { status: 'merging' })
 
-    const mergeResponse = await this.mergeChunks(uploadId)
+    const completeResponse = await this.completeUpload(uploadId, fileMd5)
 
-    if (mergeResponse.code !== 200 || !mergeResponse.data) {
-      sceneStore.updateUploadTask(uploadId, { status: 'failed' })
-      throw new Error(mergeResponse.msg || '合并文件失败')
+    if (completeResponse.code !== 200 || !completeResponse.data) {
+      uploadStore.updateUploadTask(uploadId, { status: 'failed' })
+      throw new Error(completeResponse.msg || '完成上传失败')
     }
 
-    sceneStore.updateUploadTask(uploadId, {
+    uploadStore.updateUploadTask(uploadId, {
       status: 'completed',
       percentage: 100
     })
 
-    options.onComplete?.(mergeResponse.data)
+    return {
+      file_id: completeResponse.data.file_id,
+      source_url: completeResponse.data.source_url,
+      thumb_url: completeResponse.data.thumb_url
+    }
+  }
+
+  private async calculateChunkMD5(chunk: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          const buffer = reader.result as ArrayBuffer
+          const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+          const hashArray = Array.from(new Uint8Array(hashBuffer))
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+          resolve(hashHex.substring(0, 32))
+        } catch (error) {
+          reject(error)
+        }
+      }
+      reader.onerror = () => reject(reader.error)
+      reader.readAsArrayBuffer(chunk)
+    })
   }
 
   private formatSpeed(bytesPerSecond: number): string {

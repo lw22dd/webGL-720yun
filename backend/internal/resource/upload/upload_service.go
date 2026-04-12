@@ -10,16 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 
-	"webGL-720yun/internal/model"
 	"webGL-720yun/pkg/image"
 	"webGL-720yun/pkg/minio_client"
-	"webGL-720yun/pkg/websocket"
 )
 
 const (
@@ -29,38 +26,18 @@ const (
 
 type UploadService struct {
 	uploadRepo     *UploadRepository
-	sceneRepo      SceneRepository
-	spaceRepo      SpaceRepository
 	minioClient    *minio_client.MinIOClient
 	imageProcessor *image.Processor
-	wsHub          *websocket.Hub
-}
-
-type SceneRepository interface {
-	FindByMD5(md5 string) (*model.ResScene, error)
-	FindBySceneCode(sceneCode string) (*model.ResScene, error)
-	Create(scene *model.ResScene) error
-	FindByID(id uint) (*model.ResScene, error)
-}
-
-type SpaceRepository interface {
-	FindByID(id uint) (*model.ResSpace, error)
 }
 
 func NewUploadService(
 	uploadRepo *UploadRepository,
-	sceneRepo SceneRepository,
-	spaceRepo SpaceRepository,
 	minioClient *minio_client.MinIOClient,
-	wsHub *websocket.Hub,
 ) *UploadService {
 	return &UploadService{
 		uploadRepo:     uploadRepo,
-		sceneRepo:      sceneRepo,
-		spaceRepo:      spaceRepo,
 		minioClient:    minioClient,
 		imageProcessor: image.NewProcessor(),
-		wsHub:          wsHub,
 	}
 }
 
@@ -77,23 +54,23 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		return nil, errors.New("同时上传文件数量超过限制（最多3个）")
 	}
 
-	space, err := s.spaceRepo.FindByID(req.SpaceID)
+	fileID, err := s.uploadRepo.GetFileIDByMD5(req.FileMD5)
 	if err != nil {
-		return nil, fmt.Errorf("空间不存在: %w", err)
+		return nil, fmt.Errorf("检查文件MD5失败: %w", err)
 	}
-
-	md5Key := fmt.Sprintf("%s_%s", req.FileName, req.FileMD5)
-	existingScene, err := s.sceneRepo.FindByMD5(md5Key)
-	if err == nil && existingScene != nil {
-		return &InitUploadResponse{
-			SkipUpload: true,
-			SceneID:    &existingScene.ID,
-		}, nil
-	}
-
-	existingScene, err = s.sceneRepo.FindBySceneCode(req.SceneCode)
-	if err == nil && existingScene != nil {
-		return nil, errors.New("场景编码已存在")
+	if fileID != "" {
+		fileInfo, err := s.uploadRepo.GetFileInfo(fileID)
+		if err != nil {
+			return nil, fmt.Errorf("获取文件信息失败: %w", err)
+		}
+		if fileInfo != nil {
+			return &InitUploadResponse{
+				Instant:   true,
+				FileID:    fileID,
+				SourceURL: fileInfo.SourceURL,
+				ThumbURL:  fileInfo.ThumbURL,
+			}, nil
+		}
 	}
 
 	uploadID := uuid.New().String()
@@ -105,9 +82,6 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		FileName:      req.FileName,
 		FileSize:      req.FileSize,
 		FileMD5:       req.FileMD5,
-		SpaceID:       req.SpaceID,
-		SceneCode:     req.SceneCode,
-		Title:         req.Title,
 		TotalChunks:   totalChunks,
 		ChunkSize:     ChunkSize,
 		Status:        TaskStatusPending,
@@ -123,11 +97,9 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		return nil, fmt.Errorf("更新用户上传计数失败: %w", err)
 	}
 
-	_ = space
-
 	return &InitUploadResponse{
 		UploadID:       uploadID,
-		SkipUpload:     false,
+		Instant:        false,
 		ChunkSize:      ChunkSize,
 		TotalChunks:    totalChunks,
 		UploadedChunks: []int{},
@@ -160,12 +132,7 @@ func (s *UploadService) UploadChunk(uploadID string, chunkIndex int, chunkData *
 		}, nil
 	}
 
-	space, err := s.spaceRepo.FindByID(task.SpaceID)
-	if err != nil {
-		return nil, fmt.Errorf("空间不存在: %w", err)
-	}
-
-	chunkObjectName := fmt.Sprintf("spaces/%s/temp/%s/chunk_%d", space.Name, uploadID, chunkIndex)
+	chunkObjectName := fmt.Sprintf("temp/%s/chunk_%d", uploadID, chunkIndex)
 
 	src, err := chunkData.Open()
 	if err != nil {
@@ -200,19 +167,6 @@ func (s *UploadService) UploadChunk(uploadID string, chunkIndex int, chunkData *
 
 	uploadedChunks, _ := s.uploadRepo.GetUploadedChunks(uploadID)
 
-	if s.wsHub != nil {
-		percentage := float64(len(uploadedChunks)) / float64(task.TotalChunks) * 100
-		progressData := &websocket.ProgressData{
-			UploadedChunks: len(uploadedChunks),
-			TotalChunks:    task.TotalChunks,
-			Percentage:     percentage,
-			UploadedBytes:  uploadedBytes,
-			TotalBytes:     task.FileSize,
-		}
-		msg := websocket.NewProgressMessage(uploadID, userID, progressData)
-		s.wsHub.SendToUser(userID, msg)
-	}
-
 	return &ChunkUploadResponse{
 		ChunkIndex:     chunkIndex,
 		UploadedChunks: uploadedChunks,
@@ -221,8 +175,8 @@ func (s *UploadService) UploadChunk(uploadID string, chunkIndex int, chunkData *
 	}, nil
 }
 
-func (s *UploadService) MergeChunks(uploadID string, userID uint) (*MergeUploadResponse, error) {
-	task, err := s.uploadRepo.GetTask(uploadID)
+func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) (*CompleteUploadResponse, error) {
+	task, err := s.uploadRepo.GetTask(req.UploadID)
 	if err != nil {
 		return nil, fmt.Errorf("获取上传任务失败: %w", err)
 	}
@@ -233,7 +187,7 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*MergeUploadR
 		return nil, errors.New("无权限操作此任务")
 	}
 
-	uploadedChunks, err := s.uploadRepo.GetUploadedChunks(uploadID)
+	uploadedChunks, err := s.uploadRepo.GetUploadedChunks(req.UploadID)
 	if err != nil {
 		return nil, fmt.Errorf("获取已上传分片失败: %w", err)
 	}
@@ -242,19 +196,9 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*MergeUploadR
 		return nil, fmt.Errorf("分片不完整，已上传 %d/%d", len(uploadedChunks), task.TotalChunks)
 	}
 
-	s.uploadRepo.UpdateTaskStatus(uploadID, TaskStatusMerging)
+	s.uploadRepo.UpdateTaskStatus(req.UploadID, TaskStatusMerging)
 
-	if s.wsHub != nil {
-		msg := websocket.NewMergeStartMessage(uploadID, userID)
-		s.wsHub.SendToUser(userID, msg)
-	}
-
-	space, err := s.spaceRepo.FindByID(task.SpaceID)
-	if err != nil {
-		return nil, fmt.Errorf("空间不存在: %w", err)
-	}
-
-	tempDir := filepath.Join(os.TempDir(), "upload_"+uploadID)
+	tempDir := filepath.Join(os.TempDir(), "upload_"+req.UploadID)
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建临时目录失败: %w", err)
 	}
@@ -273,8 +217,8 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*MergeUploadR
 	client := s.minioClient.GetClient()
 	bucket := s.minioClient.GetConfig().Bucket
 
-	for i, chunkIndex := range uploadedChunks {
-		chunkObjectName := fmt.Sprintf("spaces/%s/temp/%s/chunk_%d", space.Name, uploadID, chunkIndex)
+	for _, chunkIndex := range uploadedChunks {
+		chunkObjectName := fmt.Sprintf("temp/%s/chunk_%d", req.UploadID, chunkIndex)
 
 		obj, err := client.GetObject(ctx, bucket, chunkObjectName, minio.GetObjectOptions{})
 		if err != nil {
@@ -287,17 +231,6 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*MergeUploadR
 			return nil, fmt.Errorf("合并分片 %d 失败: %w", chunkIndex, err)
 		}
 		obj.Close()
-
-		if s.wsHub != nil {
-			percentage := float64(i+1) / float64(task.TotalChunks) * 100
-			mergeData := &websocket.MergeProgressData{
-				Stage:      "merging",
-				Percentage: percentage,
-				Message:    fmt.Sprintf("正在合并分片 %d/%d", i+1, task.TotalChunks),
-			}
-			msg := websocket.NewMergeProgressMessage(uploadID, userID, mergeData)
-			s.wsHub.SendToUser(userID, msg)
-		}
 	}
 	mergedWriter.Close()
 
@@ -314,7 +247,8 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*MergeUploadR
 		return nil, fmt.Errorf("获取图片信息失败: %w", err)
 	}
 
-	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s_sphere.jpg", space.Name, task.SceneCode)
+	fileID := uuid.New().String()
+	sourceObjectName := fmt.Sprintf("sources/%s/source.jpg", fileID)
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, mergedFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传源文件失败: %w", err)
@@ -325,54 +259,42 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*MergeUploadR
 		return nil, fmt.Errorf("生成缩略图失败: %w", err)
 	}
 
-	thumbObjectName := fmt.Sprintf("spaces/%s/thumbnails/%s_thumb.jpg", space.Name, task.SceneCode)
+	thumbObjectName := fmt.Sprintf("sources/%s/thumb.jpg", fileID)
 	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传缩略图失败: %w", err)
 	}
 
-	scene := &model.ResScene{
-		SpaceID:        task.SpaceID,
-		Title:          task.Title,
-		SceneCode:      task.SceneCode,
-		PanoramaType:   "equirectangular",
-		SourceURL:      sourceURL,
-		SourceWidth:    imageInfo.Width,
-		SourceHeight:   imageInfo.Height,
-		SourceFileSize: imageInfo.FileSize,
-		SourceFileMD5:  fmt.Sprintf("%s_%s", task.FileName, task.FileMD5),
-		ThumbnailURL:   thumbURL,
-		InitialFOV:     100,
-		Status:         1,
-	}
-
-	if err := s.sceneRepo.Create(scene); err != nil {
-		return nil, fmt.Errorf("创建场景记录失败: %w", err)
-	}
-
 	for _, chunkIndex := range uploadedChunks {
-		chunkObjectName := fmt.Sprintf("spaces/%s/temp/%s/chunk_%d", space.Name, uploadID, chunkIndex)
+		chunkObjectName := fmt.Sprintf("temp/%s/chunk_%d", req.UploadID, chunkIndex)
 		client.RemoveObject(ctx, bucket, chunkObjectName, minio.RemoveObjectOptions{})
 	}
 
-	s.uploadRepo.UpdateTaskStatus(uploadID, TaskStatusCompleted)
-	s.uploadRepo.DeleteTask(uploadID)
-	s.uploadRepo.DecrementUserUploadCount(userID)
-
-	if s.wsHub != nil {
-		completeData := &websocket.CompleteData{
-			SceneID:      scene.ID,
-			SourceURL:    sourceURL,
-			ThumbnailURL: thumbURL,
-		}
-		msg := websocket.NewCompleteMessage(uploadID, userID, completeData)
-		s.wsHub.SendToUser(userID, msg)
+	if err := s.uploadRepo.SaveFileMD5(task.FileMD5, fileID); err != nil {
+		return nil, fmt.Errorf("保存文件MD5映射失败: %w", err)
 	}
 
-	return &MergeUploadResponse{
-		SceneID:      scene.ID,
-		SourceURL:    sourceURL,
-		ThumbnailURL: thumbURL,
+	if err := s.uploadRepo.SaveFileInfo(fileID, &FileInfo{
+		FileID:    fileID,
+		SourceURL: sourceURL,
+		ThumbURL:  thumbURL,
+		FileSize:  imageInfo.FileSize,
+		Width:     imageInfo.Width,
+		Height:    imageInfo.Height,
+		CreatedAt: time.Now(),
+	}); err != nil {
+		return nil, fmt.Errorf("保存文件信息失败: %w", err)
+	}
+
+	s.uploadRepo.UpdateTaskStatus(req.UploadID, TaskStatusCompleted)
+	s.uploadRepo.DeleteTask(req.UploadID)
+	s.uploadRepo.DecrementUserUploadCount(userID)
+
+	return &CompleteUploadResponse{
+		FileID:    fileID,
+		SourceURL: sourceURL,
+		ThumbURL:  thumbURL,
+		FileSize:  imageInfo.FileSize,
 	}, nil
 }
 
@@ -417,16 +339,13 @@ func (s *UploadService) CancelUpload(uploadID string, userID uint) error {
 		return errors.New("无权限操作此任务")
 	}
 
-	space, err := s.spaceRepo.FindByID(task.SpaceID)
-	if err == nil {
-		ctx := context.Background()
-		client := s.minioClient.GetClient()
-		bucket := s.minioClient.GetConfig().Bucket
+	ctx := context.Background()
+	client := s.minioClient.GetClient()
+	bucket := s.minioClient.GetConfig().Bucket
 
-		for i := 0; i < task.TotalChunks; i++ {
-			chunkObjectName := fmt.Sprintf("spaces/%s/temp/%s/chunk_%d", space.Name, uploadID, i)
-			client.RemoveObject(ctx, bucket, chunkObjectName, minio.RemoveObjectOptions{})
-		}
+	for i := 0; i < task.TotalChunks; i++ {
+		chunkObjectName := fmt.Sprintf("temp/%s/chunk_%d", uploadID, i)
+		client.RemoveObject(ctx, bucket, chunkObjectName, minio.RemoveObjectOptions{})
 	}
 
 	s.uploadRepo.DeleteTask(uploadID)
@@ -435,6 +354,6 @@ func (s *UploadService) CancelUpload(uploadID string, userID uint) error {
 	return nil
 }
 
-func parseChunkIndex(str string) (int, error) {
-	return strconv.Atoi(str)
+func (s *UploadService) GetFileInfo(fileID string) (*FileInfo, error) {
+	return s.uploadRepo.GetFileInfo(fileID)
 }
