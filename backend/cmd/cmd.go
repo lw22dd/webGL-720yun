@@ -16,7 +16,7 @@ import (
 	"webGL-720yun/internal/core/router"
 	"webGL-720yun/internal/core/setup"
 	"webGL-720yun/internal/resource/service"
-	upload_service "webGL-720yun/internal/upload/service"
+	"webGL-720yun/internal/resource/upload"
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/logger"
@@ -65,7 +65,7 @@ func Run() {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	uploadService := upload_service.NewUploadService(
+	uploadService := upload.NewUploadService(
 		nil,
 		nil,
 		nil,

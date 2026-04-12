@@ -116,7 +116,7 @@ const initGraph = () => {
     }
   })
 
-  graph.on('node:mouseenter', ({ node }) => {
+  graph.on('node:mouseenter', ({ node }) => { // 节点鼠标悬停事件
     node.addTools({
       name: 'button',
       args: {
@@ -125,7 +125,7 @@ const initGraph = () => {
             tagName: 'circle',
             selector: 'button',
             attrs: {
-              r: 20, // 圆半半径
+              r: 10, 
               stroke: '#fe854f',
               strokeWidth: 2,
               fill: 'white',
@@ -210,13 +210,13 @@ const renderGraph = () => {
   nodes.forEach(node => {
     const { x, y } = coordinateTransform!.lngLatToScreen(node.longitude, node.latitude)
 
-    const graphNode = graph!.addNode({
+    const graphNode = graph!.addNode({ // 节点
       id: `node-${node.id}`,
       shape: 'circle',
-      x: x - 4,
-      y: y - 4,
-      width: 8,
-      height: 8,
+      x: x - 15, // 节点中心坐标
+      y: y - 15, // 节点中心坐标
+      width: 30,
+      height: 30,
       attrs: {
         body: {
           fill: '#0052d9',
@@ -230,9 +230,8 @@ const renderGraph = () => {
           fontWeight: 500,
           textAnchor: 'middle',
           textVerticalAnchor: 'bottom',
-          refX: '50%',
-          refY: '100%',
-          dy: -16
+          refX: '50%', // 文字水平居中
+          refY: '0%', // 文字垂直居中
         }
       }
     })
@@ -343,6 +342,7 @@ onUnmounted(() => {
 
 <style scoped>
 .graph-container {
+  
   width: 100%;
   height: 100%;
   position: relative;

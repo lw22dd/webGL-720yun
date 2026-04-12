@@ -11,9 +11,7 @@ import (
 	"webGL-720yun/internal/resource/handler"
 	"webGL-720yun/internal/resource/repository"
 	"webGL-720yun/internal/resource/service"
-	upload_handler "webGL-720yun/internal/upload/handler"
-	upload_repository "webGL-720yun/internal/upload/repository"
-	upload_service "webGL-720yun/internal/upload/service"
+	"webGL-720yun/internal/resource/upload"
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/minio_client"
@@ -26,7 +24,7 @@ type ServiceContext struct {
 	SpaceService   *service.SpaceService
 	SceneService   *service.SceneService
 	HotspotService *service.HotspotService
-	UploadService  *upload_service.UploadService
+	UploadService  *upload.UploadService
 	AuthMiddleware *middleware.AuthMiddleware
 	RBACMiddleware *middleware.RBACMiddleware
 	MinIOClient    *minio_client.MinIOClient
@@ -117,14 +115,14 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		uploadGroup := api.Group("/upload")
 		uploadGroup.Use(authMiddleware.RequireAuth())
 		{
-			uploadGroup.POST("/init", upload_handler.InitUpload(uploadService))
-			uploadGroup.POST("/chunk", upload_handler.UploadChunk(uploadService))
-			uploadGroup.POST("/merge", upload_handler.MergeChunks(uploadService))
-			uploadGroup.GET("/status/:upload_id", upload_handler.GetUploadStatus(uploadService))
-			uploadGroup.DELETE("/:upload_id", upload_handler.CancelUpload(uploadService))
+			uploadGroup.POST("/init", upload.InitUpload(uploadService))
+			uploadGroup.POST("/chunk", upload.UploadChunk(uploadService))
+			uploadGroup.POST("/merge", upload.MergeChunks(uploadService))
+			uploadGroup.GET("/status/:upload_id", upload.GetUploadStatus(uploadService))
+			uploadGroup.DELETE("/:upload_id", upload.CancelUpload(uploadService))
 		}
 
-		api.GET("/ws", upload_handler.HandleWebSocket(wsHub, jwtService))
+		api.GET("/ws", upload.HandleWebSocket(wsHub, jwtService))
 	}
 
 	r.GET("/health", func(c *gin.Context) {
@@ -135,9 +133,9 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	})
 }
 
-func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService, wsHub *websocket.Hub) *upload_service.UploadService {
-	uploadRepo := upload_repository.NewUploadRepository(redisService)
+func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService, wsHub *websocket.Hub) *upload.UploadService {
+	uploadRepo := upload.NewUploadRepository(redisService)
 	sceneRepo := repository.NewSceneRepository(db)
 	spaceRepo := repository.NewSpaceRepository(db)
-	return upload_service.NewUploadService(uploadRepo, sceneRepo, spaceRepo, minioClient, wsHub)
+	return upload.NewUploadService(uploadRepo, sceneRepo, spaceRepo, minioClient, wsHub)
 }

@@ -145,55 +145,7 @@ const loadGraphData = () => {
 
   })
 
-  // 定义边数据 - 都江堰景区游览路线
-  const edgeDefinitions = [
-    // 景区大门 → 离堆（小索桥）段
-    { source: '景区大门', target: '卧铁' },
-    { source: '卧铁', target: '清溪园' },
-    { source: '清溪园', target: '天府源茶馆' },
-    { source: '天府源茶馆', target: '堰功道' },
-    { source: '堰功道', target: '张松银杏' },
-    { source: '张松银杏', target: '伏龙观' },
-    { source: '伏龙观', target: '离堆' },
-    // 离堆 ↔ 飞沙堰
-    { source: '离堆', target: '飞沙堰' },
-    // 飞沙堰 → 金刚堤 → 安澜索桥 → 鱼嘴
-    { source: '飞沙堰', target: '金刚堤' },
-    { source: '金刚堤', target: '安澜索桥' },
-    { source: '安澜索桥', target: '鱼嘴' },
-    // 安澜索桥 → 秦堰楼 → 二王庙 → 灵动森林 → 敬修之牌坊 → 松茂古道
-    { source: '安澜索桥', target: '秦堰楼' },
-    { source: '秦堰楼', target: '二王庙' },
-    { source: '二王庙', target: '灵动森林' },
-    { source: '灵动森林', target: '敬修之牌坊' },
-    { source: '敬修之牌坊', target: '松茂古道' },
-    // 松茂古道 ↔ 玉垒阁 → 城隍庙 → 十殿 → 玉垒山广场
-    { source: '松茂古道', target: '玉垒阁' },
-    { source: '玉垒阁', target: '城隍庙' },
-    { source: '城隍庙', target: '十殿' },
-    { source: '十殿', target: '玉垒山广场' }
-  ]
-
-  // 创建标题到ID的映射
-  const titleToId = new Map<string, number>()
-  nodes.forEach(node => {
-    titleToId.set(node.title, node.id)
-  })
-
-  // 根据定义创建边
-  edgeDefinitions.forEach((def, index) => {
-    const sourceId = titleToId.get(def.source)
-    const targetId = titleToId.get(def.target)
-    if (sourceId && targetId) {
-      edges.push({
-        id: index + 1,
-        source_id: sourceId,
-        target_id: targetId,
-        hotspot_id: index + 1,
-        hotspot_title: `${def.source} → ${def.target}`
-      })
-    }
-  })
+  // 不创建边，只显示散点
 
   graphData.value = {
     space_info: {
@@ -385,7 +337,7 @@ onMounted(() => {
 }
 
 .graph-area {
-  max-width: 60%;
+  max-width: 80%;
   flex: 1;
   position: relative;
   overflow: hidden;

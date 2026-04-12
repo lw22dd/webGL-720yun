@@ -273,7 +273,6 @@ const handleRegister = async () => {
             email: registerForm.email,
             password: registerForm.password,
             role_id: 2,
-            status: 1
         })
         if (result.code === 200) {
             Message.success('注册成功，请登录')
