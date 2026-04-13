@@ -64,7 +64,13 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 		return nil, errors.New("无权限在此空间创建场景")
 	}
 
-	exists, err := s.repo.CheckSceneCodeExists(req.SceneCode, 0)
+	// 自动生成或清理 SceneCode
+	sceneCode, err := s.generateSceneCode(req.SceneCode, req.Title)
+	if err != nil {
+		return nil, err
+	}
+
+	exists, err := s.repo.CheckSceneCodeExists(sceneCode, 0)
 	if err != nil {
 		return nil, fmt.Errorf("检查场景编码失败: %w", err)
 	}
@@ -75,7 +81,7 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 	scene := &model.ResScene{
 		SpaceID:      req.SpaceID,
 		Title:        req.Title,
-		SceneCode:    req.SceneCode,
+		SceneCode:    sceneCode,
 		PanoramaType: req.PanoramaType,
 		InitialFOV:   req.InitialFOV,
 		InitialPitch: req.InitialPitch,
@@ -117,7 +123,13 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		return nil, errors.New("无权限在此空间创建场景")
 	}
 
-	exists, err := s.repo.CheckSceneCodeExists(req.SceneCode, 0)
+	// 自动生成或清理 SceneCode
+	sceneCode, err := s.generateSceneCode(req.SceneCode, req.Title)
+	if err != nil {
+		return nil, err
+	}
+
+	exists, err := s.repo.CheckSceneCodeExists(sceneCode, 0)
 	if err != nil {
 		return nil, fmt.Errorf("检查场景编码失败: %w", err)
 	}
@@ -143,7 +155,7 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 	scene := &model.ResScene{
 		SpaceID:        req.SpaceID,
 		Title:          req.Title,
-		SceneCode:      req.SceneCode,
+		SceneCode:      sceneCode,
 		FileID:         req.FileID,
 		PanoramaType:   req.PanoramaType,
 		InitialFOV:     req.InitialFOV,
@@ -462,27 +474,46 @@ func (s *SceneService) BatchImport(spaceID uint, file *multipart.FileHeader, use
 	}
 
 	for i, item := range items {
+		// 自动生成或清理 SceneCode
+		sceneCode, err := s.generateSceneCode(item.SceneCode, item.Title)
+		if err != nil {
+			response.Results[i] = dto.BatchImportResult{
+				Index:     i + 1,
+				SceneCode: item.SceneCode,
+				Title:     item.Title,
+				Status:    "failed",
+				Message:   err.Error(),
+			}
+			response.FailedCount++
+			response.Errors = append(response.Errors, dto.BatchImportError{
+				Index:     i + 1,
+				SceneCode: item.SceneCode,
+				Error:     err.Error(),
+			})
+			continue
+		}
+
 		result := dto.BatchImportResult{
 			Index:     i + 1,
-			SceneCode: item.SceneCode,
+			SceneCode: sceneCode,
 			Title:     item.Title,
 		}
 
-		exists, _ := s.repo.CheckSceneCodeExists(item.SceneCode, 0)
+		exists, _ := s.repo.CheckSceneCodeExists(sceneCode, 0)
 		if exists {
 			result.Status = "failed"
 			result.Message = "场景编码已存在"
 			response.FailedCount++
 			response.Errors = append(response.Errors, dto.BatchImportError{
 				Index:     i + 1,
-				SceneCode: item.SceneCode,
+				SceneCode: sceneCode,
 				Error:     "场景编码已存在",
 			})
 		} else {
 			scene := &model.ResScene{
 				SpaceID:   spaceID,
 				Title:     item.Title,
-				SceneCode: item.SceneCode,
+				SceneCode: sceneCode,
 				Longitude: item.Longitude,
 				Latitude:  item.Latitude,
 				Status:    1,
@@ -494,7 +525,7 @@ func (s *SceneService) BatchImport(spaceID uint, file *multipart.FileHeader, use
 				response.FailedCount++
 				response.Errors = append(response.Errors, dto.BatchImportError{
 					Index:     i + 1,
-					SceneCode: item.SceneCode,
+					SceneCode: sceneCode,
 					Error:     err.Error(),
 				})
 			} else {
@@ -671,4 +702,33 @@ func (s *SceneService) BatchUpdateScenePosition(positions []dto.ScenePosition, u
 	}
 
 	return s.repo.BatchUpdatePosition(updates)
+}
+
+// generateSceneCode 生成或清理 SceneCode
+// 如果提供了 sceneCode，则清理并验证格式
+// 如果没有提供，则根据 title 自动生成拼音-UUID 格式
+func (s *SceneService) generateSceneCode(sceneCode, title string) (string, error) {
+	// 如果提供了 SceneCode，清理并验证
+	if sceneCode != "" {
+		// 清理格式
+		sceneCode = utils.SanitizeSceneCode(sceneCode)
+		
+		// 验证长度
+		if len(sceneCode) < 2 {
+			return "", errors.New("场景编码太短，至少需要 2 个字符")
+		}
+		if len(sceneCode) > 100 {
+			return "", errors.New("场景编码太长，最多 100 个字符")
+		}
+		
+		return sceneCode, nil
+	}
+	
+	// 未提供 SceneCode，自动生成
+	if title == "" {
+		return "", errors.New("标题不能为空，无法生成场景编码")
+	}
+	
+	// 生成拼音-UUID 格式
+	return utils.GenerateSceneCode(title), nil
 }

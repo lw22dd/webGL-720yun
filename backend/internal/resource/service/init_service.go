@@ -133,7 +133,8 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 	}
 
 	localFilePath := filepath.Join(s.seedBasePath, localPath, scene.FileName)
-	minIOObjectPath := fmt.Sprintf("spaces/%s/sources/%s", spaceName, scene.FileName)
+	// 使用拼音语义化的 SceneCode 构建 MinIO 路径
+	minIOObjectPath := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceName, scene.SceneCode)
 
 	fileInfo, err := os.Stat(localFilePath)
 	if err != nil {

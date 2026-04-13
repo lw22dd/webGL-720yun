@@ -1,6 +1,6 @@
 <template>
   <div class="china-map-container">
-    <div ref="mapContainer" class="map-wrapper"></div>
+    <div ref="mapContainer" class="map-wrapper" v-loading="loading"></div>
     <div class="search-box">
       <t-input
         v-model="searchKeyword"
@@ -13,38 +13,148 @@
           <SearchIcon />
         </template>
       </t-input>
-      <div v-if="searchResults.length > 0" class="search-results">
-        <div
-          v-for="result in searchResults"
-          :key="result.id"
-          class="search-result-item"
-          @click="handleResultClick(result)"
-        >
-          <span class="result-name">{{ result.name }}</span>
-          <span class="result-location">{{ result.province }} {{ result.city }}</span>
+      
+      <div v-if="showSearchResults" class="search-results">
+        <div v-if="searchHistory.length > 0 && !searchKeyword.trim()" class="search-history">
+          <div class="search-history-header">
+            <span class="search-history-title">搜索历史</span>
+            <button class="search-history-clear" @click="clearSearchHistory">清除</button>
+          </div>
+          <div class="search-history-tags">
+            <span 
+              v-for="(term, index) in searchHistory.slice(0, 8)" 
+              :key="index"
+              class="search-history-tag"
+              @click="onHistoryTagClick(term)"
+            >
+              {{ term }}
+            </span>
+          </div>
         </div>
+        
+        <div v-else-if="searchKeyword.trim() && searchResults.length === 0" class="search-empty">
+          未找到「{{ searchKeyword }}」相关结果
+        </div>
+        
+        <div v-else-if="searchResults.length > 0" class="search-result-list">
+          <div
+            v-for="result in searchResults"
+            :key="result.id"
+            class="search-result-item"
+            @click="handleResultClick(result)"
+          >
+            <span class="result-name">
+              <template v-if="result.type === 'space'">🏛</template>
+              <template v-else>🎥</template>
+              {{ result.name }}
+            </span>
+            <span class="result-location">{{ result.location }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="hot-tags" v-if="!showSearchResults">
+        <span class="hot-tag-label">热门：</span>
+        <span 
+          v-for="tag in hotTags" 
+          :key="tag" 
+          class="hot-tag"
+          @click="onHotTagClick(tag)"
+        >
+          {{ tag }}
+        </span>
+      </div>
+      
+      <div class="view-toggle">
+        <t-button 
+          :variant="viewMode === 'map' ? 'base' : 'outline'" 
+          size="small"
+          @click="$emit('viewModeChange', 'map')"
+        >
+          🗺️
+        </t-button>
+        <t-button 
+          :variant="viewMode === 'card' ? 'base' : 'outline'" 
+          size="small"
+          @click="$emit('viewModeChange', 'card')"
+        >
+          📋
+        </t-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { SearchIcon } from 'tdesign-icons-vue-next'
 import * as echarts from 'echarts'
-import { getChinaGeoJSON } from '@/api/geoApi'
-import { mockSpaces, type MockSpace } from '@/utils/mockData'
+import { getChinaGeoJSON } from '@/apis/geoApi'
+import SpaceApi from '@/apis/spaceApi'
+import type { SpaceListItem, SpaceDetailResponse } from '@/models/SpaceModel'
+
+interface SpaceWithScenes extends SpaceListItem {
+  scenes?: any[]
+}
+
+const props = defineProps<{
+  viewMode?: 'map' | 'card'
+}>()
 
 const emit = defineEmits<{
-  (e: 'spaceClick', space: MockSpace): void
+  (e: 'spaceClick', space: SpaceWithScenes): void
+  (e: 'viewModeChange', mode: 'map' | 'card'): void
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
 const searchKeyword = ref('')
-const searchResults = ref<MockSpace[]>([])
+const searchResults = ref<any[]>([])
+const showSearchResults = ref(false)
+const loading = ref(true)
+const spaceList = ref<SpaceListItem[]>([])
+
+const searchHistory = ref<string[]>([])
+const hotTags = ['故宫', '西湖', '兵马俑', '都江堰', '敦煌']
 
 let chartInstance: echarts.ECharts | null = null
 let resizeObserver: ResizeObserver | null = null
+
+const loadSearchHistory = () => {
+  try {
+    const history = localStorage.getItem('searchHistory')
+    if (history) {
+      searchHistory.value = JSON.parse(history)
+    }
+  } catch (e) {
+    searchHistory.value = []
+  }
+}
+
+const saveSearchHistory = (keyword: string) => {
+  const newHistory = [keyword, ...searchHistory.value.filter(h => h !== keyword)].slice(0, 10)
+  searchHistory.value = newHistory
+  localStorage.setItem('searchHistory', JSON.stringify(newHistory))
+}
+
+const clearSearchHistory = () => {
+  searchHistory.value = []
+  localStorage.setItem('searchHistory', '[]')
+}
+
+const loadSpaceList = async () => {
+  try {
+    loading.value = true
+    const result = await SpaceApi.getSpaceList({ page: 1, page_size: 100 })
+    if (result.code === 200 && result.data) {
+      spaceList.value = result.data.spaces
+      updateMapData()
+    }
+  } catch (error) {
+    console.error('Failed to load space list:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
 const initMap = async () => {
   if (!mapContainer.value) return
@@ -57,75 +167,90 @@ const initMap = async () => {
       renderer: 'canvas'
     })
 
-    const scatterData = mockSpaces.map(space => ({
-      name: space.name,
-      value: [space.longitude, space.latitude],
-      space
-    }))
-
     const option: echarts.EChartsOption = {
       backgroundColor: 'transparent',
-      geo: {// 地图配置
-        map: 'china',
-        roam: false,
-        zoom: 1.1,
-        center: [105, 36],
-        layoutCenter: ['50%', '50%'],
-        layoutSize: '95%',
-        label: {
-          color: '#000000'
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: 'rgba(26,35,50,0.92)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        padding: [12, 16],
+        textStyle: { 
+          color: '#fff', 
+          fontSize: 13, 
+          fontFamily: 'Noto Sans SC, sans-serif' 
         },
-        itemStyle: { // 地图区域样式
-          areaColor: '#e6f0ff',
-          borderColor: '#4080ff',
-          borderWidth: 1,
-          shadowColor: 'rgba(0, 82, 217, 0.15)',
-          shadowBlur: 8
-        },
-        emphasis: { // 地图区域选中样式
-          label: {
-            color: '#000000'
-          },
-          itemStyle: {
-            areaColor: '#c8dfff',
+        extraCssText: 'backdrop-filter:blur(12px);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);',
+        formatter: (params: any) => {
+          if (params.seriesType === 'effectScatter') {
+            const space = spaceList.value.find(s => s.name === params.name)
+            if (space) {
+              return `<b style="font-size:14px;">${params.name}</b><br/>
+                      <span style="color:rgba(255,255,255,0.6);">📍 ${space.province} ${space.city}</span><br/>
+                      <span style="color:rgba(255,255,255,0.6);">🎥 ${space.scene_count} 个景点</span>`
+            }
           }
+          return params.name
         }
       },
-      series: [ // 散点图配置
-        {
-          type: 'scatter',
-          coordinateSystem: 'geo',
-          data: scatterData,
-          symbolSize: 20,
-          symbol: 'circle',
+      geo: {
+        map: 'china',
+        roam: true,
+        zoom: 1.2,
+        center: [104.5, 36],
+        scaleLimit: { min: 0.8, max: 6 },
+        label: { show: false },
+        itemStyle: {
+          areaColor: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: '#162032' },
+              { offset: 1, color: '#0F1826' }
+            ]
+          },
+          borderColor: '#1E3A5F',
+          borderWidth: 0.6,
+          shadowColor: 'rgba(14,165,233,0.15)',
+          shadowBlur: 15
+        },
+        emphasis: {
           itemStyle: {
-            color: '#0052d9',
-            shadowBlur: 15,
-            shadowColor: 'rgba(0, 82, 217, 0.4)'
+            areaColor: '#1E4A6E',
+            borderColor: '#0EA5E9',
+            borderWidth: 1.2,
+            shadowColor: 'rgba(14,165,233,0.3)',
+            shadowBlur: 20
           },
-          emphasis: { // 散点图选中样式
-            scale: 1.5,
-            itemStyle: {
-              shadowBlur: 25,
-              shadowColor: 'rgba(0, 82, 217, 0.5)',
-              color: '#4080ff'
-            }
-          },
-          label: { // 散点图标签样式
+          label: { show: false }
+        },
+        select: { disabled: true }
+      },
+      series: [
+        {
+          name: '景区',
+          type: 'effectScatter',
+          coordinateSystem: 'geo',
+          data: [],
+          symbolSize: (val: number[]) => Math.max(14, val[2] * 2.8),
+          showEffectOn: 'render',
+          rippleEffect: { brushType: 'stroke', scale: 3.5, period: 4 },
+          label: {
             show: true,
-            formatter: '{b}',
             position: 'top',
-            color: '#000000',
+            formatter: '{b}',
             fontSize: 12,
-            fontWeight: 'bold',
-            backgroundColor: '#ffffff',
-            padding: [4, 8],
-            borderRadius: 4,
-            borderColor: '#e5e6eb',
-            borderWidth: 1,
-            shadowBlur: 4,
-            shadowColor: 'rgba(0, 0, 0, 0.1)'
-          }
+            fontWeight: 500,
+            fontFamily: 'Noto Sans SC, sans-serif',
+            color: '#fff',
+            textBorderColor: 'rgba(0,0,0,0.7)',
+            textBorderWidth: 2.5,
+            distance: 10
+          },
+          itemStyle: {
+            shadowBlur: 12,
+            shadowColor: 'rgba(0,0,0,0.4)'
+          },
+          zlevel: 1
         }
       ]
     }
@@ -133,8 +258,20 @@ const initMap = async () => {
     chartInstance.setOption(option)
 
     chartInstance.on('click', (params: any) => {
-      if (params.data && params.data.space) {
-        emit('spaceClick', params.data.space)
+      if (params.seriesType === 'effectScatter') {
+        const space = spaceList.value.find(s => s.name === params.name)
+        if (space) {
+          SpaceApi.getSpaceDetail(space.id).then(detailResult => {
+            if (detailResult.code === 200 && detailResult.data) {
+              emit('spaceClick', {
+                ...space,
+                scenes: detailResult.data.scenes || []
+              })
+            } else {
+              emit('spaceClick', space)
+            }
+          })
+        }
       }
     })
 
@@ -155,19 +292,51 @@ const initMap = async () => {
   }
 }
 
+const updateMapData = () => {
+  if (!chartInstance) return
+
+  const colors = ['#2563EB', '#DC2626', '#0EA5E9', '#8B5CF6', '#10B981', '#F59E0B', '#059669', '#D97706']
+  
+  const scatterData = spaceList.value.map((space, index) => ({
+    name: space.name,
+    value: [space.longitude, space.latitude, space.scene_count || 1],
+    itemStyle: { color: colors[index % colors.length] },
+    space
+  }))
+
+  chartInstance.setOption({
+    series: [{
+      data: scatterData
+    }]
+  })
+}
+
 const handleSearchChange = (value: string) => {
   if (!value.trim()) {
     searchResults.value = []
+    showSearchResults.value = searchHistory.value.length > 0
     return
   }
 
+  showSearchResults.value = true
   const keyword = value.toLowerCase()
-  searchResults.value = mockSpaces.filter(
-    space =>
-      space.name.toLowerCase().includes(keyword) ||
-      space.province.toLowerCase().includes(keyword) ||
-      space.city.toLowerCase().includes(keyword)
-  )
+  const results: any[] = []
+
+  spaceList.value.forEach(space => {
+    if (space.name.toLowerCase().includes(keyword) || 
+        space.province.toLowerCase().includes(keyword) ||
+        space.city.toLowerCase().includes(keyword)) {
+      results.push({
+        id: space.id,
+        name: space.name,
+        location: `${space.province} ${space.city} · ${space.scene_count}个景点`,
+        type: 'space',
+        data: space
+      })
+    }
+  })
+
+  searchResults.value = results.slice(0, 8)
 }
 
 const handleSearch = () => {
@@ -176,14 +345,45 @@ const handleSearch = () => {
   }
 }
 
-const handleResultClick = (space: MockSpace) => {
-  searchKeyword.value = space.name
-  searchResults.value = []
-  emit('spaceClick', space)
+const handleResultClick = async (result: any) => {
+  searchKeyword.value = result.name
+  showSearchResults.value = false
+  
+  saveSearchHistory(result.name)
+  
+  if (result.type === 'space') {
+    const detailResult = await SpaceApi.getSpaceDetail(result.id)
+    if (detailResult.code === 200 && detailResult.data) {
+      emit('spaceClick', {
+        ...result.data,
+        scenes: detailResult.data.scenes || []
+      })
+    } else {
+      emit('spaceClick', result.data)
+    }
+  }
 }
 
+const onHistoryTagClick = (term: string) => {
+  searchKeyword.value = term
+  handleSearchChange(term)
+}
+
+const onHotTagClick = (tag: string) => {
+  searchKeyword.value = tag
+  handleSearchChange(tag)
+}
+
+watch(() => props.viewMode, () => {
+  setTimeout(() => {
+    chartInstance?.resize()
+  }, 100)
+})
+
 onMounted(() => {
+  loadSearchHistory()
   initMap()
+  loadSpaceList()
 })
 
 onUnmounted(() => {
@@ -196,6 +396,17 @@ onUnmounted(() => {
     chartInstance = null
   }
 })
+
+defineExpose({
+  focusSpace: (spaceId: number) => {
+    const space = spaceList.value.find(s => s.id === spaceId)
+    if (space && chartInstance) {
+      chartInstance.setOption({
+        geo: { center: [space.longitude, space.latitude], zoom: 4 }
+      })
+    }
+  }
+})
 </script>
 
 <style scoped>
@@ -203,8 +414,7 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   height: 100%;
-
-  background: #213e6a; /** 地图背景颜色 */
+  background: linear-gradient(135deg, #0F1826 0%, #162032 50%, #1A2744 100%);
 }
 
 .map-wrapper {
@@ -216,7 +426,7 @@ onUnmounted(() => {
   position: absolute;
   top: 20px;
   left: 20px;
-  width: 320px;
+  width: 360px;
   z-index: 100;
 }
 
@@ -225,20 +435,85 @@ onUnmounted(() => {
   top: 100%;
   left: 0;
   right: 0;
-  background: #ffffff;
-  border: 1px solid #e5e6eb;
-  border-radius: 8px;
+  background: rgba(26, 35, 50, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
   margin-top: 8px;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.search-history {
+  padding: 16px;
+}
+
+.search-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.search-history-title {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.search-history-clear {
+  background: none;
+  border: none;
+  color: #0EA5E9;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.search-history-clear:hover {
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.search-history-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-history-tag {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-history-tag:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.search-empty {
+  padding: 24px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+.search-result-list {
+  padding: 8px 0;
 }
 
 .search-result-item {
   padding: 12px 16px;
   cursor: pointer;
   transition: all 0.2s;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .search-result-item:last-child {
@@ -246,20 +521,90 @@ onUnmounted(() => {
 }
 
 .search-result-item:hover {
-  background: #f2f3f5;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .result-name {
   display: block;
-  color: #1d2129;
+  color: #fff;
   font-size: 14px;
   font-weight: 500;
+  margin-bottom: 4px;
 }
 
 .result-location {
   display: block;
-  color: #86909c;
+  color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
-  margin-top: 4px;
+}
+
+.hot-tags {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: rgba(26, 35, 50, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hot-tag-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.hot-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(14, 165, 233, 0.15);
+  border-radius: 12px;
+  font-size: 12px;
+  color: #0EA5E9;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hot-tag:hover {
+  background: rgba(14, 165, 233, 0.25);
+}
+
+.view-toggle {
+  position: absolute;
+  top: 0;
+  right: -50px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+:deep(.t-input) {
+  background: rgba(26, 35, 50, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+}
+
+:deep(.t-input__inner) {
+  color: #fff !important;
+}
+
+:deep(.t-input__inner::placeholder) {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+:deep(.t-button) {
+  background: rgba(26, 35, 50, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:deep(.t-button.t-button--variant-base) {
+  background: #0EA5E9;
+  border-color: #0EA5E9;
 }
 </style>

@@ -295,6 +295,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background-color: var(--td-bg-color-page);
+  overflow: hidden;
 }
 
 .editor-header {
@@ -304,53 +305,74 @@ onMounted(() => {
   padding: 12px 16px;
   background-color: var(--td-bg-color-container);
   border-bottom: 1px solid var(--td-component-border);
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.header-left {
+.editor-header .header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .space-name {
   font-size: 16px;
   font-weight: 600;
   color: var(--td-text-color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
 }
 
-.header-center {
-  flex: 1;
+.editor-header .header-center {
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
+  min-width: 0;
+  max-width: 600px;
+  overflow: hidden;
 }
 
-.header-right {
+.editor-header .header-right {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .editor-main {
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .graph-area {
-  max-width: 80%;
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-width: 0;
+  max-width: calc(100% - 400px);
 }
 
 .unplaced-area {
-  width: 420px;
-  min-width: 320px;
+  width: 400px;
+  min-width: 300px;
+  max-width: 400px;
   background-color: var(--td-bg-color-container);
   border-left: 1px solid var(--td-component-border);
   display: flex;
   flex-direction: column;
-  margin-right: 20px;
+  flex-shrink: 0;
+  margin-right: 0;
+  box-sizing: border-box;
 }
 
 .unplaced-header {
@@ -361,6 +383,7 @@ onMounted(() => {
   border-bottom: 1px solid var(--td-component-border);
   font-weight: 500;
   color: var(--td-text-color-primary);
+  flex-shrink: 0;
 }
 
 .unplaced-list {
@@ -370,6 +393,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .unplaced-item {
@@ -382,6 +406,8 @@ onMounted(() => {
   border-radius: 6px;
   cursor: grab;
   transition: all 0.2s;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .unplaced-item:hover {
@@ -418,6 +444,7 @@ onMounted(() => {
 .unplaced-info {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .unplaced-title {
@@ -435,5 +462,92 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 响应式适配 */
+@media screen and (max-width: 1400px) {
+  .space-name {
+    max-width: 200px;
+  }
+  
+  .graph-area {
+    max-width: calc(100% - 360px);
+  }
+  
+  .unplaced-area {
+    width: 360px;
+    max-width: 360px;
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  .editor-header .header-center {
+    max-width: 400px;
+  }
+
+  .graph-area {
+    max-width: calc(100% - 320px);
+  }
+
+  .unplaced-area {
+    width: 320px;
+    min-width: 300px;
+    max-width: 320px;
+  }
+}
+
+@media screen and (max-width: 992px) {
+  .editor-main {
+    flex-direction: column;
+  }
+
+  .graph-area {
+    max-width: 100%;
+    height: 60%;
+  }
+
+  .unplaced-area {
+    width: 100%;
+    max-width: 100%;
+    height: 40%;
+    border-left: none;
+    border-top: 1px solid var(--td-component-border);
+    margin-right: 0;
+  }
+
+  .unplaced-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .unplaced-item {
+    width: calc(50% - 4px);
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .editor-header {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+    height: auto;
+  }
+
+  .editor-header .header-left,
+  .editor-header .header-center,
+  .editor-header .header-right {
+    flex: none;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .space-name {
+    font-size: 14px;
+    max-width: none;
+  }
+  
+  .unplaced-item {
+    width: 100%;
+  }
 }
 </style>

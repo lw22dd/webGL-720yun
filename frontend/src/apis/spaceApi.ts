@@ -1,5 +1,5 @@
 import type { Result } from "@/models/Result";
-import type { SpaceListRequest, SpaceDetailResponse, SpaceListResponse } from "@/models/SpaceModel";
+import type { SpaceListRequest, SpaceDetailResponse, SpaceListResponse, CreateSpaceRequest, UpdateSpaceRequest } from "@/models/SpaceModel";
 import Axios from "@/utils/axios";
 
 export default class SpaceApi {
@@ -11,12 +11,32 @@ export default class SpaceApi {
         return await Axios.get(`/resource/spaces/${id}`);
     }
 
-    public static async createSpace(formData: FormData): Promise<Result<SpaceDetailResponse>> {
-        return await Axios.post('/resource/spaces', formData);
+    public static async createSpace(data: CreateSpaceRequest, coverFile?: File): Promise<Result<SpaceDetailResponse>> {
+        if (coverFile) {
+            const formData = new FormData();
+            Object.entries(data).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    formData.append(key, String(value));
+                }
+            });
+            formData.append('cover', coverFile);
+            return await Axios.post('/resource/spaces', formData);
+        }
+        return await Axios.post('/resource/spaces', data);
     }
 
-    public static async updateSpace(id: number, formData: FormData): Promise<Result<SpaceDetailResponse>> {
-        return await Axios.put(`/resource/spaces/${id}`, formData);
+    public static async updateSpace(id: number, data: UpdateSpaceRequest, coverFile?: File): Promise<Result<SpaceDetailResponse>> {
+        if (coverFile) {
+            const formData = new FormData();
+            Object.entries(data).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    formData.append(key, String(value));
+                }
+            });
+            formData.append('cover', coverFile);
+            return await Axios.put(`/resource/spaces/${id}`, formData);
+        }
+        return await Axios.put(`/resource/spaces/${id}`, data);
     }
 
     public static async deleteSpace(id: number): Promise<Result<{ message: string }>> {

@@ -10,6 +10,9 @@ interface UserInfo {
   nickname?: string
   role_id?: number
   is_super_admin?: boolean
+  avatar?: string
+  created_at?: string
+  updated_at?: string
 }
 
 export const useUserStore = defineStore('user', () => {

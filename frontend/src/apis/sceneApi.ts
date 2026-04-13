@@ -1,5 +1,5 @@
 import type { Result } from "@/models/Result";
-import type { SceneListRequest, SceneDetailResponse, SceneListResponse, BatchImportResponse, GraphDataResponse, UpdatePositionRequest, BatchUpdatePositionRequest } from "@/models/SceneModel";
+import type { SceneListRequest, SceneDetailResponse, SceneListResponse, BatchImportResponse, GraphDataResponse, UpdatePositionRequest, BatchUpdatePositionRequest, CreateSceneRequest, UpdateSceneRequest } from "@/models/SceneModel";
 import Axios from "@/utils/axios";
 
 export default class SceneApi {
@@ -11,12 +11,12 @@ export default class SceneApi {
         return await Axios.get(`/resource/scenes/${id}`);
     }
 
-    public static async createScene(formData: FormData): Promise<Result<SceneDetailResponse>> {
-        return await Axios.post('/resource/scenes', formData);
+    public static async createScene(data: CreateSceneRequest): Promise<Result<SceneDetailResponse>> {
+        return await Axios.post('/resource/scenes', data);
     }
 
-    public static async updateScene(id: number, formData: FormData): Promise<Result<SceneDetailResponse>> {
-        return await Axios.put(`/resource/scenes/${id}`, formData);
+    public static async updateScene(id: number, data: UpdateSceneRequest): Promise<Result<SceneDetailResponse>> {
+        return await Axios.put(`/resource/scenes/${id}`, data);
     }
 
     public static async deleteScene(id: number): Promise<Result<{ message: string }>> {

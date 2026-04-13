@@ -53,6 +53,7 @@ export type SceneListItem = {
     source_width: number
     source_height: number
     view_count: number
+    slice_status: string
     sort_order: number
     status: number
     created_at: string
@@ -65,11 +66,18 @@ export type SceneDetailResponse = {
     title: string
     scene_code: string
     panorama_type: string
+    file_id: string
     source_url: string
     source_width: number
     source_height: number
     source_file_size: number
     source_file_md5: string
+    tile_url: string
+    preview_url: string
+    cubemap_url: string
+    is_converted: boolean
+    slice_status: string
+    task_id: string
     thumbnail_url: string
     cover_image_url: string
     initial_fov: number

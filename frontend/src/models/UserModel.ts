@@ -10,6 +10,7 @@ export interface User {
     id: number;
     name: string;
   };
+  is_super_admin?: boolean;
   status: number;
   class_id?: number;
   created_at?: string;

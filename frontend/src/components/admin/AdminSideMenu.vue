@@ -44,6 +44,13 @@
         </template>
         <span>系统设置</span>
       </t-menu-item>
+
+      <t-menu-item value="/admin/logs">
+        <template #icon>
+          <t-icon name="history" />
+        </template>
+        <span>日志管理</span>
+      </t-menu-item>
     </t-menu>
   </div>
 </template>

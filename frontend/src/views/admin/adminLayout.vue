@@ -95,21 +95,24 @@ const handleLogout = async () => {
     if (result.code === 200) {
       userStore.logout()
       MessagePlugin.success('退出成功')
-      router.push('/')
+      router.push('/login')
     } else {
       userStore.logout()
       MessagePlugin.error(result.msg || '退出失败')
-      router.push('/')
+      router.push('/login')
     }
   } catch (error: any) {
     userStore.logout()
     MessagePlugin.success('已退出登录')
-    router.push('/')
+    router.push('/login')
   }
 }
 
 onMounted(() => {
-  if (!userStore.userInfo.is_super_admin) {
+  // 检查用户是否有权限访问管理后台 (role_id === 1 表示管理员)
+  const isAdmin = userStore.userInfo.role_id === 1 || userStore.userInfo.is_super_admin === true
+  if (!isAdmin) {
+    console.log(userStore.userInfo)
     MessagePlugin.warning('您没有权限访问此页面')
     router.push('/')
   }
@@ -172,12 +175,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
 }
 
 .user-info {
@@ -198,6 +205,56 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 500;
   color: #1d2129;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* 响应式适配 */
+@media screen and (max-width: 768px) {
+  .admin-sidebar {
+    width: 200px;
+  }
+
+  .admin-main {
+    margin-left: 200px;
+  }
+
+  .admin-header {
+    padding: 0 16px;
+  }
+
+  .header-left {
+    gap: 8px;
+  }
+
+  .user-name {
+    max-width: 80px;
+  }
+
+  :deep(.t-breadcrumb__item) {
+    font-size: 13px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .admin-sidebar {
+    width: 0;
+    transform: translateX(-100%);
+  }
+
+  .admin-main {
+    margin-left: 0;
+  }
+
+  .admin-header {
+    padding: 0 12px;
+  }
+
+  .user-name {
+    display: none;
+  }
 }
 
 .admin-content {

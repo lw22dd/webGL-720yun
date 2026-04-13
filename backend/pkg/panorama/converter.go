@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/disintegration/imaging"
+	"golang.org/x/sync/errgroup"
 )
 
 type Converter struct {
@@ -65,44 +66,23 @@ func (c *Converter) saveSeparateFaces(img image.Image, indices FaceIndices, size
 		faceNames = []string{"0", "1", "2", "3", "4", "5"}
 	}
 
-	var wg sync.WaitGroup
-	errChan := make(chan error, 6)
-	var mu sync.Mutex
+	var eg errgroup.Group
 
 	for i := 0; i < 6; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-
-			faceImg := c.extractFace(img, indices[idx], size)
+		i := i
+		eg.Go(func() error {
+			faceImg := c.extractFace(img, indices[i], size)
 
 			if c.options.Inverse != "" {
 				faceImg = c.applyInverse(faceImg, c.options.Inverse)
 			}
 
-			outputFile := fmt.Sprintf("%s_%s.jpg", outputPath, faceNames[idx])
-			if err := c.saveImage(faceImg, outputFile); err != nil {
-				select {
-				case errChan <- err:
-				default:
-				}
-			}
-		}(i)
+			outputFile := fmt.Sprintf("%s_%s.jpg", outputPath, faceNames[i])
+			return c.saveImage(faceImg, outputFile)
+		})
 	}
 
-	wg.Wait()
-	close(errChan)
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	for err := range errChan {
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return eg.Wait()
 }
 
 func (c *Converter) saveJoinedFaces(img image.Image, indices FaceIndices, size int, outputPath string) error {

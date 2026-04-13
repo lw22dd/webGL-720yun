@@ -1,4 +1,5 @@
 export type InitUploadRequest = {
+  space_id: number
   filename: string
   file_size: number
   file_hash: string

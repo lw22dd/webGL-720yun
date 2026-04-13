@@ -18,7 +18,7 @@ type SceneListRequest struct {
 type CreateSceneRequest struct {
 	SpaceID      uint    `json:"space_id" binding:"required"`
 	Title        string  `json:"title" binding:"required,min=2,max=200"`
-	SceneCode    string  `json:"scene_code" binding:"required,min=2,max=50"`
+	SceneCode    string  `json:"scene_code" binding:"omitempty,min=2,max=100"`
 	FileID       string  `json:"file_id" binding:"required"`
 	PanoramaType string  `json:"panorama_type" binding:"omitempty,oneof=equirectangular cubemap"`
 	InitialFOV   float64 `json:"initial_fov" binding:"omitempty,min=30,max=150"`
@@ -122,7 +122,7 @@ type BatchImportRequest struct {
 
 type BatchImportItem struct {
 	Title     string  `json:"title" binding:"required"`
-	SceneCode string  `json:"scene_code" binding:"required"`
+	SceneCode string  `json:"scene_code" binding:"omitempty"`
 	FileName  string  `json:"file_name"`
 	Longitude float64 `json:"longitude"`
 	Latitude  float64 `json:"latitude"`
