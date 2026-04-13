@@ -96,7 +96,7 @@ const router = useRouter()
 const spaceId = computed(() => Number(route.params.id))
 
 const graphData = ref<GraphDataResponse | null>(null)
-const loading = ref(false)
+// const loading = ref(false)
 const zoom = ref(1)
 const selectedNode = ref<SceneNodeData | null>(null)
 const selectedEdge = ref<EdgeData | null>(null)
@@ -125,7 +125,7 @@ const loadGraphData = () => {
   const unplaced: SceneNodeData[] = []
   const edges: EdgeData[] = []
 
-  space.scenes.forEach((scene, index) => {
+  space.scenes.forEach((scene) => {
     const nodeData: SceneNodeData = {
       id: scene.id,
       title: scene.title,

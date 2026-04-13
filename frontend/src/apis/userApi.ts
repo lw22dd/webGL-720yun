@@ -1,5 +1,4 @@
 import type {
-  Result,
   User,
   CreateUserRequest,
   LoginResponse,
@@ -14,6 +13,7 @@ import type {
   RefreshTokenRequest,
   RefreshTokenResponse,
 } from "@/models/UserModel";
+import type { Result } from "@/models/Result";
 import Axios from "@/utils/axios";
 
 export default class UserApi {

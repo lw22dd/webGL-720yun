@@ -121,6 +121,9 @@ export type SliceErrorData = {
 }
 
 export type UploadOptions = {
+  space_id?: number
+  scene_code?: string
+  title?: string
   onProgress?: (progress: ProgressData) => void
   onComplete?: (data: { file_id: string; source_url: string; thumb_url: string }) => void
   onError?: (error: ErrorData) => void

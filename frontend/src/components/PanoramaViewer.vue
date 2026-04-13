@@ -114,7 +114,7 @@ import SceneApi from '@/apis/sceneApi'
 import HotspotApi from '@/apis/hotspotApi'
 import SceneStrip from './SceneStrip.vue'
 import type { SceneDetailResponse } from '@/models/SceneModel'
-import type { HotspotDetailResponse } from '@/models/HotspotModel'
+
 
 const route = useRoute()
 const router = useRouter()
@@ -142,8 +142,8 @@ const quizOptions = computed(() => {
   }
 })
 
-let viewer: Viewer | null = null
-let markersPlugin: MarkersPlugin | null = null
+let viewer: any = null
+let markersPlugin: any = null
 
 const loadScene = async () => {
   const sceneCode = route.query.scene as string
@@ -158,8 +158,8 @@ const loadScene = async () => {
     error.value = ''
 
     const result = await SceneApi.getSceneList({ keyword: sceneCode })
-    if (result.code === 200 && result.data?.scenes.length > 0) {
-      const scene = result.data.scenes.find(s => s.scene_code === sceneCode)
+    if (result.code === 200 && result.data && result.data.scenes && result.data.scenes.length > 0) {
+      const scene = result.data.scenes.find((s: any) => s.scene_code === sceneCode)
       if (scene) {
         currentSceneId.value = scene.id
         const detailResult = await SceneApi.getSceneDetail(scene.id)
@@ -208,13 +208,13 @@ const initViewer = async () => {
       ]
     })
 
-    markersPlugin = viewer.getPlugin(MarkersPlugin)
+    markersPlugin = viewer.getPlugin(MarkersPlugin) as any
 
     viewer.addEventListener('ready', () => {
       loading.value = false
     })
 
-    markersPlugin.addEventListener('select-marker', ({ marker }: any) => {
+    markersPlugin?.addEventListener('select-marker', ({ marker }: any) => {
       handleMarkerClick(marker.config.id)
     })
 
@@ -267,8 +267,8 @@ const handleMarkerClick = (markerId: string) => {
 
   switch (hotspot.type) {
     case 1:
-      if (hotspot.target_scene_id) {
-        handleSceneSelect(hotspot.target_scene_id)
+      if ((hotspot as any).target_scene_id) {
+        handleSceneSelect((hotspot as any).target_scene_id)
       }
       break
     case 2:
@@ -309,7 +309,7 @@ const toggleFullscreen = () => {
 
 const resetCamera = () => {
   if (!viewer || !currentScene.value) return
-  viewer.setPose({
+  ;(viewer as any).setPose?.({
     pitch: currentScene.value.initial_pitch || 0,
     yaw: currentScene.value.initial_yaw || 0,
     zoom: currentScene.value.initial_fov || 50
@@ -320,9 +320,9 @@ const toggleAutoRotate = () => {
   autoRotate.value = !autoRotate.value
   if (viewer) {
     if (autoRotate.value) {
-      viewer.startAutoRotate({ speed: 0.5 })
+      ;(viewer as any).startAutoRotate?.({ speed: 0.5 })
     } else {
-      viewer.stopAutoRotate()
+      ;(viewer as any).stopAutoRotate?.()
     }
   }
 }

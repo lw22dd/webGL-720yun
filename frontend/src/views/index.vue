@@ -91,7 +91,7 @@ import Header from '@/components/Header.vue'
 import ChinaMap from '@/components/ChinaMap.vue'
 import SpaceDetailPanel from '@/components/SpaceDetailPanel.vue'
 import SpaceApi from '@/apis/spaceApi'
-import type { SpaceListItem, SpaceDetailResponse } from '@/models/SpaceModel'
+import type { SpaceListItem } from '@/models/SpaceModel'
 
 interface SpaceWithScenes extends SpaceListItem {
   scenes?: any[]

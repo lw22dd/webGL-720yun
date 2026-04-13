@@ -134,6 +134,7 @@ class UploadService {
     const fileMd5 = await this.calculateMD5(file)
 
     const initResponse = await this.initUpload({
+      space_id: (options as any).space_id,
       filename: file.name,
       file_size: file.size,
       file_hash: fileMd5

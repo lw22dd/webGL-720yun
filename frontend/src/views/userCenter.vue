@@ -125,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import Header from '@/components/Header.vue'
@@ -199,13 +199,13 @@ const getRoleTheme = (role: string) => {
 }
 
 const loadUserInfo = async () => {
-  const user = userStore.user
-  if (user) {
-    Object.assign(userInfo, user)
+  const storeUserInfo = userStore.userInfo
+  if (storeUserInfo) {
+    Object.assign(userInfo, storeUserInfo)
   }
   
   try {
-    const result = await UserApi.getUserInfo()
+    const result = await UserApi.getProfile()
     if (result.code === 200 && result.data) {
       Object.assign(userInfo, result.data)
     }
@@ -237,7 +237,7 @@ const loadStats = () => {
 
 const handleAvatarChange = () => {
   if (avatarFiles.value.length > 0) {
-    const file = avatarFiles.value[0]
+    const file = (avatarFiles.value[0] as any)
     if (file.raw) {
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -251,16 +251,21 @@ const handleAvatarChange = () => {
 
 const handleUpdateProfile = async () => {
   try {
-    const result = await UserApi.updateUserInfo({
+    const result = await UserApi.updateProfile({
       nickname: userInfo.nickname,
       email: userInfo.email,
-      phone: userInfo.phone,
-      class_name: userInfo.class_name,
-      student_id: userInfo.student_id
+      phone: userInfo.phone
     })
     if (result.code === 200) {
       MessagePlugin.success('个人信息已更新')
-      userStore.updateUser(userInfo)
+      userStore.setUserInfo({
+        id: String(userInfo.id),
+        username: userInfo.username,
+        nickname: userInfo.nickname,
+        email: userInfo.email,
+        phone: userInfo.phone,
+        avatar: userInfo.avatar
+      })
     }
   } catch (e: any) {
     MessagePlugin.error(e.message || '更新失败')

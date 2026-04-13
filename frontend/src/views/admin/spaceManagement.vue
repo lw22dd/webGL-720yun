@@ -278,9 +278,9 @@ const handleSubmit = async (data: Record<string, any>) => {
     })
 
     if (data.id) {
-      result = await SpaceApi.updateSpace(Number(data.id), formDataObj)
+      result = await SpaceApi.updateSpace(Number(data.id), data as any)
     } else {
-      result = await SpaceApi.createSpace(formDataObj)
+      result = await SpaceApi.createSpace(data as any)
     }
 
     if (result.code === 200) {

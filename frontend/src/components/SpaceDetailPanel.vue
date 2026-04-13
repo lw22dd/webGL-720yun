@@ -108,11 +108,11 @@ interface SceneSimple {
   id: number
   title: string
   scene_code: string
-  thumbnail_url?: string
-  view_count?: number
-  sort_order?: number
-  longitude?: number
-  latitude?: number
+  thumbnail_url: string
+  view_count: number
+  sort_order: number
+  longitude: number
+  latitude: number
 }
 
 interface SpaceWithScenes extends SpaceListItem {

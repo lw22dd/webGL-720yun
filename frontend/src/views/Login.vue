@@ -193,7 +193,7 @@ const handleLogin = async () => {
 
       userStore.setLogin(true)
       userStore.setUserInfo({
-        id: user.id,
+        id: String(user.id || ''),
         username: user.username,
         email: user.email,
         phone: user.phone,
@@ -206,7 +206,7 @@ const handleLogin = async () => {
       MessagePlugin.success('登录成功')
       router.push('/index')
     } else {
-      MessagePlugin.error(result.message || '登录失败')
+      MessagePlugin.error(result.msg || '登录失败')
       refreshCaptcha()
     }
   } catch (error: any) {

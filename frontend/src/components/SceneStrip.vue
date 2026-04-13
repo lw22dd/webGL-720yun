@@ -46,7 +46,7 @@ interface SceneItem {
   scene_code?: string
 }
 
-const props = defineProps<{
+defineProps<{
   scenes: SceneItem[]
   currentSceneId: number | null
 }>()

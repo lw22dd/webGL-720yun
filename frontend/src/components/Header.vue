@@ -180,7 +180,7 @@ const userStore = useUserStore()
 const favoriteStore = useFavoriteStore()
 
 const isAdmin = computed(() => {
-  return userStore.userInfo.role === 'admin' || userStore.userInfo.is_super_admin === true
+  return userStore.userInfo.role?.name === 'admin' || userStore.userInfo.is_super_admin === true
 })
 
 const showLoginDialog = ref(false)
@@ -233,7 +233,15 @@ const handleLogin = async () => {
     if (result.code === 200) {
       userStore.setLogin(true)
       if (result.data?.user) {
-        userStore.setUserInfo(result.data.user)
+        userStore.setUserInfo({
+          id: String(result.data.user.id || ''),
+          username: result.data.user.username,
+          email: result.data.user.email,
+          phone: result.data.user.phone,
+          nickname: result.data.user.nickname,
+          role_id: result.data.user.role_id,
+          is_super_admin: result.data.user.is_super_admin
+        })
       }
       if (result.data?.access_token) {
         userStore.setToken(result.data.access_token, result.data.refresh_token)

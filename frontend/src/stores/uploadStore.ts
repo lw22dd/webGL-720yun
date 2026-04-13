@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { UploadTask, ProgressData } from '@/models/UploadModel'
+import type { UploadTask } from '@/models/UploadModel'
 
 export const useUploadStore = defineStore('upload', () => {
   const uploadTasks = ref<Map<string, UploadTask>>(new Map())

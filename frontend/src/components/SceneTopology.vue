@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Graph, type NodeConfig } from '@antv/g6'
+import { Graph } from '@antv/g6'
 import type { MockScene } from '@/utils/mockData'
 
 interface Props {
@@ -38,7 +38,7 @@ const initGraph = () => {
   const centerLng = props.scenes[0].longitude
   const centerLat = props.scenes[0].latitude
 
-  const nodes: NodeConfig[] = props.scenes.map((scene, index) => {
+  const nodes = props.scenes.map((scene) => {
     const offsetLng = (scene.longitude - centerLng) * 10000
     const offsetLat = (scene.latitude - centerLat) * 10000
 
@@ -57,7 +57,7 @@ const initGraph = () => {
         lineWidth: 2,
         shadowColor: 'rgba(0, 82, 217, 0.3)',
         shadowBlur: 15,
-        cursor: 'pointer'
+        cursor: 'pointer' as const
       }
     }
   })
@@ -85,9 +85,6 @@ const initGraph = () => {
     container: topologyContainer.value,
     width,
     height,
-    modes: {
-      default: ['drag-canvas', 'zoom-canvas']
-    },
     data: {
       nodes,
       edges

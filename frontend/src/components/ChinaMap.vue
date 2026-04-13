@@ -91,7 +91,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next'
 import * as echarts from 'echarts'
 import { getChinaGeoJSON } from '@/apis/geoApi'
 import SpaceApi from '@/apis/spaceApi'
-import type { SpaceListItem, SpaceDetailResponse } from '@/models/SpaceModel'
+import type { SpaceListItem } from '@/models/SpaceModel'
 
 interface SpaceWithScenes extends SpaceListItem {
   scenes?: any[]

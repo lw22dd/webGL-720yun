@@ -338,7 +338,7 @@ const handleSubmit = async () => {
         }
       })
 
-      const result = await SceneApi.updateScene(editingSceneId.value, formDataObj)
+      const result = await SceneApi.updateScene(editingSceneId.value, formData as any)
       if (result.code === 200) {
         MessagePlugin.success('编辑场景成功')
         addDialogVisible.value = false
@@ -355,8 +355,8 @@ const handleSubmit = async () => {
 
       const file = panoramaFiles.value[0].raw
       await uploadService.uploadFile(file, {
-        spaceId: selectedSpaceId.value!,
-        sceneCode: formData.scene_code,
+        space_id: selectedSpaceId.value!,
+        scene_code: formData.scene_code,
         title: formData.title,
         onComplete: () => {
           MessagePlugin.success('上传成功')

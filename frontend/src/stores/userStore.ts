@@ -9,6 +9,10 @@ interface UserInfo {
   phone?: string
   nickname?: string
   role_id?: number
+  role?: {
+    id: number
+    name: string
+  }
   is_super_admin?: boolean
   avatar?: string
   created_at?: string

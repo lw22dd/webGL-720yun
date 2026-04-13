@@ -87,7 +87,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import AdminTable from '@/components/admin/AdminTable.vue'
 import UserApi from '@/apis/userApi'
-import { User } from '@/models/UserModel'
+
 
 interface UserItem {
   id: number
@@ -195,13 +195,14 @@ const columns = computed(() => [
     title: '角色',
     width: 100,
     align: 'center' as const,
-    cell: (h, { row }) => {
-      if (!row) return h('span', {}, '-')
+    cell: (params: { row: any; rowIndex: number }) => {
+      const row = params.row
+      if (!row) return '-'
       if (row.role && row.role.name) {
-        return h('span', {}, row.role.name)
+        return row.role.name
       }
       const role = roleOptions.find(r => r.value === row.role_id)
-      return h('span', {}, role ? role.label : '-')
+      return role ? role.label : '-'
     }
   },
   {
@@ -209,9 +210,10 @@ const columns = computed(() => [
     title: '状态',
     width: 80,
     align: 'center' as const,
-    cell: (h, { row }) => {
-      if (!row) return h('span', {}, '-')
-      return h('span', {}, row.status === 1 ? '启用' : '禁用')
+    cell: (params: { row: any; rowIndex: number }) => {
+      const row = params.row
+      if (!row) return '-'
+      return row.status === 1 ? '启用' : '禁用'
     }
   },
   {
@@ -230,9 +232,9 @@ const loadUserList = async () => {
       page: pagination.currentPage,
       page_size: pagination.pageSize
     })
-    if (result.code === 200) {
+    if (result.code === 200 && result.data) {
       console.log(result.data.users)
-      userList.value = result.data.users
+      userList.value = result.data.users as any
       pagination.total = result.data.total
       paginationConfig.total = result.data.total
     } else {
