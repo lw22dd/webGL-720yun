@@ -44,6 +44,7 @@ type TaskStatusResponse struct {
 
 const (
 	StageDownloading = "downloading"
+	StagePreview     = "preview"
 	StageE2C         = "e2c"
 	StageTiles       = "tiles"
 	StageUploading   = "uploading"

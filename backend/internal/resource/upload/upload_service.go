@@ -14,7 +14,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
+	"gorm.io/gorm"
 
+	"webGL-720yun/internal/resource/repository"
 	"webGL-720yun/pkg/image"
 	"webGL-720yun/pkg/minio_client"
 )
@@ -26,16 +28,19 @@ const (
 
 type UploadService struct {
 	uploadRepo     *UploadRepository
+	spaceRepo      *repository.SpaceRepository
 	minioClient    *minio_client.MinIOClient
 	imageProcessor *image.Processor
 }
 
 func NewUploadService(
 	uploadRepo *UploadRepository,
+	db *gorm.DB,
 	minioClient *minio_client.MinIOClient,
 ) *UploadService {
 	return &UploadService{
 		uploadRepo:     uploadRepo,
+		spaceRepo:      repository.NewSpaceRepository(db),
 		minioClient:    minioClient,
 		imageProcessor: image.NewProcessor(),
 	}
@@ -44,6 +49,11 @@ func NewUploadService(
 func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUploadResponse, error) {
 	if req.FileSize > MaxFileSize {
 		return nil, errors.New("文件大小超过限制（最大500MB）")
+	}
+
+	space, err := s.spaceRepo.FindByID(req.SpaceID)
+	if err != nil {
+		return nil, fmt.Errorf("空间不存在: %w", err)
 	}
 
 	canUpload, err := s.uploadRepo.CanUserUpload(userID)
@@ -63,7 +73,7 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		if err != nil {
 			return nil, fmt.Errorf("获取文件信息失败: %w", err)
 		}
-		if fileInfo != nil {
+		if fileInfo != nil && fileInfo.SpaceID == req.SpaceID {
 			return &InitUploadResponse{
 				Instant:   true,
 				FileID:    fileID,
@@ -79,6 +89,8 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 	task := &UploadTask{
 		UploadID:      uploadID,
 		UserID:        userID,
+		SpaceID:       req.SpaceID,
+		SpaceName:     space.Name,
 		FileName:      req.FileName,
 		FileSize:      req.FileSize,
 		FileMD5:       req.FileMD5,
@@ -248,7 +260,7 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 	}
 
 	fileID := uuid.New().String()
-	sourceObjectName := fmt.Sprintf("sources/%s/source.jpg", fileID)
+	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", task.SpaceName, fileID)
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, mergedFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传源文件失败: %w", err)
@@ -259,7 +271,7 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 		return nil, fmt.Errorf("生成缩略图失败: %w", err)
 	}
 
-	thumbObjectName := fmt.Sprintf("sources/%s/thumb.jpg", fileID)
+	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/thumb.jpg", task.SpaceName, fileID)
 	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传缩略图失败: %w", err)
@@ -276,6 +288,8 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 
 	if err := s.uploadRepo.SaveFileInfo(fileID, &FileInfo{
 		FileID:    fileID,
+		SpaceID:   task.SpaceID,
+		SpaceName: task.SpaceName,
 		SourceURL: sourceURL,
 		ThumbURL:  thumbURL,
 		FileSize:  imageInfo.FileSize,

@@ -6,6 +6,8 @@ import (
 	"image/color"
 	"image/jpeg"
 	"os"
+	"runtime"
+	"sync"
 
 	"github.com/disintegration/imaging"
 )
@@ -63,15 +65,39 @@ func (c *Converter) saveSeparateFaces(img image.Image, indices FaceIndices, size
 		faceNames = []string{"0", "1", "2", "3", "4", "5"}
 	}
 
+	var wg sync.WaitGroup
+	errChan := make(chan error, 6)
+	var mu sync.Mutex
+
 	for i := 0; i < 6; i++ {
-		faceImg := c.extractFace(img, indices[i], size)
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
 
-		if c.options.Inverse != "" {
-			faceImg = c.applyInverse(faceImg, c.options.Inverse)
-		}
+			faceImg := c.extractFace(img, indices[idx], size)
 
-		outputFile := fmt.Sprintf("%s_%s.jpg", outputPath, faceNames[i])
-		if err := c.saveImage(faceImg, outputFile); err != nil {
+			if c.options.Inverse != "" {
+				faceImg = c.applyInverse(faceImg, c.options.Inverse)
+			}
+
+			outputFile := fmt.Sprintf("%s_%s.jpg", outputPath, faceNames[idx])
+			if err := c.saveImage(faceImg, outputFile); err != nil {
+				select {
+				case errChan <- err:
+				default:
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	for err := range errChan {
+		if err != nil {
 			return err
 		}
 	}
@@ -188,27 +214,75 @@ func (c *Converter) extractFace(img image.Image, idx *Index, size int) image.Ima
 
 	fac := float64(imgWidth) / 4.0
 
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			i := y*size + x
-			srcX := int(float64(idx.X[i]) * fac)
-			srcY := int(float64(idx.Y[i]) * fac)
-
-			srcX = srcX % imgWidth
-			if srcX < 0 {
-				srcX += imgWidth
-			}
-			srcY = srcY % imgHeight
-			if srcY < 0 {
-				srcY += imgHeight
-			}
-
-			if srcX >= 0 && srcX < imgWidth && srcY >= 0 && srcY < imgHeight {
-				result.Set(x, y, img.At(srcX, srcY))
+	var rgbaImg *image.RGBA
+	if rgba, ok := img.(*image.RGBA); ok {
+		rgbaImg = rgba
+	} else {
+		rgbaImg = image.NewRGBA(bounds)
+		for y := 0; y < imgHeight; y++ {
+			for x := 0; x < imgWidth; x++ {
+				rgbaImg.Set(x, y, img.At(x, y))
 			}
 		}
 	}
 
+	srcPix := rgbaImg.Pix
+	srcStride := rgbaImg.Stride
+	dstPix := result.Pix
+	dstStride := result.Stride
+
+	numCPU := runtime.NumCPU()
+	if numCPU < 1 {
+		numCPU = 1
+	}
+
+	rowsPerGoroutine := (size + numCPU - 1) / numCPU
+	if rowsPerGoroutine < 1 {
+		rowsPerGoroutine = 1
+	}
+
+	var wg sync.WaitGroup
+
+	for startRow := 0; startRow < size; startRow += rowsPerGoroutine {
+		endRow := startRow + rowsPerGoroutine
+		if endRow > size {
+			endRow = size
+		}
+
+		wg.Add(1)
+		go func(yStart, yEnd int) {
+			defer wg.Done()
+
+			for y := yStart; y < yEnd; y++ {
+				for x := 0; x < size; x++ {
+					i := y*size + x
+					srcX := int(float64(idx.X[i]) * fac)
+					srcY := int(float64(idx.Y[i]) * fac)
+
+					srcX = srcX % imgWidth
+					if srcX < 0 {
+						srcX += imgWidth
+					}
+					srcY = srcY % imgHeight
+					if srcY < 0 {
+						srcY += imgHeight
+					}
+
+					if srcX >= 0 && srcX < imgWidth && srcY >= 0 && srcY < imgHeight {
+						srcOffset := srcY*srcStride + srcX*4
+						dstOffset := y*dstStride + x*4
+
+						dstPix[dstOffset] = srcPix[srcOffset]
+						dstPix[dstOffset+1] = srcPix[srcOffset+1]
+						dstPix[dstOffset+2] = srcPix[srcOffset+2]
+						dstPix[dstOffset+3] = srcPix[srcOffset+3]
+					}
+				}
+			}
+		}(startRow, endRow)
+	}
+
+	wg.Wait()
 	return result
 }
 

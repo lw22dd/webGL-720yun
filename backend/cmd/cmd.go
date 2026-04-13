@@ -43,6 +43,15 @@ func Run() {
 
 	redisClient := redis.NewRedisService(&config.Conf.Redis)
 
+	minioSetup, err := setup.NewMinIOSetup(&config.Conf.MinIO)
+	if err != nil {
+		logger.Fatal("创建MinIO设置失败:", err)
+	}
+
+	if err := minioSetup.EnsureBucketAndStructure(context.Background()); err != nil {
+		logger.Fatal("MinIO初始化失败:", err)
+	}
+
 	minioClient, err := minio_client.NewMinIOClient(&config.MinIOConfig{
 		Endpoint:  config.Conf.MinIO.Endpoint,
 		AccessKey: config.Conf.MinIO.AccessKey,
@@ -52,7 +61,7 @@ func Run() {
 		Region:    config.Conf.MinIO.Region,
 	})
 	if err != nil {
-		logger.Warnf("MinIO初始化失败（非致命）: %v", err)
+		logger.Warnf("MinIO客户端创建失败（非致命）: %v", err)
 	}
 
 	jwtService := jwt.NewJWTService(&config.Conf.JWT)
@@ -68,7 +77,7 @@ func Run() {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	uploadService := router.NewUploadService(minioClient, redisClient)
+	uploadService := router.NewUploadService(db.GetDB(), minioClient, redisClient)
 
 	workerPool := router.NewWorkerPool(sliceQueue, db.GetDB(), minioClient, wsHub, DefaultWorkerCount)
 	go workerPool.Start()

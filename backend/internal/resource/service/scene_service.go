@@ -187,6 +187,7 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 			SceneID:   scene.ID,
 			SceneCode: scene.SceneCode,
 			FileID:    scene.FileID,
+			SpaceName: space.Name,
 			UserID:    userID,
 			CreatedAt: time.Now().Unix(),
 		}
@@ -264,7 +265,7 @@ func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipar
 		return nil
 	}
 
-	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s_sphere.jpg", spaceName, scene.SceneCode)
+	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceName, scene.SceneCode)
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, tempFile, "image/jpeg")
 	if err != nil {
 		return fmt.Errorf("上传源文件失败: %w", err)
@@ -277,7 +278,7 @@ func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipar
 		return fmt.Errorf("生成缩略图失败: %w", err)
 	}
 
-	thumbObjectName := fmt.Sprintf("spaces/%s/thumbnails/%s_thumb.jpg", spaceName, scene.SceneCode)
+	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/thumb.jpg", spaceName, scene.SceneCode)
 	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
 	if err != nil {
 		return fmt.Errorf("上传缩略图失败: %w", err)

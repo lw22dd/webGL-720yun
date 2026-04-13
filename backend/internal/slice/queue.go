@@ -23,6 +23,7 @@ type SliceTask struct {
 	SceneID   uint   `json:"scene_id"`
 	SceneCode string `json:"scene_code"`
 	FileID    string `json:"file_id"`
+	SpaceName string `json:"space_name"`
 	UserID    uint   `json:"user_id"`
 	CreatedAt int64  `json:"created_at"`
 }

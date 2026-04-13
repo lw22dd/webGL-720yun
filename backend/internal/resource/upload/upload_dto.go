@@ -3,6 +3,7 @@ package upload
 import "time"
 
 type InitUploadRequest struct {
+	SpaceID  uint   `json:"space_id" binding:"required"`
 	FileName string `json:"filename" binding:"required"`
 	FileSize int64  `json:"file_size" binding:"required,min=1"`
 	FileMD5  string `json:"file_hash" binding:"required,len=32"`
@@ -56,6 +57,8 @@ type UploadStatusResponse struct {
 
 type FileInfo struct {
 	FileID    string    `json:"file_id"`
+	SpaceID   uint      `json:"space_id"`
+	SpaceName string    `json:"space_name"`
 	SourceURL string    `json:"source_url"`
 	ThumbURL  string    `json:"thumb_url"`
 	FileSize  int64     `json:"file_size"`
@@ -67,6 +70,8 @@ type FileInfo struct {
 type UploadTask struct {
 	UploadID      string `json:"upload_id"`
 	UserID        uint   `json:"user_id"`
+	SpaceID       uint   `json:"space_id"`
+	SpaceName     string `json:"space_name"`
 	FileName      string `json:"file_name"`
 	FileSize      int64  `json:"file_size"`
 	FileMD5       string `json:"file_md5"`

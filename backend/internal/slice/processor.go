@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -25,12 +27,29 @@ const (
 	TileSize = 256
 )
 
+type SliceMetrics struct {
+	TaskID       string
+	SceneID      uint
+	DownloadTime time.Duration
+	PreviewTime  time.Duration
+	E2CTime      time.Duration
+	TilesGenTime time.Duration
+	UploadTime   time.Duration
+	TotalTime    time.Duration
+	ImageSize    int64
+	TileCount    int
+	Success      bool
+	ErrorMessage string
+	RetryCount   int
+}
+
 type SliceProcessor struct {
 	db             *gorm.DB
 	minioClient    *minio_client.MinIOClient
 	imageProcessor *imgprocessor.Processor
 	panoramaConv   *panorama.Converter
 	wsHub          *websocket.Hub
+	metricsChan    chan *SliceMetrics
 }
 
 func NewSliceProcessor(
@@ -44,82 +63,242 @@ func NewSliceProcessor(
 		imageProcessor: imgprocessor.NewProcessor(),
 		panoramaConv:   panorama.NewConverter(panorama.DefaultOptions()),
 		wsHub:          wsHub,
+		metricsChan:    make(chan *SliceMetrics, 100),
 	}
 }
 
+func (p *SliceProcessor) StartMetricsCollector() {
+	go func() {
+		for metrics := range p.metricsChan {
+			p.recordMetrics(metrics)
+		}
+	}()
+}
+
+func (p *SliceProcessor) recordMetrics(metrics *SliceMetrics) {
+	log.Printf("[Metrics] TaskID: %s, SceneID: %d, Download: %v, Preview: %v, E2C: %v, Tiles: %v, Upload: %v, Total: %v, Tiles: %d, Retry: %d, Success: %v",
+		metrics.TaskID,
+		metrics.SceneID,
+		metrics.DownloadTime.Round(time.Millisecond),
+		metrics.PreviewTime.Round(time.Millisecond),
+		metrics.E2CTime.Round(time.Millisecond),
+		metrics.TilesGenTime.Round(time.Millisecond),
+		metrics.UploadTime.Round(time.Millisecond),
+		metrics.TotalTime.Round(time.Millisecond),
+		metrics.TileCount,
+		metrics.RetryCount,
+		metrics.Success,
+	)
+}
+
+func (p *SliceProcessor) ProcessWithRetry(ctx context.Context, task *SliceTask) error {
+	maxRetries := 3
+	retryDelay := time.Second * 5
+
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		err := p.Process(ctx, task)
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+		log.Printf("[Retry] Slice task failed (attempt %d/%d): task_id=%s, error=%v", i+1, maxRetries, task.TaskID, err)
+
+		if i < maxRetries-1 {
+			time.Sleep(retryDelay)
+			retryDelay *= 2
+		}
+	}
+
+	return fmt.Errorf("slice task failed after %d retries: %w", maxRetries, lastErr)
+}
+
 func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
+	metrics := &SliceMetrics{
+		TaskID:  task.TaskID,
+		SceneID: task.SceneID,
+	}
+	totalStart := time.Now()
+	defer func() {
+		metrics.TotalTime = time.Since(totalStart)
+		select {
+		case p.metricsChan <- metrics:
+		default:
+		}
+	}()
+
 	tempDir := filepath.Join(os.TempDir(), "slice_"+task.TaskID)
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("创建临时目录失败: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
 	p.notifyProgress(task, 5, StageDownloading, "开始下载源文件...")
 
+	downloadStart := time.Now()
 	sourceFile := filepath.Join(tempDir, "source.jpg")
-	if err := p.downloadSourceFile(ctx, task.FileID, sourceFile); err != nil {
+	if err := p.downloadSourceFile(ctx, task.FileID, task.SpaceName, sourceFile); err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("下载源文件失败: %w", err)
+	}
+	metrics.DownloadTime = time.Since(downloadStart)
+
+	fileInfo, _ := os.Stat(sourceFile)
+	if fileInfo != nil {
+		metrics.ImageSize = fileInfo.Size()
 	}
 
 	p.notifyProgress(task, 10, StageDownloading, "源文件下载完成")
 
-	p.notifyProgress(task, 15, StageE2C, "开始E2C转换...")
+	p.notifyProgress(task, 15, StagePreview, "开始生成快速预览...")
+
+	previewStart := time.Now()
+	previewURL, err := p.generateQuickPreview(ctx, sourceFile, task.SceneCode, task.SpaceName)
+	if err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
+		return fmt.Errorf("生成快速预览失败: %w", err)
+	}
+	metrics.PreviewTime = time.Since(previewStart)
+
+	if err := p.updateScenePreview(task.SceneID, previewURL); err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
+		return fmt.Errorf("更新场景预览失败: %w", err)
+	}
+
+	p.notifyProgress(task, 25, StagePreview, "快速预览已生成，开始后台处理...")
+
+	p.notifyProgress(task, 30, StageE2C, "开始E2C转换...")
 
 	cubemapDir := filepath.Join(tempDir, "cubemap")
 	if err := os.MkdirAll(cubemapDir, 0755); err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("创建cubemap目录失败: %w", err)
 	}
 
+	e2cStart := time.Now()
 	cubemapFiles, err := p.convertToCubemap(sourceFile, cubemapDir)
 	if err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("E2C转换失败: %w", err)
 	}
+	metrics.E2CTime = time.Since(e2cStart)
 
-	p.notifyProgress(task, 30, StageE2C, "E2C转换完成")
+	p.notifyProgress(task, 45, StageE2C, "E2C转换完成")
 
-	p.notifyProgress(task, 35, StageTiles, "开始生成瓦片...")
+	p.notifyProgress(task, 50, StageTiles, "开始生成瓦片...")
 
 	tilesDir := filepath.Join(tempDir, "tiles")
 	if err := os.MkdirAll(tilesDir, 0755); err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("创建tiles目录失败: %w", err)
 	}
 
+	tilesStart := time.Now()
 	tileFiles, err := p.generateTiles(cubemapFiles, tilesDir)
 	if err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("生成瓦片失败: %w", err)
 	}
+	metrics.TilesGenTime = time.Since(tilesStart)
 
-	p.notifyProgress(task, 60, StageTiles, "瓦片生成完成")
+	tileCount := 0
+	for _, levels := range tileFiles {
+		for _, files := range levels {
+			tileCount += len(files)
+		}
+	}
+	metrics.TileCount = tileCount
 
-	p.notifyProgress(task, 65, StageUploading, "开始上传瓦片...")
+	p.notifyProgress(task, 70, StageTiles, "瓦片生成完成")
 
-	tileURL, err := p.uploadTiles(ctx, tileFiles, cubemapFiles, task.SceneCode)
+	p.notifyProgress(task, 75, StageUploading, "开始上传瓦片...")
+
+	uploadStart := time.Now()
+	tileURL, err := p.uploadTiles(ctx, tileFiles, cubemapFiles, task.SceneCode, task.SpaceName)
 	if err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("上传瓦片失败: %w", err)
 	}
+	metrics.UploadTime = time.Since(uploadStart)
 
-	p.notifyProgress(task, 90, StageUploading, "瓦片上传完成")
-
-	previewFile := filepath.Join(tempDir, "preview.jpg")
-	previewURL, err := p.generateAndUploadPreview(ctx, cubemapFiles, previewFile, task.SceneCode)
-	if err != nil {
-		return fmt.Errorf("生成预览图失败: %w", err)
-	}
+	p.notifyProgress(task, 95, StageUploading, "瓦片上传完成")
 
 	if err := p.updateSceneStatus(task.SceneID, model.SliceStatusReady, tileURL, previewURL); err != nil {
+		metrics.Success = false
+		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("更新场景状态失败: %w", err)
 	}
 
+	metrics.Success = true
 	p.notifyComplete(task, tileURL, previewURL)
 
 	return nil
 }
 
-func (p *SliceProcessor) downloadSourceFile(ctx context.Context, fileID string, destPath string) error {
+func (p *SliceProcessor) generateQuickPreview(ctx context.Context, sourceFile string, sceneCode string, spaceName string) (string, error) {
+	img, err := imaging.Open(sourceFile)
+	if err != nil {
+		return "", fmt.Errorf("打开源文件失败: %w", err)
+	}
+
+	preview := imaging.Resize(img, 1024, 512, imaging.Lanczos)
+
+	tempPreviewFile := filepath.Join(os.TempDir(), fmt.Sprintf("quick_preview_%s.jpg", sceneCode))
+	defer os.Remove(tempPreviewFile)
+
+	if err := imaging.Save(preview, tempPreviewFile, imaging.JPEGQuality(85)); err != nil {
+		return "", fmt.Errorf("保存预览文件失败: %w", err)
+	}
+
+	client := p.minioClient.GetClient()
+	bucket := p.minioClient.GetConfig().Bucket
+	objectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceName, sceneCode)
+
+	file, err := os.Open(tempPreviewFile)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = client.PutObject(ctx, bucket, objectName, file, fileInfo.Size(), minio.PutObjectOptions{
+		ContentType: "image/jpeg",
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return objectName, nil
+}
+
+func (p *SliceProcessor) updateScenePreview(sceneID uint, previewURL string) error {
+	return p.db.Model(&model.ResScene{}).Where("id = ?", sceneID).Updates(map[string]interface{}{
+		"preview_url":  previewURL,
+		"slice_status": model.SliceStatusSlicing,
+		"updated_at":   time.Now(),
+	}).Error
+}
+
+func (p *SliceProcessor) downloadSourceFile(ctx context.Context, fileID string, spaceName string, destPath string) error {
 	client := p.minioClient.GetClient()
 	bucket := p.minioClient.GetConfig().Bucket
 
-	objectName := fmt.Sprintf("sources/%s/source.jpg", fileID)
+	objectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceName, fileID)
 
 	obj, err := client.GetObject(ctx, bucket, objectName, minio.GetObjectOptions{})
 	if err != nil {
@@ -162,45 +341,92 @@ func (p *SliceProcessor) convertToCubemap(sourceFile string, outputDir string) (
 }
 
 func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir string) (map[string]map[int][]string, error) {
-	tileFiles := make(map[string]map[int][]string)
+	type faceTilesResult struct {
+		faceName string
+		tiles    map[int][]string
+		err      error
+	}
+
+	resultChan := make(chan faceTilesResult, len(cubemapFiles))
+	var wg sync.WaitGroup
 
 	for faceName, faceFile := range cubemapFiles {
-		img, err := imaging.Open(faceFile)
-		if err != nil {
-			return nil, fmt.Errorf("打开面 %s 失败: %w", faceName, err)
-		}
+		wg.Add(1)
+		go func(name, file string) {
+			defer wg.Done()
 
-		faceDir := filepath.Join(outputDir, faceName)
-		if err := os.MkdirAll(faceDir, 0755); err != nil {
-			return nil, err
-		}
-
-		tileFiles[faceName] = make(map[int][]string)
-
-		level := 0
-		currentImg := img
-
-		for currentImg.Bounds().Dx() >= TileSize {
-			levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", level))
-			if err := os.MkdirAll(levelDir, 0755); err != nil {
-				return nil, err
-			}
-
-			tiles, err := p.sliceImage(currentImg, levelDir, level, faceName)
+			img, err := imaging.Open(file)
 			if err != nil {
-				return nil, err
+				resultChan <- faceTilesResult{
+					faceName: name,
+					err:      fmt.Errorf("打开面 %s 失败: %w", name, err),
+				}
+				return
 			}
 
-			tileFiles[faceName][level] = tiles
-
-			newSize := currentImg.Bounds().Dx() / 2
-			if newSize < TileSize {
-				break
+			faceDir := filepath.Join(outputDir, name)
+			if err := os.MkdirAll(faceDir, 0755); err != nil {
+				resultChan <- faceTilesResult{
+					faceName: name,
+					err:      err,
+				}
+				return
 			}
 
-			currentImg = imaging.Resize(currentImg, newSize, newSize, imaging.Lanczos)
-			level++
+			tiles := make(map[int][]string)
+
+			level := 0
+			currentImg := img
+
+			for currentImg.Bounds().Dx() >= TileSize {
+				levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", level))
+				if err := os.MkdirAll(levelDir, 0755); err != nil {
+					resultChan <- faceTilesResult{
+						faceName: name,
+						err:      err,
+					}
+					return
+				}
+
+				tileFiles, err := p.sliceImage(currentImg, levelDir, level, name)
+				if err != nil {
+					resultChan <- faceTilesResult{
+						faceName: name,
+						err:      err,
+					}
+					return
+				}
+
+				tiles[level] = tileFiles
+
+				newSize := currentImg.Bounds().Dx() / 2
+				if newSize < TileSize {
+					break
+				}
+
+				currentImg = imaging.Resize(currentImg, newSize, newSize, imaging.Lanczos)
+				level++
+			}
+
+			resultChan <- faceTilesResult{
+				faceName: name,
+				tiles:    tiles,
+			}
+		}(faceName, faceFile)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	tileFiles := make(map[string]map[int][]string)
+
+	for result := range resultChan {
+		if result.err != nil {
+			return nil, result.err
 		}
+		tileFiles[result.faceName] = result.tiles
 	}
 
 	return tileFiles, nil
@@ -263,31 +489,69 @@ func (p *SliceProcessor) sliceImage(img image.Image, outputDir string, level int
 	return tileFiles, nil
 }
 
-func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]map[int][]string, cubemapFiles map[string]string, sceneCode string) (string, error) {
+func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]map[int][]string, cubemapFiles map[string]string, sceneCode string, spaceName string) (string, error) {
 	client := p.minioClient.GetClient()
 	bucket := p.minioClient.GetConfig().Bucket
+
+	type uploadTask struct {
+		objectName string
+		filePath   string
+	}
+
+	var uploadTasks []uploadTask
 
 	for faceName, levels := range tileFiles {
 		for level, files := range levels {
 			for _, file := range files {
 				fileName := filepath.Base(file)
-				objectName := fmt.Sprintf("tiles/%s/lod/%s/level_%d/%s", sceneCode, faceName, level, fileName)
-
-				if err := p.uploadFile(ctx, client, bucket, objectName, file); err != nil {
-					return "", err
-				}
+				objectName := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_%d/%s", spaceName, sceneCode, faceName, level, fileName)
+				uploadTasks = append(uploadTasks, uploadTask{
+					objectName: objectName,
+					filePath:   file,
+				})
 			}
 		}
 	}
 
 	for faceName, file := range cubemapFiles {
-		objectName := fmt.Sprintf("tiles/%s/cubemap/%s.jpg", sceneCode, faceName)
-		if err := p.uploadFile(ctx, client, bucket, objectName, file); err != nil {
+		objectName := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s.jpg", spaceName, sceneCode, faceName)
+		uploadTasks = append(uploadTasks, uploadTask{
+			objectName: objectName,
+			filePath:   file,
+		})
+	}
+
+	maxConcurrent := 10
+	sem := make(chan struct{}, maxConcurrent)
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(uploadTasks))
+
+	for _, task := range uploadTasks {
+		wg.Add(1)
+		go func(t uploadTask) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			if err := p.uploadFile(ctx, client, bucket, t.objectName, t.filePath); err != nil {
+				select {
+				case errChan <- err:
+				default:
+				}
+			}
+		}(task)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
 			return "", err
 		}
 	}
 
-	return fmt.Sprintf("tiles/%s/", sceneCode), nil
+	return fmt.Sprintf("spaces/%s/tiles/%s/", spaceName, sceneCode), nil
 }
 
 func (p *SliceProcessor) uploadFile(ctx context.Context, client *minio.Client, bucket string, objectName string, filePath string) error {
@@ -308,7 +572,7 @@ func (p *SliceProcessor) uploadFile(ctx context.Context, client *minio.Client, b
 	return err
 }
 
-func (p *SliceProcessor) generateAndUploadPreview(ctx context.Context, cubemapFiles map[string]string, previewFile string, sceneCode string) (string, error) {
+func (p *SliceProcessor) generateAndUploadPreview(ctx context.Context, cubemapFiles map[string]string, previewFile string, sceneCode string, spaceName string) (string, error) {
 	pxFile, ok := cubemapFiles["px"]
 	if !ok {
 		return "", fmt.Errorf("找不到px面文件")
@@ -327,7 +591,7 @@ func (p *SliceProcessor) generateAndUploadPreview(ctx context.Context, cubemapFi
 
 	client := p.minioClient.GetClient()
 	bucket := p.minioClient.GetConfig().Bucket
-	objectName := fmt.Sprintf("tiles/%s/preview.jpg", sceneCode)
+	objectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceName, sceneCode)
 
 	if err := p.uploadFile(ctx, client, bucket, objectName, previewFile); err != nil {
 		return "", err

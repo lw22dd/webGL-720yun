@@ -31,6 +31,8 @@ func (r *UploadRepository) CreateTask(task *UploadTask) error {
 	taskData := map[string]interface{}{
 		"upload_id":      task.UploadID,
 		"user_id":        task.UserID,
+		"space_id":       task.SpaceID,
+		"space_name":     task.SpaceName,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
 		"file_md5":       task.FileMD5,
@@ -57,6 +59,12 @@ func (r *UploadRepository) GetTask(uploadID string) (*UploadTask, error) {
 	}
 	if v, ok := taskData["user_id"].(float64); ok {
 		task.UserID = uint(v)
+	}
+	if v, ok := taskData["space_id"].(float64); ok {
+		task.SpaceID = uint(v)
+	}
+	if v, ok := taskData["space_name"].(string); ok {
+		task.SpaceName = v
 	}
 	if v, ok := taskData["file_name"].(string); ok {
 		task.FileName = v
@@ -95,6 +103,8 @@ func (r *UploadRepository) UpdateTaskStatus(uploadID string, status string) erro
 	taskData := map[string]interface{}{
 		"upload_id":      task.UploadID,
 		"user_id":        task.UserID,
+		"space_id":       task.SpaceID,
+		"space_name":     task.SpaceName,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
 		"file_md5":       task.FileMD5,
@@ -118,6 +128,8 @@ func (r *UploadRepository) UpdateTaskUploadedBytes(uploadID string, bytes int64)
 	taskData := map[string]interface{}{
 		"upload_id":      task.UploadID,
 		"user_id":        task.UserID,
+		"space_id":       task.SpaceID,
+		"space_name":     task.SpaceName,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
 		"file_md5":       task.FileMD5,
@@ -180,6 +192,8 @@ func (r *UploadRepository) SaveFileMD5(md5 string, fileID string) error {
 func (r *UploadRepository) SaveFileInfo(fileID string, info *FileInfo) error {
 	infoData := map[string]interface{}{
 		"file_id":    info.FileID,
+		"space_id":   info.SpaceID,
+		"space_name": info.SpaceName,
 		"source_url": info.SourceURL,
 		"thumb_url":  info.ThumbURL,
 		"file_size":  info.FileSize,
@@ -202,6 +216,12 @@ func (r *UploadRepository) GetFileInfo(fileID string) (*FileInfo, error) {
 	info := &FileInfo{}
 	if v, ok := infoData["file_id"].(string); ok {
 		info.FileID = v
+	}
+	if v, ok := infoData["space_id"].(float64); ok {
+		info.SpaceID = uint(v)
+	}
+	if v, ok := infoData["space_name"].(string); ok {
+		info.SpaceName = v
 	}
 	if v, ok := infoData["source_url"].(string); ok {
 		info.SourceURL = v
