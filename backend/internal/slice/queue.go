@@ -24,6 +24,7 @@ type SliceTask struct {
 	SceneCode string `json:"scene_code"`
 	FileID    string `json:"file_id"`
 	SpaceName string `json:"space_name"`
+	SpaceSlug string `json:"space_slug"`
 	UserID    uint   `json:"user_id"`
 	CreatedAt int64  `json:"created_at"`
 }
@@ -74,7 +75,7 @@ func (q *SliceQueue) PopTask() (*SliceTask, string, error) {
 		Consumer: SliceConsumer,
 		Streams:  []string{SliceStreamKey, ">"},
 		Count:    1,
-		Block:    time.Second * 5,
+		Block:    time.Millisecond * 500, // 降低阻塞时间，提高优雅退出的响应速度
 	}).Result()
 	if err != nil {
 		if err == redis.Nil {

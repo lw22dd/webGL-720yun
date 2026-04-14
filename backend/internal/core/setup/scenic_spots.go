@@ -26,7 +26,7 @@ type ScenicSpotSeed struct {
 
 // generateSceneCode 根据标题生成拼音语义化的 SceneCode
 func generateSceneCode(title string) string {
-	return utils.GenerateSceneCode(title)
+	return utils.GenerateSceneCodeStable(title)
 }
 
 func GetScenicSpotSeeds() []ScenicSpotSeed {

@@ -91,6 +91,7 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		UserID:        userID,
 		SpaceID:       req.SpaceID,
 		SpaceName:     space.Name,
+		SpaceSlug:     space.Slug,
 		FileName:      req.FileName,
 		FileSize:      req.FileSize,
 		FileMD5:       req.FileMD5,
@@ -260,7 +261,7 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 	}
 
 	fileID := uuid.New().String()
-	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", task.SpaceName, fileID)
+	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", task.SpaceSlug, fileID)
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, mergedFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传源文件失败: %w", err)
@@ -271,7 +272,7 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 		return nil, fmt.Errorf("生成缩略图失败: %w", err)
 	}
 
-	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/thumb.jpg", task.SpaceName, fileID)
+	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/thumb.jpg", task.SpaceSlug, fileID)
 	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传缩略图失败: %w", err)
@@ -290,6 +291,7 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 		FileID:    fileID,
 		SpaceID:   task.SpaceID,
 		SpaceName: task.SpaceName,
+		SpaceSlug: task.SpaceSlug,
 		SourceURL: sourceURL,
 		ThumbURL:  thumbURL,
 		FileSize:  imageInfo.FileSize,

@@ -128,6 +128,19 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 		}
 	}()
 
+	// 检查是否已经存在处理好的资源，避免重复切片
+	if p.checkAssetsExist(ctx, task.SpaceSlug, task.SceneCode) {
+		log.Printf("⏩ 场景 [%s] 的资源已在 MinIO 中存在，跳过切片任务", task.SceneCode)
+		previewURL := GetPreviewPath(task.SpaceSlug, task.SceneCode)
+		tileURL := fmt.Sprintf("spaces/%s/tiles/%s/", task.SpaceSlug, task.SceneCode)
+		if err := p.updateSceneStatus(task.SceneID, model.SliceStatusReady, tileURL, previewURL); err != nil {
+			log.Printf("⚠️  更新已存在场景状态失败: %v", err)
+		}
+		p.notifyComplete(task, tileURL, previewURL)
+		metrics.Success = true
+		return nil
+	}
+
 	tempDir := filepath.Join(os.TempDir(), "slice_"+task.TaskID)
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		metrics.Success = false
@@ -140,7 +153,13 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 
 	downloadStart := time.Now()
 	sourceFile := filepath.Join(tempDir, "source.jpg")
-	if err := p.downloadSourceFile(ctx, task.FileID, task.SpaceName, sourceFile); err != nil {
+	if err := p.downloadSourceFile(ctx, task.FileID, task.SpaceSlug, sourceFile); err != nil {
+		// 检查是否是源文件不存在（NoSuchKey），这通常意味着是一个旧的残留任务（Ghost Task）
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			log.Printf("⚠️  检测到幽灵任务: 无法找到源文件 %s/%s，该任务可能属于旧版本，已将其跳过。", task.SpaceSlug, task.FileID)
+			metrics.Success = true // 标记为处理完成（忽略）
+			return nil
+		}
 		metrics.Success = false
 		metrics.ErrorMessage = err.Error()
 		return fmt.Errorf("下载源文件失败: %w", err)
@@ -157,7 +176,7 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 	p.notifyProgress(task, 15, StagePreview, "开始生成快速预览...")
 
 	previewStart := time.Now()
-	previewURL, err := p.generateQuickPreview(ctx, sourceFile, task.SceneCode, task.SpaceName)
+	previewURL, err := p.generateQuickPreview(ctx, sourceFile, task.SceneCode, task.SpaceSlug)
 	if err != nil {
 		metrics.Success = false
 		metrics.ErrorMessage = err.Error()
@@ -224,7 +243,7 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 	p.notifyProgress(task, 75, StageUploading, "开始上传瓦片...")
 
 	uploadStart := time.Now()
-	tileURL, err := p.uploadTiles(ctx, tileFiles, cubemapFiles, task.SceneCode, task.SpaceName)
+	tileURL, err := p.uploadTiles(ctx, tileFiles, cubemapFiles, task.SceneCode, task.SpaceSlug)
 	if err != nil {
 		metrics.Success = false
 		metrics.ErrorMessage = err.Error()
@@ -246,7 +265,7 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 	return nil
 }
 
-func (p *SliceProcessor) generateQuickPreview(ctx context.Context, sourceFile string, sceneCode string, spaceName string) (string, error) {
+func (p *SliceProcessor) generateQuickPreview(ctx context.Context, sourceFile string, sceneCode string, spaceSlug string) (string, error) {
 	img, err := imaging.Open(sourceFile)
 	if err != nil {
 		return "", fmt.Errorf("打开源文件失败: %w", err)
@@ -263,7 +282,7 @@ func (p *SliceProcessor) generateQuickPreview(ctx context.Context, sourceFile st
 
 	client := p.minioClient.GetClient()
 	bucket := p.minioClient.GetConfig().Bucket
-	objectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceName, sceneCode)
+	objectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceSlug, sceneCode)
 
 	file, err := os.Open(tempPreviewFile)
 	if err != nil {
@@ -294,11 +313,11 @@ func (p *SliceProcessor) updateScenePreview(sceneID uint, previewURL string) err
 	}).Error
 }
 
-func (p *SliceProcessor) downloadSourceFile(ctx context.Context, fileID string, spaceName string, destPath string) error {
+func (p *SliceProcessor) downloadSourceFile(ctx context.Context, fileID string, spaceSlug string, destPath string) error {
 	client := p.minioClient.GetClient()
 	bucket := p.minioClient.GetConfig().Bucket
 
-	objectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceName, fileID)
+	objectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceSlug, fileID)
 
 	obj, err := client.GetObject(ctx, bucket, objectName, minio.GetObjectOptions{})
 	if err != nil {
@@ -489,7 +508,7 @@ func (p *SliceProcessor) sliceImage(img image.Image, outputDir string, level int
 	return tileFiles, nil
 }
 
-func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]map[int][]string, cubemapFiles map[string]string, sceneCode string, spaceName string) (string, error) {
+func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]map[int][]string, cubemapFiles map[string]string, sceneCode string, spaceSlug string) (string, error) {
 	client := p.minioClient.GetClient()
 	bucket := p.minioClient.GetConfig().Bucket
 
@@ -504,7 +523,7 @@ func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]m
 		for level, files := range levels {
 			for _, file := range files {
 				fileName := filepath.Base(file)
-				objectName := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_%d/%s", spaceName, sceneCode, faceName, level, fileName)
+				objectName := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_%d/%s", spaceSlug, sceneCode, faceName, level, fileName)
 				uploadTasks = append(uploadTasks, uploadTask{
 					objectName: objectName,
 					filePath:   file,
@@ -514,7 +533,7 @@ func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]m
 	}
 
 	for faceName, file := range cubemapFiles {
-		objectName := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s.jpg", spaceName, sceneCode, faceName)
+		objectName := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s.jpg", spaceSlug, sceneCode, faceName)
 		uploadTasks = append(uploadTasks, uploadTask{
 			objectName: objectName,
 			filePath:   file,
@@ -551,7 +570,7 @@ func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]m
 		}
 	}
 
-	return fmt.Sprintf("spaces/%s/tiles/%s/", spaceName, sceneCode), nil
+	return fmt.Sprintf("spaces/%s/tiles/%s/", spaceSlug, sceneCode), nil
 }
 
 func (p *SliceProcessor) uploadFile(ctx context.Context, client *minio.Client, bucket string, objectName string, filePath string) error {
@@ -572,7 +591,7 @@ func (p *SliceProcessor) uploadFile(ctx context.Context, client *minio.Client, b
 	return err
 }
 
-func (p *SliceProcessor) generateAndUploadPreview(ctx context.Context, cubemapFiles map[string]string, previewFile string, sceneCode string, spaceName string) (string, error) {
+func (p *SliceProcessor) generateAndUploadPreview(ctx context.Context, cubemapFiles map[string]string, previewFile string, sceneCode string, spaceSlug string) (string, error) {
 	pxFile, ok := cubemapFiles["px"]
 	if !ok {
 		return "", fmt.Errorf("找不到px面文件")
@@ -591,7 +610,7 @@ func (p *SliceProcessor) generateAndUploadPreview(ctx context.Context, cubemapFi
 
 	client := p.minioClient.GetClient()
 	bucket := p.minioClient.GetConfig().Bucket
-	objectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceName, sceneCode)
+	objectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceSlug, sceneCode)
 
 	if err := p.uploadFile(ctx, client, bucket, objectName, previewFile); err != nil {
 		return "", err
@@ -608,6 +627,20 @@ func (p *SliceProcessor) updateSceneStatus(sceneID uint, status string, tileURL 
 		"is_converted": true,
 		"updated_at":   time.Now(),
 	}).Error
+}
+
+func (p *SliceProcessor) checkAssetsExist(ctx context.Context, spaceSlug, sceneCode string) bool {
+	// 检查预览图是否存在
+	previewPath := GetPreviewPath(spaceSlug, sceneCode)
+	exists, err := p.minioClient.ObjectExists(previewPath)
+	if err != nil || !exists {
+		return false
+	}
+
+	// 检查瓦片目录是否包含基本文件（检查 px 面的 level_0）
+	tilePath := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/px/level_0/tile_0_0.jpg", spaceSlug, sceneCode)
+	exists, err = p.minioClient.ObjectExists(tilePath)
+	return err == nil && exists
 }
 
 func (p *SliceProcessor) notifyProgress(task *SliceTask, progress int, stage string, message string) {
@@ -652,22 +685,22 @@ func (p *SliceProcessor) notifyError(task *SliceTask, errorMsg string) {
 	})
 }
 
-func GetTilePath(sceneCode string, face string, level int, row int, col int) string {
-	return fmt.Sprintf("tiles/%s/lod/%s/level_%d/tile_%d_%d.jpg", sceneCode, face, level, row, col)
+func GetTilePath(spaceSlug, sceneCode string, face string, level int, row int, col int) string {
+	return fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_%d/tile_%d_%d.jpg", spaceSlug, sceneCode, face, level, row, col)
 }
 
-func ParseTilePath(path string) (face string, level int, row int, col int, err error) {
-	_, err = fmt.Sscanf(path, "tiles/%s/lod/%s/level_%d/tile_%d_%d.jpg",
-		new(string), &face, &level, &row, &col)
+func ParseTilePath(path string) (spaceSlug, sceneCode, face string, level, row, col int, err error) {
+	_, err = fmt.Sscanf(path, "spaces/%s/tiles/%s/cubemap/%s/level_%d/tile_%d_%d.jpg",
+		&spaceSlug, &sceneCode, &face, &level, &row, &col)
 	return
 }
 
-func GetCubemapPath(sceneCode string, face string) string {
-	return fmt.Sprintf("tiles/%s/cubemap/%s.jpg", sceneCode, face)
+func GetCubemapPath(spaceSlug, sceneCode string, face string) string {
+	return fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s.jpg", spaceSlug, sceneCode, face)
 }
 
-func GetPreviewPath(sceneCode string) string {
-	return fmt.Sprintf("tiles/%s/preview.jpg", sceneCode)
+func GetPreviewPath(spaceSlug, sceneCode string) string {
+	return fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceSlug, sceneCode)
 }
 
 func GetLevelDimension(level int) int {

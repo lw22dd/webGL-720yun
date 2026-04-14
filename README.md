@@ -253,6 +253,14 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f frontend
    npm run preview
    ```
 
+6. 清除redis
+PS D:\lwdd\code\毕设\webGL-720yun> 
+docker exec -it redis-cache redis-cli DEL slice:tasks           
+(integer) 1                                                                                        
+PS D:\lwdd\code\毕设\webGL-720yun> 
+docker exec -it redis-cache redis-cli flushall 
+
+
 ## 部署说明
 
 ### 开发环境部署

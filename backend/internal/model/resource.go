@@ -10,6 +10,7 @@ import (
 type ResSpace struct {
 	ID          uint           `gorm:"primaryKey;column:id" json:"id"`
 	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex;column:name;comment:空间名称" json:"name"`
+	Slug        string         `gorm:"type:varchar(100);not null;index;column:slug;comment:空间标识(英文/拼音)" json:"slug"`
 	CoverURL    string         `gorm:"type:varchar(500);column:cover_url;comment:封面URL" json:"cover_url"`
 	Description string         `gorm:"type:text;column:description;comment:空间描述" json:"description"`
 	Province    string         `gorm:"type:varchar(50);column:province;comment:省份" json:"province"`

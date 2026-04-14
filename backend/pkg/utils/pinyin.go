@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"regexp"
 	"strings"
 
@@ -138,33 +140,37 @@ func SanitizeSceneCode(code string) string {
 // 示例："伏龙观" -> "fulongguan-a1b2c3d4"
 func GenerateSceneCode(title string) string {
 	if title == "" {
-		// 如果标题为空，生成纯 UUID
 		return generateShortUUID()
 	}
-	
-	// 转换为拼音
 	pinyinPart := ToPinyinWithSep(title)
-	
-	// 清理拼音部分
 	pinyinPart = SanitizeSceneCode(pinyinPart)
-	
-	// 如果拼音为空（比如全是特殊字符），使用 "scene"
+	if pinyinPart == "" {
+		pinyinPart = "scene"
+	}
+	if len(pinyinPart) > 50 {
+		pinyinPart = pinyinPart[:50]
+		pinyinPart = strings.TrimSuffix(pinyinPart, "-")
+	}
+	uuidPart := generateShortUUID()
+	return pinyinPart + "-" + uuidPart
+}
+
+// GenerateSceneCodeStable 生成稳定计算的场景编码（用于种子数据，防止重启后编码变化导致重复导入）
+func GenerateSceneCodeStable(title string) string {
+	if title == "" {
+		return "scene-default"
+	}
+	pinyinPart := ToPinyinWithSep(title)
+	pinyinPart = SanitizeSceneCode(pinyinPart)
 	if pinyinPart == "" {
 		pinyinPart = "scene"
 	}
 	
-	// 限制拼音长度（最多 50 字符）
-	if len(pinyinPart) > 50 {
-		pinyinPart = pinyinPart[:50]
-		// 确保不以连字符结尾
-		pinyinPart = strings.TrimSuffix(pinyinPart, "-")
-	}
+	// 使用标题的 MD5 前 8 位作为后缀，确保稳定性
+	hash := md5.Sum([]byte(title))
+	stablePart := hex.EncodeToString(hash[:4])
 	
-	// 生成 UUID 前缀（8 位）
-	uuidPart := generateShortUUID()
-	
-	// 组合：拼音-UUID前缀
-	return pinyinPart + "-" + uuidPart
+	return pinyinPart + "-" + stablePart
 }
 
 // GenerateSceneCodeWithUUID 使用指定的 UUID 生成场景编码

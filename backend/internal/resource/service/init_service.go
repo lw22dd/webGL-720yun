@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"webGL-720yun/internal/core/setup"
 	"webGL-720yun/internal/model"
+	"webGL-720yun/internal/slice"
 	"webGL-720yun/pkg/logger"
 	miniocli "webGL-720yun/pkg/minio_client"
 
@@ -16,13 +18,15 @@ import (
 type ResourceInitService struct {
 	db           *gorm.DB
 	minioClient  miniocli.MinIOOperations
+	sliceQueue   *slice.SliceQueue
 	seedBasePath string
 }
 
-func NewResourceInitService(db *gorm.DB, minioCli miniocli.MinIOOperations, seedBasePath string) *ResourceInitService {
+func NewResourceInitService(db *gorm.DB, minioCli miniocli.MinIOOperations, sliceQueue *slice.SliceQueue, seedBasePath string) *ResourceInitService {
 	return &ResourceInitService{
 		db:           db,
 		minioClient:  minioCli,
+		sliceQueue:   sliceQueue,
 		seedBasePath: seedBasePath,
 	}
 }
@@ -31,6 +35,13 @@ func (s *ResourceInitService) SeedResourcesIfNeeded() error {
 	logger.Info("🚀 开始检查全景资源初始化...")
 
 	scenicSpots := setup.GetScenicSpotSeeds()
+
+	// 先尝试为现有的、Slug为空的记录补全 Slug
+	for _, spot := range scenicSpots {
+		s.db.Model(&model.ResSpace{}).
+			Where("name = ? AND (slug = '' OR slug IS NULL)", spot.Name).
+			Update("slug", spot.Slug)
+	}
 
 	for _, spot := range scenicSpots {
 		if err := s.seedScenicSpotIfNotExists(spot); err != nil {
@@ -49,7 +60,7 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 	err := s.db.Where("name = ?", spot.Name).First(&existingSpot).Error
 	if err == nil {
 		logger.Infof("⏭️  景区 [%s] 已存在，跳过创建", spot.Name)
-		return s.checkAndSyncScenes(existingSpot.ID, existingSpot.Name, spot)
+		return s.checkAndSyncScenes(existingSpot.ID, existingSpot.Slug, spot)
 	}
 
 	if err != gorm.ErrRecordNotFound {
@@ -58,6 +69,7 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 
 	newSpot := model.ResSpace{
 		Name:        spot.Name,
+		Slug:        spot.Slug,
 		Description: spot.Description,
 		Province:    spot.Province,
 		City:        spot.City,
@@ -73,7 +85,7 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 
 	coverLocalPath := filepath.Join(s.seedBasePath, spot.LocalPath, spot.CoverFile)
 	if _, err := os.Stat(coverLocalPath); err == nil {
-		coverMinIOPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", newSpot.Name)
+		coverMinIOPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", newSpot.Slug)
 
 		exists, _ := s.minioClient.ObjectExists(coverMinIOPath)
 		if !exists {
@@ -95,7 +107,7 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 	}
 
 	for _, sceneSeed := range spot.Scenes {
-		if err := s.seedSceneIfNotExists(newSpot.ID, newSpot.Name, spot.LocalPath, sceneSeed); err != nil {
+		if err := s.seedSceneIfNotExists(newSpot.ID, newSpot.Slug, spot.LocalPath, sceneSeed); err != nil {
 			logger.Warnf("导入场景 %s 失败: %v", sceneSeed.Title, err)
 		}
 	}
@@ -179,6 +191,25 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 
 	if createErr := s.db.Create(&newScene).Error; createErr != nil {
 		return fmt.Errorf("创建场景记录失败: %w", createErr)
+	}
+
+	// 推送切片任务
+	if s.sliceQueue != nil {
+		task := &slice.SliceTask{
+			TaskID:    fmt.Sprintf("seed_%s_%s", spaceName, scene.SceneCode),
+			SceneID:   newScene.ID,
+			SceneCode: newScene.SceneCode,
+			FileID:    newScene.SceneCode,
+			SpaceName: spaceName, // During seed, we use slug as name for simplicity or we could fetch the name.
+			SpaceSlug: spaceName,
+			UserID:    0,
+			CreatedAt: time.Now().Unix(),
+		}
+		if err := s.sliceQueue.PushTask(task); err != nil {
+			logger.Warnf("推送种子场景切片任务失败: %v", err)
+		} else {
+			logger.Infof("🚀 已推送场景切片任务: %s", scene.Title)
+		}
 	}
 
 	logger.Infof("✅ 创建场景: %s (ID=%d)", newScene.Title, newScene.ID)

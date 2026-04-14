@@ -59,6 +59,7 @@ type FileInfo struct {
 	FileID    string    `json:"file_id"`
 	SpaceID   uint      `json:"space_id"`
 	SpaceName string    `json:"space_name"`
+	SpaceSlug string    `json:"space_slug"`
 	SourceURL string    `json:"source_url"`
 	ThumbURL  string    `json:"thumb_url"`
 	FileSize  int64     `json:"file_size"`
@@ -72,6 +73,7 @@ type UploadTask struct {
 	UserID        uint   `json:"user_id"`
 	SpaceID       uint   `json:"space_id"`
 	SpaceName     string `json:"space_name"`
+	SpaceSlug     string `json:"space_slug"`
 	FileName      string `json:"file_name"`
 	FileSize      int64  `json:"file_size"`
 	FileMD5       string `json:"file_md5"`

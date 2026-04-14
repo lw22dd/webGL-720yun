@@ -58,8 +58,7 @@ func (w *SliceWorker) Start() {
 				continue
 			}
 
-			w.wg.Add(1)
-			go w.processTask(task, messageID)
+			w.processTask(task, messageID)
 		}
 	}
 }
@@ -69,7 +68,6 @@ func (w *SliceWorker) Stop() {
 }
 
 func (w *SliceWorker) processTask(task *SliceTask, messageID string) {
-	defer w.wg.Done()
 
 	log.Printf("Processing slice task: task_id=%s, scene_id=%d, scene_code=%s",
 		task.TaskID, task.SceneID, task.SceneCode)
@@ -100,14 +98,14 @@ func (w *SliceWorker) updateSceneSlicingStatus(sceneID uint, taskID string) erro
 	return w.db.Model(&model.ResScene{}).Where("id = ?", sceneID).Updates(map[string]interface{}{
 		"slice_status": model.SliceStatusSlicing,
 		"task_id":      taskID,
-		"updated_at":   "NOW()",
+		"updated_at":   time.Now(),
 	}).Error
 }
 
 func (w *SliceWorker) handleTaskError(task *SliceTask, err error) {
 	if dbErr := w.db.Model(&model.ResScene{}).Where("id = ?", task.SceneID).Updates(map[string]interface{}{
 		"slice_status": model.SliceStatusFailed,
-		"updated_at":   "NOW()",
+		"updated_at":   time.Now(),
 	}).Error; dbErr != nil {
 		log.Printf("Failed to update scene failed status: %v", dbErr)
 	}
@@ -118,6 +116,7 @@ func (w *SliceWorker) handleTaskError(task *SliceTask, err error) {
 type WorkerPool struct {
 	workers  []*SliceWorker
 	stopChan chan struct{}
+	wg       sync.WaitGroup
 }
 
 func NewWorkerPool(
@@ -143,7 +142,11 @@ func (p *WorkerPool) Start() {
 	log.Printf("Starting worker pool with %d workers", len(p.workers))
 
 	for _, worker := range p.workers {
-		go worker.Start()
+		p.wg.Add(1)
+		go func(w *SliceWorker) {
+			defer p.wg.Done()
+			w.Start()
+		}(worker)
 	}
 }
 
@@ -154,6 +157,7 @@ func (p *WorkerPool) Stop() {
 		worker.Stop()
 	}
 
+	p.wg.Wait()
 	close(p.stopChan)
 	log.Println("Worker pool stopped")
 }

@@ -87,7 +87,7 @@ func Run() {
 	}
 
 	if minioClient != nil {
-		resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, ".")
+		resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, sliceQueue, ".")
 		if initErr := resourceInitService.SeedResourcesIfNeeded(); initErr != nil {
 			logger.Warnf("全景资源初始化失败（非致命）: %v", initErr)
 		}

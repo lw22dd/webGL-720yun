@@ -33,6 +33,7 @@ func (r *UploadRepository) CreateTask(task *UploadTask) error {
 		"user_id":        task.UserID,
 		"space_id":       task.SpaceID,
 		"space_name":     task.SpaceName,
+		"space_slug":     task.SpaceSlug,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
 		"file_md5":       task.FileMD5,
@@ -63,8 +64,8 @@ func (r *UploadRepository) GetTask(uploadID string) (*UploadTask, error) {
 	if v, ok := taskData["space_id"].(float64); ok {
 		task.SpaceID = uint(v)
 	}
-	if v, ok := taskData["space_name"].(string); ok {
-		task.SpaceName = v
+	if v, ok := taskData["space_slug"].(string); ok {
+		task.SpaceSlug = v
 	}
 	if v, ok := taskData["file_name"].(string); ok {
 		task.FileName = v
@@ -105,6 +106,7 @@ func (r *UploadRepository) UpdateTaskStatus(uploadID string, status string) erro
 		"user_id":        task.UserID,
 		"space_id":       task.SpaceID,
 		"space_name":     task.SpaceName,
+		"space_slug":     task.SpaceSlug,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
 		"file_md5":       task.FileMD5,
@@ -130,6 +132,7 @@ func (r *UploadRepository) UpdateTaskUploadedBytes(uploadID string, bytes int64)
 		"user_id":        task.UserID,
 		"space_id":       task.SpaceID,
 		"space_name":     task.SpaceName,
+		"space_slug":     task.SpaceSlug,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
 		"file_md5":       task.FileMD5,
@@ -194,6 +197,7 @@ func (r *UploadRepository) SaveFileInfo(fileID string, info *FileInfo) error {
 		"file_id":    info.FileID,
 		"space_id":   info.SpaceID,
 		"space_name": info.SpaceName,
+		"space_slug": info.SpaceSlug,
 		"source_url": info.SourceURL,
 		"thumb_url":  info.ThumbURL,
 		"file_size":  info.FileSize,
@@ -220,8 +224,8 @@ func (r *UploadRepository) GetFileInfo(fileID string) (*FileInfo, error) {
 	if v, ok := infoData["space_id"].(float64); ok {
 		info.SpaceID = uint(v)
 	}
-	if v, ok := infoData["space_name"].(string); ok {
-		info.SpaceName = v
+	if v, ok := infoData["space_slug"].(string); ok {
+		info.SpaceSlug = v
 	}
 	if v, ok := infoData["source_url"].(string); ok {
 		info.SourceURL = v
