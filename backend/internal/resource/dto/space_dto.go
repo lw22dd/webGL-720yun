@@ -16,6 +16,7 @@ type SpaceListRequest struct {
 
 type CreateSpaceRequest struct {
 	Name        string  `form:"name" json:"name" binding:"required,min=2,max=100"`
+	Slug        string  `form:"slug" json:"slug" binding:"required,min=2,max=100"`
 	Description string  `form:"description" json:"description" binding:"max=1000"`
 	Province    string  `form:"province" json:"province" binding:"max=50"`
 	City        string  `form:"city" json:"city" binding:"max=50"`
@@ -27,6 +28,7 @@ type CreateSpaceRequest struct {
 
 type UpdateSpaceRequest struct {
 	Name        string  `form:"name" json:"name" binding:"omitempty,min=2,max=100"`
+	Slug        string  `form:"slug" json:"slug" binding:"omitempty,min=2,max=100"`
 	Description string  `form:"description" json:"description" binding:"omitempty,max=1000"`
 	Province    string  `form:"province" json:"province" binding:"omitempty,max=50"`
 	City        string  `form:"city" json:"city" binding:"omitempty,max=50"`

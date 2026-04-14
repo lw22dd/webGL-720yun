@@ -46,33 +46,28 @@ try {
     exit 1
 }
 
-Write-Info "3. Get/Create Space..."
+Write-Info "3. Create Test Space..."
 try {
-    $spacesResp = Invoke-RestMethod -Uri "$API_V1/resource/spaces?page=1&page_size=1" -Method GET -Headers $HEADERS
-    if ($spacesResp.data.spaces.Count -eq 0) {
-        Write-Info "No space found, creating one..."
-        $spaceBody = @{
-            name = "Test Space"
-            slug = "test-space-$(Get-Random)"
-            description = "Test space for upload"
-            province = "Beijing"
-            city = "Beijing"
-            longitude = 116.407429
-            latitude = 39.904211
-            zoom_level = 12
-            sort_order = 1
-            status = 1
-        } | ConvertTo-Json
-        $spaceResp = Invoke-RestMethod -Uri "$API_V1/resource/spaces" -Method POST -Body $spaceBody -ContentType "application/json" -Headers $HEADERS
-        $SPACE_ID = $spaceResp.data.id
-        $SPACE_SLUG = $spaceResp.data.slug
-    } else {
-        $SPACE_ID = $spacesResp.data.spaces[0].id
-        $SPACE_SLUG = $spacesResp.data.spaces[0].slug
-    }
-    Write-Info "Using Space ID: $SPACE_ID, Slug: $SPACE_SLUG"
+    $spaceName = "Network Test Space $(Get-Random)"
+    $spaceSlug = "net-test-$(Get-Random)"
+    $spaceBody = @{
+        name = $spaceName
+        slug = $spaceSlug
+        description = "Temporary space for network test"
+        province = "Beijing"
+        city = "Beijing"
+        longitude = 116.407429
+        latitude = 39.904211
+        zoom_level = 12
+        sort_order = 1
+        status = 1
+    } | ConvertTo-Json
+    $spaceResp = Invoke-RestMethod -Uri "$API_V1/resource/spaces" -Method POST -Body $spaceBody -ContentType "application/json" -Headers $HEADERS
+    $SPACE_ID = $spaceResp.data.id
+    $SPACE_SLUG = $spaceResp.data.slug
+    Write-Info "Created Space ID: $SPACE_ID, Slug: $SPACE_SLUG"
 } catch {
-    Write-Err "Failed to get/create space: $_"
+    Write-Err "Failed to create space: $_"
     exit 1
 }
 
@@ -86,6 +81,7 @@ Write-Info "File MD5: $FILE_MD5"
 Write-Info "4. Test Init Upload..."
 try {
     $initBody = @{
+        space_id = [int]$SPACE_ID
         filename = "test_panorama.jpg"
         file_size = $FILE_SIZE
         file_hash = $FILE_MD5

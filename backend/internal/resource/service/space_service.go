@@ -42,6 +42,7 @@ func (s *SpaceService) CreateSpace(req *dto.CreateSpaceRequest, createdBy uint, 
 
 	space := &model.ResSpace{
 		Name:        req.Name,
+		Slug:        req.Slug,
 		Description: req.Description,
 		Province:    req.Province,
 		City:        req.City,
@@ -87,6 +88,10 @@ func (s *SpaceService) UpdateSpace(id uint, req *dto.UpdateSpaceRequest, userID 
 			return nil, errors.New("景区名称已存在")
 		}
 		space.Name = req.Name
+	}
+
+	if req.Slug != "" {
+		space.Slug = req.Slug
 	}
 
 	if req.Description != "" {
