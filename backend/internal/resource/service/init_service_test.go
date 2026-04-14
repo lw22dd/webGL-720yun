@@ -112,7 +112,7 @@ func TestResourceInitService_RealMySQLAndMinIO(t *testing.T) {
 	tempDir := t.TempDir()
 	createTestSeedFilesWithChineseNames(t, tempDir, testSpot)
 
-	svc := NewResourceInitService(db, minioClient, nil, tempDir)
+	svc := NewResourceInitService(db, minioClient, nil, nil, tempDir)
 
 	err := svc.SeedResourcesIfNeeded()
 	assert.NoError(t, err)

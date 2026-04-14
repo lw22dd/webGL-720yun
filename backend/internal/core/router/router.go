@@ -136,7 +136,7 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 }
 
 func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService) *upload.UploadService {
-	uploadRepo := upload.NewUploadRepository(redisService)
+	uploadRepo := upload.NewUploadRepository(redisService, db)
 	return upload.NewUploadService(uploadRepo, db, minioClient)
 }
 

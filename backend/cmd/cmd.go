@@ -16,6 +16,7 @@ import (
 	"webGL-720yun/internal/core/router"
 	"webGL-720yun/internal/core/setup"
 	"webGL-720yun/internal/resource/service"
+	"webGL-720yun/internal/resource/upload"
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/logger"
@@ -87,7 +88,8 @@ func Run() {
 	}
 
 	if minioClient != nil {
-		resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, sliceQueue, ".")
+		uploadRepo := upload.NewUploadRepository(redisClient, db.GetDB())
+		resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, sliceQueue, uploadRepo, ".")
 		if initErr := resourceInitService.SeedResourcesIfNeeded(); initErr != nil {
 			logger.Warnf("全景资源初始化失败（非致命）: %v", initErr)
 		}

@@ -332,7 +332,7 @@ func (s *RedisService) GetFileIDByMD5(md5 string) (string, error) {
 
 func (s *RedisService) SaveFileMD5(md5 string, fileID string) error {
 	key := fmt.Sprintf("%s%s", KeyPrefixFileMD5, md5)
-	return s.client.Set(key, fileID, 0).Err()
+	return s.client.Set(key, fileID, 24*time.Hour).Err()
 }
 
 func (s *RedisService) SaveFileInfo(fileID string, info map[string]interface{}) error {

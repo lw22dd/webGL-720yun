@@ -8,9 +8,11 @@ import (
 
 	"webGL-720yun/internal/core/setup"
 	"webGL-720yun/internal/model"
+	"webGL-720yun/internal/resource/upload"
 	"webGL-720yun/internal/slice"
 	"webGL-720yun/pkg/logger"
 	miniocli "webGL-720yun/pkg/minio_client"
+	"webGL-720yun/pkg/utils"
 
 	"gorm.io/gorm"
 )
@@ -19,14 +21,16 @@ type ResourceInitService struct {
 	db           *gorm.DB
 	minioClient  miniocli.MinIOOperations
 	sliceQueue   *slice.SliceQueue
+	uploadRepo   *upload.UploadRepository
 	seedBasePath string
 }
 
-func NewResourceInitService(db *gorm.DB, minioCli miniocli.MinIOOperations, sliceQueue *slice.SliceQueue, seedBasePath string) *ResourceInitService {
+func NewResourceInitService(db *gorm.DB, minioCli miniocli.MinIOOperations, sliceQueue *slice.SliceQueue, uploadRepo *upload.UploadRepository, seedBasePath string) *ResourceInitService {
 	return &ResourceInitService{
 		db:           db,
 		minioClient:  minioCli,
 		sliceQueue:   sliceQueue,
+		uploadRepo:   uploadRepo,
 		seedBasePath: seedBasePath,
 	}
 }
@@ -157,26 +161,51 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 		return fmt.Errorf("获取文件信息失败: %w", err)
 	}
 
-	exists, checkErr := s.minioClient.ObjectExists(minIOObjectPath)
-	if checkErr != nil {
-		return fmt.Errorf("检查MinIO对象存在性失败: %w", checkErr)
+	md5Str, md5Err := utils.CalculateFileMD5(localFilePath)
+	if md5Err != nil {
+		logger.Warnf("⚠️  计算本地文件 MD5 失败，将无法使用秒传: %v", md5Err)
 	}
 
 	var panoramaURL string
-	if !exists {
-		url, uploadErr := s.minioClient.UploadFile(
-			minIOObjectPath,
-			localFilePath,
-			"image/jpeg",
-		)
-		if uploadErr != nil {
-			return fmt.Errorf("上传全景图到MinIO失败: %w", uploadErr)
+	var resolvedFileID string
+
+	if md5Str != "" && s.uploadRepo != nil {
+		// === 双层校验: Redis -> MySQL ===
+		fileID, _ := s.uploadRepo.GetFileIDByMD5(md5Str)
+		if fileID != "" {
+			fileInfo, _ := s.uploadRepo.GetFileInfo(fileID)
+			if fileInfo != nil && fileInfo.SourceURL != "" {
+				panoramaURL = fileInfo.SourceURL
+				resolvedFileID = fileInfo.FileID
+				logger.Infof("♻️  命中 MD5 秒传 [%s]，复用链接", scene.FileName)
+			}
 		}
-		panoramaURL = url
-		logger.Infof("☁️  已上传: %s → MinIO (%.2f MB)", scene.FileName, float64(fileInfo.Size())/1024/1024)
-	} else {
-		panoramaURL = s.minioClient.GetObjectURL(minIOObjectPath)
-		logger.Infof("♻️  MinIO中已存在: %s，复用URL", scene.FileName)
+	}
+
+	if panoramaURL == "" {
+		exists, checkErr := s.minioClient.ObjectExists(minIOObjectPath)
+		if checkErr != nil {
+			return fmt.Errorf("检查MinIO对象存在性失败: %w", checkErr)
+		}
+
+		if !exists {
+			url, uploadErr := s.minioClient.UploadFile(
+				minIOObjectPath,
+				localFilePath,
+				"image/jpeg",
+			)
+			if uploadErr != nil {
+				return fmt.Errorf("上传全景图到MinIO失败: %w", uploadErr)
+			}
+			panoramaURL = url
+			logger.Infof("☁️  已上传: %s → MinIO (%.2f MB)", scene.FileName, float64(fileInfo.Size())/1024/1024)
+		} else {
+			panoramaURL = s.minioClient.GetObjectURL(minIOObjectPath)
+			logger.Infof("☁️  MinIO中已存在对象: %s，直接应用", scene.FileName)
+		}
+		
+		// 新上传的文件我们使用 UUID 或 SceneCode 做为 FileID
+		resolvedFileID = scene.SceneCode
 	}
 
 	newScene := model.ResScene{
@@ -184,13 +213,19 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 		Title:          scene.Title,
 		SceneCode:      scene.SceneCode,
 		PanoramaType:   "equirectangular",
+		FileID:         resolvedFileID,
 		SourceURL:      panoramaURL,
 		SourceFileSize: fileInfo.Size(),
+		SourceFileMD5:  md5Str,
 		Status:         1,
 	}
 
 	if createErr := s.db.Create(&newScene).Error; createErr != nil {
 		return fmt.Errorf("创建场景记录失败: %w", createErr)
+	}
+
+	if md5Str != "" && s.uploadRepo != nil {
+		_ = s.uploadRepo.SaveFileMD5(md5Str, newScene.FileID)
 	}
 
 	// 推送切片任务

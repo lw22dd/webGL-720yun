@@ -1,9 +1,13 @@
 package upload
 
 import (
+	"errors"
 	"time"
 
+	"webGL-720yun/internal/model"
 	"webGL-720yun/pkg/redis"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -21,10 +25,11 @@ const (
 
 type UploadRepository struct {
 	redis *redis.RedisService
+	db    *gorm.DB
 }
 
-func NewUploadRepository(redis *redis.RedisService) *UploadRepository {
-	return &UploadRepository{redis: redis}
+func NewUploadRepository(redis *redis.RedisService, db *gorm.DB) *UploadRepository {
+	return &UploadRepository{redis: redis, db: db}
 }
 
 func (r *UploadRepository) CreateTask(task *UploadTask) error {
@@ -185,7 +190,24 @@ func (r *UploadRepository) GetUserUploadCount(userID uint) (int, error) {
 }
 
 func (r *UploadRepository) GetFileIDByMD5(md5 string) (string, error) {
-	return r.redis.GetFileIDByMD5(md5)
+	fileID, err := r.redis.GetFileIDByMD5(md5)
+	if err == nil && fileID != "" {
+		return fileID, nil
+	}
+
+	var scene model.ResScene
+	err = r.db.Where("source_file_md5 = ?", md5).First(&scene).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	// Hit MySQL, cache back to Redis
+	_ = r.SaveFileMD5(md5, scene.FileID)
+
+	return scene.FileID, nil
 }
 
 func (r *UploadRepository) SaveFileMD5(md5 string, fileID string) error {
@@ -210,41 +232,64 @@ func (r *UploadRepository) SaveFileInfo(fileID string, info *FileInfo) error {
 
 func (r *UploadRepository) GetFileInfo(fileID string) (*FileInfo, error) {
 	infoData, err := r.redis.GetFileInfo(fileID)
-	if err != nil {
-		return nil, err
-	}
-	if infoData == nil {
-		return nil, nil
+	if err == nil && infoData != nil {
+		info := &FileInfo{}
+		if v, ok := infoData["file_id"].(string); ok {
+			info.FileID = v
+		}
+		if v, ok := infoData["space_id"].(float64); ok {
+			info.SpaceID = uint(v)
+		}
+		if v, ok := infoData["space_name"].(string); ok {
+			info.SpaceName = v
+		}
+		if v, ok := infoData["space_slug"].(string); ok {
+			info.SpaceSlug = v
+		}
+		if v, ok := infoData["source_url"].(string); ok {
+			info.SourceURL = v
+		}
+		if v, ok := infoData["thumb_url"].(string); ok {
+			info.ThumbURL = v
+		}
+		if v, ok := infoData["file_size"].(float64); ok {
+			info.FileSize = int64(v)
+		}
+		if v, ok := infoData["width"].(float64); ok {
+			info.Width = int(v)
+		}
+		if v, ok := infoData["height"].(float64); ok {
+			info.Height = int(v)
+		}
+		if v, ok := infoData["created_at"].(float64); ok {
+			info.CreatedAt = time.Unix(int64(v), 0)
+		}
+		return info, nil
 	}
 
-	info := &FileInfo{}
-	if v, ok := infoData["file_id"].(string); ok {
-		info.FileID = v
+	var scene model.ResScene
+	err = r.db.Preload("Space").Where("file_id = ?", fileID).First(&scene).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
-	if v, ok := infoData["space_id"].(float64); ok {
-		info.SpaceID = uint(v)
+
+	info := &FileInfo{
+		FileID:    scene.FileID,
+		SpaceID:   scene.SpaceID,
+		SpaceName: scene.Space.Name,
+		SpaceSlug: scene.Space.Slug,
+		SourceURL: scene.SourceURL,
+		ThumbURL:  scene.ThumbnailURL,
+		FileSize:  scene.SourceFileSize,
+		Width:     scene.SourceWidth,
+		Height:    scene.SourceHeight,
+		CreatedAt: scene.CreatedAt,
 	}
-	if v, ok := infoData["space_slug"].(string); ok {
-		info.SpaceSlug = v
-	}
-	if v, ok := infoData["source_url"].(string); ok {
-		info.SourceURL = v
-	}
-	if v, ok := infoData["thumb_url"].(string); ok {
-		info.ThumbURL = v
-	}
-	if v, ok := infoData["file_size"].(float64); ok {
-		info.FileSize = int64(v)
-	}
-	if v, ok := infoData["width"].(float64); ok {
-		info.Width = int(v)
-	}
-	if v, ok := infoData["height"].(float64); ok {
-		info.Height = int(v)
-	}
-	if v, ok := infoData["created_at"].(float64); ok {
-		info.CreatedAt = time.Unix(int64(v), 0)
-	}
+
+	_ = r.SaveFileInfo(fileID, info)
 
 	return info, nil
 }
