@@ -76,6 +76,20 @@ func (r *SceneRepository) FindBySceneCode(code string) (*model.ResScene, error) 
 	return &scene, nil
 }
 
+// FindBySceneCodeWithSpace 通过 sceneCode 查找场景并预加载 Space 关联
+// 用于瓦片读取时通过 sceneCode 解析出 space.slug（spaceName）
+func (r *SceneRepository) FindBySceneCodeWithSpace(code string) (*model.ResScene, error) {
+	var scene model.ResScene
+	err := r.db.Where("scene_code = ?", code).Preload("Space").First(&scene).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("场景不存在")
+		}
+		return nil, err
+	}
+	return &scene, nil
+}
+
 func (r *SceneRepository) FindByMD5(md5 string) (*model.ResScene, error) {
 	var scene model.ResScene
 	err := r.db.Where("source_file_md5 = ?", md5).First(&scene).Error

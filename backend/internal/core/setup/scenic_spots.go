@@ -90,80 +90,68 @@ var SceneCoordinates = map[string]struct {
 	Longitude float64
 	Latitude  float64
 }{
-	// 1. 玉垒关观赏平台 | 103.611379,31.001752
-	"玉垒关观赏平台": {Longitude: 103.611379, Latitude: 31.001752},
-	// 2. 玉垒关 | 103.611379,31.001752
-	"玉垒关": {Longitude: 103.611379, Latitude: 31.001752},
-	// 3. 玉垒殿 | 0,0 未找到
-	"玉垒殿": {Longitude: 0, Latitude: 0},
-	// 4. 禹王宫 | 103.611862,31.003596
-	"禹王宫": {Longitude: 103.611862, Latitude: 31.003596},
-	// 5. 鱼嘴分水堤1 | 103.604640,31.008830
-	"鱼嘴分水堤1": {Longitude: 103.604640, Latitude: 31.008830},
-	// 6. 鱼嘴分水堤2 | 103.608435,31.001146
-	"鱼嘴分水堤2": {Longitude: 103.608435, Latitude: 31.001146},
-	// 7. 宣威门 | 0,0 未找到
-	"宣威门": {Longitude: 0, Latitude: 0},
-	// 8. 天下爱情第一桥 | 103.608945,31.006044
-	"天下爱情第一桥": {Longitude: 103.608945, Latitude: 31.006044},
-	// 9. 西关 | 103.612581,30.999904
-	"西关": {Longitude: 103.612581, Latitude: 30.999904},
-	// 10. 太极殿 | 0,0 未找到
-	"太极殿": {Longitude: 0, Latitude: 0},
-	// 11. 石林 | 0,0 未找到
-	"石林": {Longitude: 0, Latitude: 0},
-	// 12. 善水阁 | 0,0 未找到
-	"善水阁": {Longitude: 0, Latitude: 0},
-	// 13. 商铺街 | 0,0 未找到
-	"商铺街": {Longitude: 0, Latitude: 0},
-	// 14. 神木艺术馆 | 0,0 未找到
-	"神木艺术馆": {Longitude: 0, Latitude: 0},
-	// 15. 安澜索桥 | 103.609389,31.005997
-	"安澜索桥": {Longitude: 103.609389, Latitude: 31.005997},
-	// 16. 门犀亭 | 0,0 未找到
-	"门犀亭": {Longitude: 0, Latitude: 0},
-	// 17. 三官殿 | 0,0 未找到
-	"三官殿": {Longitude: 0, Latitude: 0},
-	// 18. 秦堰楼 | 103.606649,31.010009
-	"秦堰楼": {Longitude: 103.606649, Latitude: 31.010009},
-	// 19. 魁星点斗 | 0,0 未找到
-	"魁星点斗": {Longitude: 0, Latitude: 0},
-	// 20. 观景台 | 103.606649,31.010009
-	"观景台": {Longitude: 103.606649, Latitude: 31.010009},
-	// 21. 伏龙观内景 | 103.612983,30.997706
-	"伏龙观内景": {Longitude: 103.612983, Latitude: 30.997706},
-	// 22. 伏龙观观景台 | 103.612983,30.997706
-	"伏龙观观景台": {Longitude: 103.612983, Latitude: 30.997706},
-	// 23. 伏龙观 | 103.612983,30.997706
-	"伏龙观": {Longitude: 103.612983, Latitude: 30.997706},
-	// 24. 飞沙堰 | 103.607951,31.001338
-	"飞沙堰": {Longitude: 103.607951, Latitude: 31.001338},
-	// 25. 二王庙入口 | 103.610210,31.005773
-	"二王庙入口": {Longitude: 103.610210, Latitude: 31.005773},
-	// 26. 二王庙内景 | 103.610210,31.005773
-	"二王庙内景": {Longitude: 103.610210, Latitude: 31.005773},
-	// 27. 二王庙道观 | 103.610210,31.005773
-	"二王庙道观": {Longitude: 103.610210, Latitude: 31.005773},
-	// 28. 二王庙 | 103.610210,31.005773
-	"二王庙": {Longitude: 103.610210, Latitude: 31.005773},
-	// 29. 东苑 | 0,0 未找到
-	"东苑": {Longitude: 0, Latitude: 0},
-	// 30. 马王殿 | 0,0 未找到
-	"马王殿": {Longitude: 0, Latitude: 0},
-	// 31. 斗犀亭 | 0,0 未找到
-	"斗犀亭": {Longitude: 0, Latitude: 0},
-	// 32. 财神殿 | 0,0 未找到
-	"财神殿": {Longitude: 0, Latitude: 0},
-	// 33. 安澜桥 | 103.609389,31.005997
-	"安澜桥": {Longitude: 103.609389, Latitude: 31.005997},
-	// 34. 南桥-夜景 | 103.613595,30.998393
-	"南桥-夜景": {Longitude: 103.613595, Latitude: 30.998393},
-	// 35. 都江堰景区大门 | 103.615379,30.995792
+	// 离堆/大门区域
 	"都江堰景区大门": {Longitude: 103.615379, Latitude: 30.995792},
-	// 36. 都江堰后门-白景 | 103.607628,31.008030
+	"景区大门":    {Longitude: 103.615379, Latitude: 30.995792},
+	"卧铁":      {Longitude: 103.614500, Latitude: 30.996500},
+	"清溪园":     {Longitude: 103.613800, Latitude: 30.997200},
+	"天府源茶馆":   {Longitude: 103.613200, Latitude: 30.997800},
+	"堰功道":     {Longitude: 103.612800, Latitude: 30.998200},
+	"张松银杏":    {Longitude: 103.612500, Latitude: 30.998600},
+	"伏龙观":     {Longitude: 103.612200, Latitude: 30.999000},
+	"伏龙观内景":   {Longitude: 0, Latitude: 0},
+	"伏龙观观景台":  {Longitude: 0, Latitude: 0},
+	"离堆":      {Longitude: 103.611800, Latitude: 30.999500},
+
+	// 鱼嘴/索桥区域
+	"飞沙堰":   {Longitude: 103.608000, Latitude: 31.001000},
+	"金刚堤":   {Longitude: 103.607000, Latitude: 31.003000}, 
+	"鱼嘴分水堤2": {Longitude: 103.607000, Latitude: 31.003000}, // 映射金刚堤
+	"安澜索桥": {Longitude: 103.609000, Latitude: 31.006000},
+	"安澜桥":   {Longitude: 0, Latitude: 0},
+	"天下爱情第一桥": {Longitude: 0, Latitude: 0},
+	"鱼嘴":     {Longitude: 103.605000, Latitude: 31.009000},
+	"鱼嘴分水堤1": {Longitude: 103.605000, Latitude: 31.009000}, // 映射鱼嘴
+
+	// 山上/庙宇区域
+	"秦堰楼": {Longitude: 103.607000, Latitude: 31.010000},
+	"观景台": {Longitude: 0, Latitude: 0},
+	"二王庙": {Longitude: 103.610500, Latitude: 31.006000},
+	"二王庙入口": {Longitude: 0, Latitude: 0},
+	"二王庙内景": {Longitude: 0, Latitude: 0},
+	"二王庙道观": {Longitude: 0, Latitude: 0},
+	"禹王宫":  {Longitude: 103.611862, Latitude: 31.003596},
+
+	// 古道/广场区域
+	"灵动森林":  {Longitude: 103.611500, Latitude: 31.004500},
+	"善水阁":   {Longitude: 103.611500, Latitude: 31.004500}, // 映射灵动森林
+	"敬修之牌坊": {Longitude: 103.612500, Latitude: 31.003000},
+	"商铺街":   {Longitude: 103.612500, Latitude: 31.003000}, // 映射敬修之牌坊
+	"松茂古道":  {Longitude: 103.613500, Latitude: 31.001500},
+	"神木艺术馆": {Longitude: 103.613500, Latitude: 31.001500}, // 映射松茂古道
+	"玉垒阁":   {Longitude: 103.614500, Latitude: 31.000500},
+	"玉垒关观赏平台": {Longitude: 103.614500, Latitude: 31.000500}, // 映射玉垒阁
+	"玉垒关":   {Longitude: 0, Latitude: 0},
+	"玉垒殿":   {Longitude: 0, Latitude: 0},
+	"宣威门":   {Longitude: 0, Latitude: 0},
+	"城隍庙":   {Longitude: 103.615000, Latitude: 31.000000},
+	"十殿":     {Longitude: 103.615500, Latitude: 30.999500},
+	"玉垒山广场": {Longitude: 103.616000, Latitude: 30.999000},
+	"南桥-夜景": {Longitude: 0, Latitude: 0},
+	"西关":    {Longitude: 103.612581, Latitude: 30.999904},
+
+	// 其他保持0,0的条目
+	"太极殿":   {Longitude: 0, Latitude: 0},
+	"石林":    {Longitude: 0, Latitude: 0},
+	"门犀亭":   {Longitude: 0, Latitude: 0},
+	"三官殿":   {Longitude: 0, Latitude: 0},
+	"魁星点斗": {Longitude: 0, Latitude: 0},
+	"东苑":    {Longitude: 0, Latitude: 0},
+	"马王殿":   {Longitude: 0, Latitude: 0},
+	"斗犀亭":   {Longitude: 0, Latitude: 0},
+	"财神殿":   {Longitude: 0, Latitude: 0},
 	"都江堰后门-白景": {Longitude: 103.607628, Latitude: 31.008030},
-	// 37. 都江堰后门-夜景 | 103.607628,31.008030
-	"都江堰后门-夜景": {Longitude: 103.607628, Latitude: 31.008030},
+	"都江堰后门-夜景": {Longitude: 0, Latitude: 0},
 }
 
 // GetSceneCoordinate 获取指定场景标题的坐标

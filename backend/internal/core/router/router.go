@@ -125,6 +125,18 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		}
 
 		api.GET("/ws", websocket.HandleWebSocket(wsHub))
+
+		// 资源流式读取 —— 公开路由，无需鉴权
+		// 瓦片是高频请求（每个场景 500+ 张），不做 JWT 校验
+		resGroup := api.Group("/res")
+		{
+			// GET /api/v1/res/tiles/:sceneCode/:face/:level/:x/:y
+			resGroup.GET("/tiles/:sceneCode/:face/:level/:x/:y", handler.GetTile(sceneService))
+			// GET /api/v1/res/previews/:sceneCode
+			resGroup.GET("/previews/:sceneCode", handler.GetPreview(sceneService))
+			// GET /api/v1/res/covers/:spaceName
+			resGroup.GET("/covers/:spaceName", handler.GetCover(sceneService))
+		}
 	}
 
 	r.GET("/health", func(c *gin.Context) {

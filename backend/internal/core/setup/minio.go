@@ -141,7 +141,7 @@ func (m *MinIOSetup) printInitResult(steps []string, successSteps []string, fail
 		fmt.Printf("❌ %s\n", step)
 	}
 	fmt.Printf("\n总步骤: %d, 成功: %d, 失败: %d\n", len(steps), len(successSteps), len(failedSteps))
-	fmt.Println("========================\n")
+	fmt.Println("========================")
 }
 
 func (m *MinIOSetup) GetClient() *minio.Client {

@@ -128,7 +128,18 @@ func (s *ResourceInitService) checkAndSyncScenes(spaceID uint, spaceName string,
 			if seedErr := s.seedSceneIfNotExists(spaceID, spaceName, spot.LocalPath, sceneSeed); seedErr != nil {
 				logger.Warnf("同步场景 %s 失败: %v", sceneSeed.Title, seedErr)
 			}
-		} else if err != nil {
+		} else if err == nil {
+			// 如果场景已存在但坐标为0，尝试补全坐标
+			if existingScene.Longitude == 0 && existingScene.Latitude == 0 {
+				if lon, lat, found := setup.GetSceneCoordinate(sceneSeed.Title); found {
+					s.db.Model(&existingScene).Updates(map[string]interface{}{
+						"longitude": lon,
+						"latitude":  lat,
+					})
+					logger.Infof("📍 补全场景坐标: %s (%f, %f)", sceneSeed.Title, lon, lat)
+				}
+			}
+		} else {
 			logger.Warnf("检查场景 %s 时出错: %v", sceneSeed.Title, err)
 		}
 	}
@@ -218,6 +229,13 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 		SourceFileSize: fileInfo.Size(),
 		SourceFileMD5:  md5Str,
 		Status:         1,
+		InitialFOV:     100,
+	}
+
+	// 设置坐标
+	if lon, lat, found := setup.GetSceneCoordinate(scene.Title); found {
+		newScene.Longitude = lon
+		newScene.Latitude = lat
 	}
 
 	if createErr := s.db.Create(&newScene).Error; createErr != nil {

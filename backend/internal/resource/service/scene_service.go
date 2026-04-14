@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -705,9 +706,6 @@ func (s *SceneService) BatchUpdateScenePosition(positions []dto.ScenePosition, u
 	return s.repo.BatchUpdatePosition(updates)
 }
 
-// generateSceneCode 生成或清理 SceneCode
-// 如果提供了 sceneCode，则清理并验证格式
-// 如果没有提供，则根据 title 自动生成拼音-UUID 格式
 func (s *SceneService) generateSceneCode(sceneCode, title string) (string, error) {
 	// 如果提供了 SceneCode，清理并验证
 	if sceneCode != "" {
@@ -732,4 +730,88 @@ func (s *SceneService) generateSceneCode(sceneCode, title string) (string, error
 	
 	// 生成拼音-UUID 格式
 	return utils.GenerateSceneCode(title), nil
+}
+
+// ==================== 资源流式读取 ====================
+
+// validFaces cubemap 六个面的合法名称
+var validFaces = map[string]bool{
+	"px": true, "nx": true,
+	"py": true, "ny": true,
+	"pz": true, "nz": true,
+}
+
+// IsValidFace 校验 cubemap 面名称是否合法
+func IsValidFace(face string) bool {
+	return validFaces[face]
+}
+
+// ResourceStreamResult 资源流式读取的结果
+type ResourceStreamResult struct {
+	Stream      io.ReadCloser
+	Size        int64
+	ETag        string
+	ContentType string
+}
+
+// GetTileStream 流式获取瓦片图片
+// 路径规则：spaces/{spaceName}/tiles/{sceneCode}/cubemap/{face}/level_{level}/tile_{y}_{x}.jpg
+func (s *SceneService) GetTileStream(ctx context.Context, sceneCode, face string, level, y, x int) (*ResourceStreamResult, error) {
+	// 1. 通过 sceneCode 查到 scene → space.slug
+	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	if err != nil {
+		return nil, fmt.Errorf("scene not found: %w", err)
+	}
+
+	spaceName := scene.Space.Slug
+
+	// 2. 拼接 MinIO 对象路径
+	objectPath := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_%d/tile_%d_%d.jpg",
+		spaceName, sceneCode, face, level, y, x)
+
+	// 3. 流式获取
+	return s.getObjectStream(ctx, objectPath, "image/jpeg")
+}
+
+// GetPreviewStream 流式获取预览图
+// 路径规则：spaces/{spaceName}/previews/{sceneCode}/preview.jpg
+func (s *SceneService) GetPreviewStream(ctx context.Context, sceneCode string) (*ResourceStreamResult, error) {
+	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	if err != nil {
+		return nil, fmt.Errorf("scene not found: %w", err)
+	}
+
+	spaceName := scene.Space.Slug
+	objectPath := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceName, sceneCode)
+
+	return s.getObjectStream(ctx, objectPath, "image/jpeg")
+}
+
+// GetCoverStream 流式获取空间封面
+// 路径规则：spaces/{spaceName}/covers/cover.jpg
+func (s *SceneService) GetCoverStream(ctx context.Context, spaceName string) (*ResourceStreamResult, error) {
+	objectPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", spaceName)
+	return s.getObjectStream(ctx, objectPath, "image/jpeg")
+}
+
+// getObjectStream 通用的 MinIO 对象流式获取
+func (s *SceneService) getObjectStream(ctx context.Context, objectPath, contentType string) (*ResourceStreamResult, error) {
+	obj, err := s.minioClient.GetObjectStream(ctx, objectPath)
+	if err != nil {
+		return nil, fmt.Errorf("get object failed: %w", err)
+	}
+
+	// Stat 获取对象元信息（大小、ETag 等）
+	info, err := obj.Stat()
+	if err != nil {
+		obj.Close()
+		return nil, fmt.Errorf("object not found: %w", err)
+	}
+
+	return &ResourceStreamResult{
+		Stream:      obj,
+		Size:        info.Size,
+		ETag:        info.ETag,
+		ContentType: contentType,
+	}, nil
 }

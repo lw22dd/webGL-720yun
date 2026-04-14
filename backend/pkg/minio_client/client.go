@@ -146,6 +146,28 @@ func (m *MinIOClient) DeleteObject(objectName string) error {
 	return nil
 }
 
+func (m *MinIOClient) DeleteObjectsWithPrefix(prefix string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	objectsCh := m.client.ListObjects(ctx, m.config.Bucket, minio.ListObjectsOptions{
+		Prefix:    prefix,
+		Recursive: true,
+	})
+
+	for obj := range objectsCh {
+		if obj.Err != nil {
+			return fmt.Errorf("列出对象失败 [%s]: %w", prefix, obj.Err)
+		}
+		if err := m.client.RemoveObject(ctx, m.config.Bucket, obj.Key, minio.RemoveObjectOptions{}); err != nil {
+			return fmt.Errorf("删除对象失败 [%s]: %w", obj.Key, err)
+		}
+	}
+
+	logger.Infof("🗑️  递归删除成功: %s", prefix)
+	return nil
+}
+
 func (m *MinIOClient) GetObjectURL(objectName string) string {
 	scheme := "http"
 	if m.config.UseSSL {
@@ -183,6 +205,16 @@ func (m *MinIOClient) ListObjects(prefix string, recursive bool) ([]minio.Object
 		objects = append(objects, obj)
 	}
 	return objects, nil
+}
+
+// GetObjectStream 流式获取 MinIO 对象，返回 *minio.Object（实现 io.ReadCloser）
+// 用于瓦片/预览图等资源的零拷贝流式转发，不会将整个文件读入内存
+func (m *MinIOClient) GetObjectStream(ctx context.Context, objectName string) (*minio.Object, error) {
+	obj, err := m.client.GetObject(ctx, m.config.Bucket, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取对象流失败 [%s]: %w", objectName, err)
+	}
+	return obj, nil
 }
 
 func (m *MinIOClient) GetClient() *minio.Client {

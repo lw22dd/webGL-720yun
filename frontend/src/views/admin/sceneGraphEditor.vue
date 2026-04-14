@@ -9,18 +9,9 @@
         <div class="space-name">{{ graphData?.space_info?.name || '加载中...' }}</div>
       </div>
       <div class="header-center">
-        <GraphToolbar
-          :can-undo="canUndo"
-          :can-redo="canRedo"
-          :zoom="zoom"
-          @undo="handleUndo"
-          @redo="handleRedo"
-          @zoom-in="handleZoomIn"
-          @zoom-out="handleZoomOut"
-          @zoom-reset="handleZoomReset"
-          @fit-content="handleFitContent"
-          @save="handleSave"
-        />
+        <GraphToolbar :can-undo="canUndo" :can-redo="canRedo" :zoom="zoom" @undo="handleUndo" @redo="handleRedo"
+          @zoom-in="handleZoomIn" @zoom-out="handleZoomOut" @zoom-reset="handleZoomReset"
+          @fit-content="handleFitContent" @save="handleSave" />
       </div>
       <div class="header-right">
         <t-tag theme="primary" variant="light">
@@ -31,15 +22,9 @@
 
     <div class="editor-main">
       <div class="graph-area" ref="graphAreaRef">
-        <GraphContainer
-          ref="graphContainerRef"
-          :graph-data="graphData"
-          @node-click="handleNodeClick"
-          @node-move="handleNodeMove"
-          @edge-click="handleEdgeClick"
-          @blank-click="handleBlankClick"
-          @zoom-change="handleZoomChange"
-        />
+        <GraphContainer ref="graphContainerRef" :graph-data="graphData" @node-click="handleNodeClick"
+          @node-move="handleNodeMove" @edge-click="handleEdgeClick" @blank-click="handleBlankClick"
+          @zoom-change="handleZoomChange" />
       </div>
 
       <div class="unplaced-area" v-if="unplacedNodes.length > 0">
@@ -48,13 +33,8 @@
           <span>待处理节点 ({{ unplacedNodes.length }})</span>
         </div>
         <div class="unplaced-list">
-          <div
-            v-for="node in unplacedNodes"
-            :key="node.id"
-            class="unplaced-item"
-            draggable="true"
-            @dragstart="handleDragStart($event, node)"
-          >
+          <div v-for="node in unplacedNodes" :key="node.id" class="unplaced-item" draggable="true"
+            @dragstart="handleDragStart($event, node)">
             <div class="unplaced-thumb">
               <img v-if="node.thumbnail_url" :src="node.thumbnail_url" :alt="node.title" />
               <t-icon v-else name="image" size="24" />
@@ -68,14 +48,8 @@
       </div>
     </div>
 
-    <PropertyPanel
-      v-if="selectedNode || selectedEdge"
-      :node="selectedNode"
-      :edge="selectedEdge"
-      @update-node="handleUpdateNode"
-      @update-edge="handleUpdateEdge"
-      @close="handleClosePanel"
-    />
+    <PropertyPanel v-if="selectedNode || selectedEdge" :node="selectedNode" :edge="selectedEdge"
+      @update-node="handleUpdateNode" @update-edge="handleUpdateEdge" @close="handleClosePanel" />
   </div>
 </template>
 
@@ -88,7 +62,7 @@ import GraphToolbar from '@/components/graph/GraphToolbar.vue'
 import PropertyPanel from '@/components/graph/PropertyPanel.vue'
 import type { GraphDataResponse, SceneNodeData, EdgeData, ScenePosition } from '@/models/SceneModel'
 import { useGraphHistory } from '@/composables/useGraphHistory'
-import { mockSpaces } from '@/utils/mockData'
+import SceneApi from '@/apis/sceneApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,7 +70,7 @@ const router = useRouter()
 const spaceId = computed(() => Number(route.params.id))
 
 const graphData = ref<GraphDataResponse | null>(null)
-// const loading = ref(false)
+const loading = ref(false)
 const zoom = ref(1)
 const selectedNode = ref<SceneNodeData | null>(null)
 const selectedEdge = ref<EdgeData | null>(null)
@@ -114,53 +88,24 @@ const totalCount = computed(() => {
 })
 const unplacedNodes = computed(() => graphData.value?.unplaced || [])
 
-const loadGraphData = () => {
-  const space = mockSpaces.find(s => s.id === spaceId.value)
-  if (!space) {
-    MessagePlugin.warning('空间不存在')
-    return
-  }
-
-  const nodes: SceneNodeData[] = []
-  const unplaced: SceneNodeData[] = []
-  const edges: EdgeData[] = []
-
-  space.scenes.forEach((scene) => {
-    const nodeData: SceneNodeData = {
-      id: scene.id,
-      title: scene.title,
-      scene_code: scene.scene_code,
-      thumbnail_url: scene.thumbnail_url,
-      longitude: scene.longitude,
-      latitude: scene.latitude,
-      has_position: scene.longitude !== 0 && scene.latitude !== 0,
-      view_count: scene.view_count
-    }
-
-    if (nodeData.has_position) {
-      nodes.push(nodeData)
+const loadGraphData = async () => {
+  loading.value = true
+  try {
+    const res = await SceneApi.getSpaceGraph(spaceId.value)
+    if (res.code === 200 && res.data) {
+      console.log(res.data)
+      graphData.value = res.data
+      clearHistory()
+      pushState(res.data)
     } else {
-      unplaced.push(nodeData)
+      MessagePlugin.error(res.msg || '获取图数据失败')
     }
-
-  })
-
-  // 不创建边，只显示散点
-
-  graphData.value = {
-    space_info: {
-      id: space.id,
-      name: space.name,
-      longitude: space.longitude,
-      latitude: space.latitude,
-      zoom_level: space.zoom_level
-    },
-    nodes,
-    edges,
-    unplaced
+  } catch (error) {
+    console.error('加载图数据失败:', error)
+    MessagePlugin.error('加载图数据失败')
+  } finally {
+    loading.value = false
   }
-  clearHistory()
-  pushState(graphData.value)
 }
 
 const goBack = () => {
@@ -252,8 +197,20 @@ const handleSave = async () => {
     return
   }
 
-  console.log('保存坐标（测试模式）:', positions)
-  MessagePlugin.success('保存成功（测试模式）')
+  loading.value = true
+  try {
+    const res = await SceneApi.batchUpdateScenePosition({ positions })
+    if (res.code === 200) {
+      MessagePlugin.success('保存成功')
+    } else {
+      MessagePlugin.error(res.msg || '保存失败')
+    }
+  } catch (error) {
+    console.error('保存坐标失败:', error)
+    MessagePlugin.error('保存坐标失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleDragStart = (event: DragEvent, node: SceneNodeData) => {
@@ -388,7 +345,6 @@ onMounted(() => {
 
 .unplaced-list {
   flex: 1;
-  overflow-y: auto;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -469,11 +425,11 @@ onMounted(() => {
   .space-name {
     max-width: 200px;
   }
-  
+
   .graph-area {
     max-width: calc(100% - 360px);
   }
-  
+
   .unplaced-area {
     width: 360px;
     max-width: 360px;
@@ -519,7 +475,7 @@ onMounted(() => {
     flex-direction: row;
     flex-wrap: wrap;
   }
-  
+
   .unplaced-item {
     width: calc(50% - 4px);
   }
@@ -545,7 +501,7 @@ onMounted(() => {
     font-size: 14px;
     max-width: none;
   }
-  
+
   .unplaced-item {
     width: 100%;
   }

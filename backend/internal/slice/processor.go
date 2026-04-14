@@ -394,11 +394,23 @@ func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir
 
 			tiles := make(map[int][]string)
 
-			level := 0
-			currentImg := img
+			// 收集所有层级的图像，从高分辨率到低分辨率
+			var levelImages []image.Image
+			tempImg := img
+			for {
+				levelImages = append(levelImages, tempImg)
+				newSize := tempImg.Bounds().Dx() / 2
+				if newSize < TileSize {
+					break
+				}
+				tempImg = imaging.Resize(tempImg, newSize, newSize, imaging.Lanczos)
+			}
 
-			for currentImg.Bounds().Dx() >= TileSize {
-				levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", level))
+			numLevels := len(levelImages)
+			for i, current := range levelImages {
+				// 反转层级索引：最小分辨率为 level_0，最高分辨率为 level_(numLevels-1)
+				levelIndex := numLevels - 1 - i
+				levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", levelIndex))
 				if err := os.MkdirAll(levelDir, 0755); err != nil {
 					resultChan <- faceTilesResult{
 						faceName: name,
@@ -407,7 +419,7 @@ func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir
 					return
 				}
 
-				tileFiles, err := p.sliceImage(currentImg, levelDir, level, name)
+				tileFiles, err := p.sliceImage(current, levelDir, levelIndex, name)
 				if err != nil {
 					resultChan <- faceTilesResult{
 						faceName: name,
@@ -416,15 +428,7 @@ func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir
 					return
 				}
 
-				tiles[level] = tileFiles
-
-				newSize := currentImg.Bounds().Dx() / 2
-				if newSize < TileSize {
-					break
-				}
-
-				currentImg = imaging.Resize(currentImg, newSize, newSize, imaging.Lanczos)
-				level++
+				tiles[levelIndex] = tileFiles
 			}
 
 			resultChan <- faceTilesResult{
