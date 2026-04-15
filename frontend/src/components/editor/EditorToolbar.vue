@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, computed } from 'vue'
+import { inject, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGraphSceneStore } from '@/stores/graphSceneStore'
 import ZoomControl from '@/components/editor-common/ZoomControl.vue'
@@ -80,12 +80,12 @@ const graphActions = inject<{
   undo: () => void
   redo: () => void
   fitCanvas: () => void
-  canUndo: boolean
-  canRedo: boolean
+  canUndoRef: Ref<boolean>
+  canRedoRef: Ref<boolean>
 } | null>('graphActions', null)
 
-const canUndo = computed(() => graphActions?.canUndo ?? false)
-const canRedo = computed(() => graphActions?.canRedo ?? false)
+const canUndo = graphActions?.canUndoRef ?? { value: false }
+const canRedo = graphActions?.canRedoRef ?? { value: false }
 
 function handleBack() {
   router.push('/admin/spaces')

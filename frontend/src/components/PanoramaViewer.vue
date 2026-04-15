@@ -84,9 +84,9 @@
             :key="index"
             class="quiz-option"
             :class="{ 'selected': selectedQuizOption === index }"
-            @click="selectedQuizOption = index"
+            @click="selectedQuizOption = Number(index)"
           >
-            {{ String.fromCharCode(65 + index) }}. {{ option }}
+            {{ String.fromCharCode(65 + Number(index)) }}. {{ String(option) }}
           </div>
         </div>
         <t-button 

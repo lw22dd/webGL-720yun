@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, provide, reactive, watch, nextTick, inject } from 'vue'
-import { Graph as X6Graph, History, Selection, Snapline } from '@antv/x6'
+import { Graph as X6Graph, History, Selection, Snapline, Scroller } from '@antv/x6'
 import { ForceLayout } from '@antv/layout'
 import { useGraphSceneStore } from '@/stores/graphSceneStore'
 import { useGraphEditorStore } from '@/stores/graphEditorStore'
@@ -24,6 +24,7 @@ const sceneStore = useGraphSceneStore()
 const editorStore = useGraphEditorStore()
 
 let graph: X6Graph | null = null
+let historyInstance: History | null = null
 const canUndo = ref(false)
 const canRedo = ref(false)
 
@@ -33,21 +34,21 @@ interface LayoutComputingState {
 }
 const layoutComputing = inject<LayoutComputingState>('layoutComputingState', {
   isLayoutComputing: { value: false },
-  setLayoutComputing: () => {}
+  setLayoutComputing: () => { }
 })
 
 const dndActions = reactive<{ startDrag: ((nodeData: any, e: MouseEvent) => void) | null }>({ startDrag: null })
 provide(DND_ACTIONS_KEY, dndActions as any)
 
-const graphActionsObj = reactive({
+const graphActionsObj = {
   getGraph: () => graph,
   undo: () => graph?.undo(),
   redo: () => graph?.redo(),
   zoomIn: () => graph?.zoom(ZOOM_LIMITS.step),
   zoomOut: () => graph?.zoom(-ZOOM_LIMITS.step),
   fitCanvas: () => graph?.zoomToFit({ maxScale: 1 }),
-  get canUndo() { return canUndo.value },
-  get canRedo() { return canRedo.value },
+  canUndoRef: canUndo,
+  canRedoRef: canRedo,
   uploadBackground(file: File) {
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -61,7 +62,7 @@ const graphActionsObj = reactive({
     }
     reader.readAsDataURL(file)
   },
-})
+}
 provide('graphActions', graphActionsObj)
 
 const LNG_MIN = 103.605
@@ -267,10 +268,6 @@ function initGraph() {
     autoResize: true,
     grid: GRID_CONFIG,
     background: { color: COLORS.canvas.bg },
-    panning: {
-      enabled: true,
-      modifiers: ['shift'],
-    },
     interacting: {
       nodeMovable: true,
       edgeMovable: true,
@@ -349,7 +346,19 @@ function initGraph() {
     },
   })
 
-  graph.use(new History({ enabled: true, stackSize: HISTORY_STACK_SIZE }))
+  historyInstance = new History({
+    enabled: true,
+    stackSize: HISTORY_STACK_SIZE,
+    beforeAddCommand(event, args: any) {
+      if (event === 'cell:change:ports' || (args && args.key === 'ports') || event === 'node:change:ports') {
+        return false
+      }
+      return true
+    }
+  })
+  graph.use(historyInstance)
+  console.log('[History] 插件初始化完成, isEnabled:', historyInstance.isEnabled())
+
   graph.use(new Selection({
     enabled: true,
     rubberband: true,
@@ -362,12 +371,22 @@ function initGraph() {
     tolerance: SNAPLINE_TOLERANCE,
     sharp: true,
   }))
+  graph.use(new Scroller({
+    enabled: true,
+    pannable: true,
+    autoResize: true,
+    pageVisible: false,
+    pageBreak: false,
+  }))
 
   const dnd = createDnd(graph)
   dndActions.startDrag = dnd.startDrag
   useGraphKeyboard()
 
   setupGraphEvents()
+
+  canUndo.value = graph.getUndoStackSize() > 0
+  canRedo.value = graph.getRedoStackSize() > 0
 
   nextTick(() => {
     if (sceneStore.placedNodes.length > 0) {
@@ -410,6 +429,7 @@ function resolveOverlaps(nodes: LayoutNode[], minDistance: number) {
 async function renderWithForceLayout() {
   if (!graph) return
 
+  graph.disableHistory()
   layoutComputing.setLayoutComputing(true)
   buildLayoutData()
 
@@ -476,6 +496,14 @@ async function renderWithForceLayout() {
   } finally {
     layoutComputing.setLayoutComputing(false)
   }
+
+  setTimeout(() => {
+    if (graph) {
+      graph.cleanHistory()
+      graph.enableHistory()
+      console.log('[History] 初始渲染完成，清空并重新启用历史记录')
+    }
+  }, 100)
 }
 
 function setupGraphEvents() {
@@ -484,14 +512,14 @@ function setupGraphEvents() {
   graph.on('node:mouseenter', ({ node }) => {
     const ports = node.getPorts()
     ports.forEach(port => {
-      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'visible')
+      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'visible', { history: false })
     })
   })
 
   graph.on('node:mouseleave', ({ node }) => {
     const ports = node.getPorts()
     ports.forEach(port => {
-      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'hidden')
+      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'hidden', { history: false })
     })
   })
 
@@ -546,10 +574,20 @@ function setupGraphEvents() {
     }
   })
 
+  graph.on('history:add', ({ cmds, options }) => {
+    console.log('[History] history:add 事件触发', { cmds, options })
+    console.log('[History] undoStackSize:', graph?.getUndoStackSize(), 'redoStackSize:', graph?.getRedoStackSize())
+  })
+
   graph.on('history:change', () => {
+    console.log('[History] history:change 事件触发')
     if (graph) {
-      canUndo.value = graph.canUndo()
-      canRedo.value = graph.canRedo()
+      const undoSize = graph.getUndoStackSize()
+      const redoSize = graph.getRedoStackSize()
+      console.log('[History] undoStackSize:', undoSize, 'redoStackSize:', redoSize)
+      console.log('[History] canUndo:', graph.canUndo(), 'canRedo:', graph.canRedo())
+      canUndo.value = undoSize > 0
+      canRedo.value = redoSize > 0
     }
   })
 }
