@@ -2,18 +2,13 @@
   <div class="china-map-container">
     <div ref="mapContainer" class="map-wrapper" v-loading="loading"></div>
     <div class="search-box">
-      <t-input
-        v-model="searchKeyword"
-        placeholder="搜索景点或区域..."
-        @enter="handleSearch"
-        @change="handleSearchChange"
-        clearable
-      >
+      <t-input v-model="searchKeyword" placeholder="搜索景点或区域..." @enter="handleSearch" @change="handleSearchChange"
+        clearable>
         <template #prefix-icon>
           <SearchIcon />
         </template>
       </t-input>
-      
+
       <div v-if="showSearchResults" class="search-results">
         <div v-if="searchHistory.length > 0 && !searchKeyword.trim()" class="search-history">
           <div class="search-history-header">
@@ -21,28 +16,20 @@
             <button class="search-history-clear" @click="clearSearchHistory">清除</button>
           </div>
           <div class="search-history-tags">
-            <span 
-              v-for="(term, index) in searchHistory.slice(0, 8)" 
-              :key="index"
-              class="search-history-tag"
-              @click="onHistoryTagClick(term)"
-            >
+            <span v-for="(term, index) in searchHistory.slice(0, 8)" :key="index" class="search-history-tag"
+              @click="onHistoryTagClick(term)">
               {{ term }}
             </span>
           </div>
         </div>
-        
+
         <div v-else-if="searchKeyword.trim() && searchResults.length === 0" class="search-empty">
           未找到「{{ searchKeyword }}」相关结果
         </div>
-        
+
         <div v-else-if="searchResults.length > 0" class="search-result-list">
-          <div
-            v-for="result in searchResults"
-            :key="result.id"
-            class="search-result-item"
-            @click="handleResultClick(result)"
-          >
+          <div v-for="result in searchResults" :key="result.id" class="search-result-item"
+            @click="handleResultClick(result)">
             <span class="result-name">
               <template v-if="result.type === 'space'">🏛</template>
               <template v-else>🎥</template>
@@ -52,32 +39,21 @@
           </div>
         </div>
       </div>
-      
+
       <div class="hot-tags" v-if="!showSearchResults">
         <span class="hot-tag-label">热门：</span>
-        <span 
-          v-for="tag in hotTags" 
-          :key="tag" 
-          class="hot-tag"
-          @click="onHotTagClick(tag)"
-        >
+        <span v-for="tag in hotTags" :key="tag" class="hot-tag" @click="onHotTagClick(tag)">
           {{ tag }}
         </span>
       </div>
-      
+
       <div class="view-toggle">
-        <t-button 
-          :variant="viewMode === 'map' ? 'base' : 'outline'" 
-          size="small"
-          @click="$emit('viewModeChange', 'map')"
-        >
+        <t-button :variant="viewMode === 'map' ? 'base' : 'outline'" size="small"
+          @click="$emit('viewModeChange', 'map')">
           🗺️
         </t-button>
-        <t-button 
-          :variant="viewMode === 'card' ? 'base' : 'outline'" 
-          size="small"
-          @click="$emit('viewModeChange', 'card')"
-        >
+        <t-button :variant="viewMode === 'card' ? 'base' : 'outline'" size="small"
+          @click="$emit('viewModeChange', 'card')">
           📋
         </t-button>
       </div>
@@ -146,6 +122,7 @@ const loadSpaceList = async () => {
     loading.value = true
     const result = await SpaceApi.getSpaceList({ page: 1, page_size: 100 })
     if (result.code === 200 && result.data) {
+      console.log(result.data)
       spaceList.value = result.data.spaces
       updateMapData()
     }
@@ -175,10 +152,10 @@ const initMap = async () => {
         borderColor: 'rgba(255,255,255,0.1)',
         borderWidth: 1,
         padding: [12, 16],
-        textStyle: { 
-          color: '#fff', 
-          fontSize: 13, 
-          fontFamily: 'Noto Sans SC, sans-serif' 
+        textStyle: {
+          color: '#fff',
+          fontSize: 13,
+          fontFamily: 'Noto Sans SC, sans-serif'
         },
         extraCssText: 'backdrop-filter:blur(12px);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);',
         formatter: (params: any) => {
@@ -287,6 +264,11 @@ const initMap = async () => {
       resizeObserver.observe(mapContainer.value)
     }
 
+    // 如果初始化时已经有数据了（例如 loadSpaceList 先完成了），主动触发一次更新
+    if (spaceList.value.length > 0) {
+      updateMapData()
+    }
+
   } catch (error) {
     console.error('Failed to load map:', error)
   }
@@ -296,7 +278,7 @@ const updateMapData = () => {
   if (!chartInstance) return
 
   const colors = ['#2563EB', '#DC2626', '#0EA5E9', '#8B5CF6', '#10B981', '#F59E0B', '#059669', '#D97706']
-  
+
   const scatterData = spaceList.value.map((space, index) => ({
     name: space.name,
     value: [space.longitude, space.latitude, space.scene_count || 1],
@@ -323,9 +305,9 @@ const handleSearchChange = (value: string) => {
   const results: any[] = []
 
   spaceList.value.forEach(space => {
-    if (space.name.toLowerCase().includes(keyword) || 
-        space.province.toLowerCase().includes(keyword) ||
-        space.city.toLowerCase().includes(keyword)) {
+    if (space.name.toLowerCase().includes(keyword) ||
+      space.province.toLowerCase().includes(keyword) ||
+      space.city.toLowerCase().includes(keyword)) {
       results.push({
         id: space.id,
         name: space.name,
@@ -348,9 +330,9 @@ const handleSearch = () => {
 const handleResultClick = async (result: any) => {
   searchKeyword.value = result.name
   showSearchResults.value = false
-  
+
   saveSearchHistory(result.name)
-  
+
   if (result.type === 'space') {
     const detailResult = await SpaceApi.getSpaceDetail(result.id)
     if (detailResult.code === 200 && detailResult.data) {
@@ -380,10 +362,10 @@ watch(() => props.viewMode, () => {
   }, 100)
 })
 
-onMounted(() => {
+onMounted(async () => {
   loadSearchHistory()
-  initMap()
-  loadSpaceList()
+  await initMap()
+  await loadSpaceList()
 })
 
 onUnmounted(() => {
