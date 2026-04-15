@@ -1,5 +1,6 @@
 import type { Result } from "@/models/Result";
 import type { SpaceListRequest, SpaceDetailResponse, SpaceListResponse, CreateSpaceRequest, UpdateSpaceRequest } from "@/models/SpaceModel";
+import type { GraphDataResponse } from "@/models/graphEditor/scene";
 import Axios from "@/utils/axios";
 
 export default class SpaceApi {
@@ -45,5 +46,9 @@ export default class SpaceApi {
 
     public static async deleteSpaceBatch(ids: number[]): Promise<Result<{ message: string }>> {
         return await Axios.delete('/resource/spaces/batch', { data: { ids } });
+    }
+
+    public static async getSpaceGraph(id: number): Promise<Result<GraphDataResponse>> {
+        return await Axios.get(`/resource/spaces/${id}/graph`);
     }
 }

@@ -35,6 +35,9 @@ import { useGraphSceneStore } from '@/stores/graphSceneStore'
 import PendingNodeItem from './PendingNodeItem.vue'
 
 const sceneStore = useGraphSceneStore()
+
+
+console.log('[PendingNodeList] pendingNodes:', sceneStore.pendingNodes)
 </script>
 
 <style scoped>

@@ -11,20 +11,30 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Graph } from '@antv/g6'
-import type { MockScene } from '@/utils/mockData'
+
+interface SceneNode {
+  id: number
+  title: string
+  scene_code: string
+  longitude: number
+  latitude: number
+  thumbnail_url: string
+  view_count: number
+  sort_order: number
+}
 
 interface Props {
-  scenes: MockScene[]
+  scenes: SceneNode[]
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  (e: 'sceneClick', scene: MockScene): void
+  (e: 'sceneClick', scene: SceneNode): void
 }>()
 
 const topologyContainer = ref<HTMLElement | null>(null)
-const hoveredNode = ref<MockScene | null>(null)
+const hoveredNode = ref<SceneNode | null>(null)
 const tooltipStyle = ref({ left: '0px', top: '0px' })
 
 let graph: Graph | null = null

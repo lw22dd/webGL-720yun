@@ -633,18 +633,13 @@ func (s *SceneService) GetSpaceGraphData(spaceID uint) (*dto.GraphDataResponse, 
 	}
 
 	var nodes []*dto.SceneNodeData
-	var unplaced []*dto.SceneNodeData
 	var edges []*dto.EdgeData
 
 	sceneMap := make(map[uint]bool)
 	for _, scene := range scenes {
 		sceneMap[scene.ID] = true
 		nodeData := dto.ToSceneNodeData(scene)
-		if nodeData.HasPosition {
-			nodes = append(nodes, nodeData)
-		} else {
-			unplaced = append(unplaced, nodeData)
-		}
+		nodes = append(nodes, nodeData)
 
 		for _, hotspot := range scene.Hotspots {
 			if hotspot.Type == model.HotspotTypeSwitch && hotspot.TargetSceneID != nil {
@@ -659,7 +654,6 @@ func (s *SceneService) GetSpaceGraphData(spaceID uint) (*dto.GraphDataResponse, 
 		SpaceInfo: dto.ToSpaceInfoForGraph(space),
 		Nodes:     nodes,
 		Edges:     edges,
-		Unplaced:  unplaced,
 	}, nil
 }
 

@@ -5,10 +5,9 @@ import (
 )
 
 type GraphDataResponse struct {
-	SpaceInfo   *SpaceInfoForGraph `json:"space_info"`
-	Nodes       []*SceneNodeData   `json:"nodes"`
-	Edges       []*EdgeData        `json:"edges"`
-	Unplaced    []*SceneNodeData   `json:"unplaced"`
+	SpaceInfo *SpaceInfoForGraph `json:"space_info"`
+	Nodes     []*SceneNodeData   `json:"nodes"`
+	Edges     []*EdgeData        `json:"edges"`
 }
 
 type SpaceInfoForGraph struct {
@@ -28,6 +27,7 @@ type SceneNodeData struct {
 	Latitude     float64 `json:"latitude"`
 	HasPosition  bool    `json:"has_position"`
 	ViewCount    int64   `json:"view_count"`
+	Status       string  `json:"status"`
 }
 
 type EdgeData struct {
@@ -36,6 +36,7 @@ type EdgeData struct {
 	TargetID     uint   `json:"target_id"`
 	HotspotID    uint   `json:"hotspot_id"`
 	HotspotTitle string `json:"hotspot_title"`
+	Type         string `json:"type"`
 }
 
 type UpdatePositionRequest struct {
@@ -65,6 +66,10 @@ func ToSpaceInfoForGraph(space *model.ResSpace) *SpaceInfoForGraph {
 
 func ToSceneNodeData(scene *model.ResScene) *SceneNodeData {
 	hasPosition := scene.Longitude != 0 || scene.Latitude != 0
+	status := "pending"
+	if hasPosition {
+		status = "placed"
+	}
 	return &SceneNodeData{
 		ID:           scene.ID,
 		Title:        scene.Title,
@@ -74,6 +79,7 @@ func ToSceneNodeData(scene *model.ResScene) *SceneNodeData {
 		Latitude:     scene.Latitude,
 		HasPosition:  hasPosition,
 		ViewCount:    scene.ViewCount,
+		Status:       status,
 	}
 }
 
@@ -82,11 +88,13 @@ func ToEdgeData(hotspot *model.ResHotspot) *EdgeData {
 	if hotspot.TargetSceneID != nil {
 		targetID = *hotspot.TargetSceneID
 	}
+	edgeType := "walk"
 	return &EdgeData{
 		ID:           hotspot.ID,
 		SourceID:     hotspot.SceneID,
 		TargetID:     targetID,
 		HotspotID:    hotspot.ID,
 		HotspotTitle: hotspot.Title,
+		Type:         edgeType,
 	}
 }

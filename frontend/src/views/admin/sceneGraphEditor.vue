@@ -12,9 +12,9 @@ const route = useRoute()
 const sceneStore = useGraphSceneStore()
 
 onMounted(() => {
-  const sceneId = route.params.id as string
-  if (sceneId) {
-    sceneStore.loadScene(sceneId)
+  const spaceId = Number(route.params.id)
+  if (spaceId) {
+    sceneStore.loadScene(spaceId)
   }
 })
 </script>

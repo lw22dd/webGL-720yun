@@ -1,13 +1,13 @@
 <template>
   <div
     class="pending-item"
-    :class="{ 'has-pano': node.hasPano }"
+    :class="{ 'has-pano': node.thumbnail_url }"
     draggable="true"
     @mousedown="handleDragStart"
   >
     <div class="item-thumb">
-      <div class="thumb-placeholder" :class="{ 'has-pano': node.hasPano }">
-        <svg v-if="node.hasPano" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="thumb-placeholder" :class="{ 'has-pano': node.thumbnail_url }">
+        <svg v-if="node.thumbnail_url" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <circle cx="12" cy="12" r="3"></circle>
         </svg>
@@ -19,9 +19,8 @@
       </div>
     </div>
     <div class="item-info">
-      <div class="item-name">{{ node.name }}</div>
+      <div class="item-name">{{ node.title }}</div>
       <div class="item-meta">
-        <span class="item-group">{{ node.group }}</span>
         <span class="item-id">{{ node.id }}</span>
       </div>
     </div>
@@ -106,14 +105,6 @@ function handleDragStart(e: MouseEvent) {
   align-items: center;
   gap: 8px;
   margin-top: 2px;
-}
-
-.item-group {
-  font-size: 11px;
-  color: #6b7280;
-  background: #f3f4f6;
-  padding: 1px 6px;
-  border-radius: 4px;
 }
 
 .item-id {

@@ -1,19 +1,16 @@
 import type { SceneNodeData } from './node'
 import type { SceneEdgeData } from './edge'
 
-export interface BackgroundMap {
-  url: string
-  width: number
-  height: number
-  x: number
-  y: number
-  opacity: number
+export interface SpaceInfoForGraph {
+  id: number
+  name: string
+  longitude: number
+  latitude: number
+  zoom_level: number
 }
 
-export interface SceneData {
-  id: string
-  name: string
+export interface GraphDataResponse {
+  space_info: SpaceInfoForGraph
   nodes: SceneNodeData[]
   edges: SceneEdgeData[]
-  backgroundMap?: BackgroundMap
 }

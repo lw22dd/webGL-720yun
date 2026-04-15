@@ -9,9 +9,17 @@
 </template>
 
 <script setup lang="ts">
+import { ref, provide } from 'vue'
 import EditorToolbar from './EditorToolbar.vue'
 import EditorCanvas from './EditorCanvas.vue'
 import EditorSidebar from './EditorSidebar.vue'
+
+const isLayoutComputing = ref(false)
+
+provide('layoutComputingState', {
+  isLayoutComputing,
+  setLayoutComputing: (val: boolean) => { isLayoutComputing.value = val }
+})
 </script>
 
 <style scoped>

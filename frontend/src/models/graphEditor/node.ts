@@ -7,14 +7,13 @@ export const SceneNodeStatus = {
 export type SceneNodeStatusType = typeof SceneNodeStatus[keyof typeof SceneNodeStatus]
 
 export interface SceneNodeData {
-  id: string
-  name: string
-  group: string
+  id: number
+  title: string
+  scene_code: string
+  thumbnail_url: string
+  longitude: number
+  latitude: number
+  has_position: boolean
+  view_count: number
   status: SceneNodeStatusType
-  thumbnail?: string
-  panoUrl?: string
-  hasPano: boolean
-  remark?: string
-  longitude?: number
-  latitude?: number
 }

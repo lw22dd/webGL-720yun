@@ -12,21 +12,21 @@
       <div class="panel-body" v-if="nodeData">
         <div class="form-group">
           <label>名称</label>
-          <input type="text" :value="nodeData.name" @input="updateNodeName($event)" />
+          <input type="text" :value="nodeData.title" @input="updateNodeTitle($event)" />
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>X 坐标</label>
-            <input type="number" :value="nodePosition?.x" readonly />
+            <label>经度</label>
+            <input type="number" :value="nodeData.longitude" step="0.000001" readonly />
           </div>
           <div class="form-group">
-            <label>Y 坐标</label>
-            <input type="number" :value="nodePosition?.y" readonly />
+            <label>纬度</label>
+            <input type="number" :value="nodeData.latitude" step="0.000001" readonly />
           </div>
         </div>
         <div class="form-group">
-          <label>分组</label>
-          <input type="text" :value="nodeData.group" readonly />
+          <label>场景编码</label>
+          <input type="text" :value="nodeData.scene_code" readonly />
         </div>
         <div class="form-group">
           <label>状态</label>
@@ -35,9 +35,9 @@
           </div>
         </div>
         <div class="form-group">
-          <label>全景图</label>
-          <div class="status-badge" :class="nodeData.hasPano ? 'has-pano' : 'no-pano'">
-            {{ nodeData.hasPano ? '已上传' : '未上传' }}
+          <label>位置</label>
+          <div class="status-badge" :class="nodeData.has_position ? 'has-position' : 'no-position'">
+            {{ nodeData.has_position ? '已定位' : '未定位' }}
           </div>
         </div>
       </div>
@@ -54,38 +54,19 @@
       <div class="panel-body" v-if="edgeData">
         <div class="form-group">
           <label>源节点</label>
-          <input type="text" :value="sourceNodeName" readonly />
+          <input type="text" :value="sourceNodeTitle" readonly />
         </div>
         <div class="form-group">
           <label>目标节点</label>
-          <input type="text" :value="targetNodeName" readonly />
+          <input type="text" :value="targetNodeTitle" readonly />
         </div>
         <div class="form-group">
-          <label>方向</label>
-          <div class="direction-toggle">
-            <button
-              class="toggle-btn"
-              :class="{ active: edgeData.direction === 'unidirectional' }"
-              @click="updateDirection('unidirectional')"
-            >
-              单向跳转
-            </button>
-            <button
-              class="toggle-btn"
-              :class="{ active: edgeData.direction === 'bidirectional' }"
-              @click="updateDirection('bidirectional')"
-            >
-              双向互通
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>标签</label>
+          <label>热点标题</label>
           <input
             type="text"
-            :value="edgeData.label || ''"
-            placeholder="如：步行 3 分钟"
-            @input="updateEdgeLabel($event)"
+            :value="edgeData.hotspot_title || ''"
+            placeholder="如：前往二王庙"
+            @input="updateEdgeHotspotTitle($event)"
           />
         </div>
         <div class="form-group">
@@ -126,7 +107,6 @@ import { computed, inject } from 'vue'
 import { useGraphEditorStore } from '@/stores/graphEditorStore'
 import { useGraphSceneStore } from '@/stores/graphSceneStore'
 import { SceneNodeStatus } from '@/models/graphEditor/node'
-import { EdgeDirection, type EdgeDirectionType } from '@/models/graphEditor/edge'
 import type { SceneNodeData } from '@/models/graphEditor/node'
 import type { SceneEdgeData } from '@/models/graphEditor/edge'
 
@@ -139,16 +119,7 @@ const graphActions = inject<{
 
 const nodeData = computed<SceneNodeData | null>(() => {
   if (editorStore.selectedType !== 'node') return null
-  return sceneStore.getNodeById(editorStore.selectedNodeId!) || null
-})
-
-const nodePosition = computed(() => {
-  if (!graphActions || !editorStore.selectedNodeId) return null
-  const graph = graphActions.getGraph()
-  if (!graph) return null
-  const node = graph.getCellById(editorStore.selectedNodeId)
-  if (!node) return null
-  return { x: Math.round(node.position().x), y: Math.round(node.position().y) }
+  return sceneStore.getNodeById(Number(editorStore.selectedNodeId)) || null
 })
 
 const statusText = computed(() => {
@@ -163,61 +134,47 @@ const statusText = computed(() => {
 
 const edgeData = computed<SceneEdgeData | null>(() => {
   if (editorStore.selectedType !== 'edge') return null
-  return sceneStore.edges.find(e => e.id === editorStore.selectedEdgeId) || null
+  return sceneStore.edges.find(e => e.id === Number(editorStore.selectedEdgeId)) || null
 })
 
-const sourceNodeName = computed(() => {
+const sourceNodeTitle = computed(() => {
   if (!edgeData.value) return ''
-  return sceneStore.getNodeById(edgeData.value.sourceId)?.name || edgeData.value.sourceId
+  const node = sceneStore.getNodeById(edgeData.value.source_id)
+  return node?.title || String(edgeData.value.source_id)
 })
 
-const targetNodeName = computed(() => {
+const targetNodeTitle = computed(() => {
   if (!edgeData.value) return ''
-  return sceneStore.getNodeById(edgeData.value.targetId)?.name || edgeData.value.targetId
+  const node = sceneStore.getNodeById(edgeData.value.target_id)
+  return node?.title || String(edgeData.value.target_id)
 })
 
-function updateNodeName(e: Event) {
+function updateNodeTitle(e: Event) {
   const value = (e.target as HTMLInputElement).value
   if (!nodeData.value) return
   const node = sceneStore.allNodes.find(n => n.id === nodeData.value!.id)
   if (node) {
-    node.name = value
+    node.title = value
     const graph = graphActions?.getGraph()
     if (graph) {
-      const x6Node = graph.getCellById(nodeData.value.id)
+      const x6Node = graph.getCellById(String(nodeData.value.id))
       if (x6Node) {
-        x6Node.setData({ ...x6Node.getData(), name: value })
+        x6Node.setData({ ...x6Node.getData(), title: value })
+        x6Node.setAttrByPath('label/text', value)
       }
     }
   }
 }
 
-function updateDirection(direction: EdgeDirectionType) {
-  if (!edgeData.value) return
-  sceneStore.updateEdge(edgeData.value.id, { direction })
-  const graph = graphActions?.getGraph()
-  if (graph) {
-    const x6Edge = graph.getCellById(edgeData.value.id)
-    if (x6Edge) {
-      if (direction === EdgeDirection.BIDIRECTIONAL) {
-        x6Edge.setAttrByPath('line/sourceMarker', { name: 'block', width: 12, height: 8 })
-      } else {
-        x6Edge.removeAttrByPath('line/sourceMarker')
-      }
-      x6Edge.setData({ ...x6Edge.getData(), direction })
-    }
-  }
-}
-
-function updateEdgeLabel(e: Event) {
+function updateEdgeHotspotTitle(e: Event) {
   const value = (e.target as HTMLInputElement).value
   if (!edgeData.value) return
-  sceneStore.updateEdge(edgeData.value.id, { label: value || undefined })
+  sceneStore.updateEdge(edgeData.value.id, { hotspot_title: value || '' })
   const graph = graphActions?.getGraph()
   if (graph) {
-    const x6Edge = graph.getCellById(edgeData.value.id)
+    const x6Edge = graph.getCellById(String(edgeData.value.id))
     if (x6Edge) {
-      x6Edge.setData({ ...x6Edge.getData(), label: value || undefined })
+      x6Edge.setData({ ...x6Edge.getData(), hotspot_title: value || '' })
       if (value) {
         x6Edge.setLabels([{ attrs: { label: { text: value } } }])
       } else {
@@ -232,7 +189,7 @@ function updateEdgeType(type: 'walk' | 'teleport') {
   sceneStore.updateEdge(edgeData.value.id, { type })
   const graph = graphActions?.getGraph()
   if (graph) {
-    const x6Edge = graph.getCellById(edgeData.value.id)
+    const x6Edge = graph.getCellById(String(edgeData.value.id))
     if (x6Edge) {
       x6Edge.setData({ ...x6Edge.getData(), type })
     }
@@ -243,7 +200,7 @@ function handleDeleteEdge() {
   if (!edgeData.value) return
   const graph = graphActions?.getGraph()
   if (graph) {
-    graph.removeCell(edgeData.value.id)
+    graph.removeCell(String(edgeData.value.id))
   }
   editorStore.clearSelection()
 }
@@ -347,12 +304,12 @@ function handleDeleteEdge() {
   color: #065f46;
 }
 
-.status-badge.has-pano {
+.status-badge.has-position {
   background: #d1fae5;
   color: #065f46;
 }
 
-.status-badge.no-pano {
+.status-badge.no-position {
   background: #fee2e2;
   color: #991b1b;
 }

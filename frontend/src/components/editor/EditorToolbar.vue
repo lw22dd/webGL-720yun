@@ -8,7 +8,7 @@
         <span>返回</span>
       </button>
       <div class="toolbar-divider"></div>
-      <h1 class="toolbar-title">{{ sceneStore.sceneName }}</h1>
+      <h1 class="toolbar-title">{{ sceneStore.spaceInfo?.name || '图编辑器' }}</h1>
       <span class="toolbar-badge">
         已放置: {{ sceneStore.placedCount }} / {{ sceneStore.totalCount }}
       </span>
@@ -70,13 +70,11 @@
 import { inject, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGraphSceneStore } from '@/stores/graphSceneStore'
-import { useGraphEditorStore } from '@/stores/graphEditorStore'
 import ZoomControl from '@/components/editor-common/ZoomControl.vue'
 import UploadButton from '@/components/editor-common/UploadButton.vue'
 
 const router = useRouter()
 const sceneStore = useGraphSceneStore()
-const editorStore = useGraphEditorStore()
 
 const graphActions = inject<{
   undo: () => void

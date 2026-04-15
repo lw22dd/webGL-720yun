@@ -1,20 +1,23 @@
 <template>
   <div class="canvas-wrapper">
     <div ref="containerRef" class="graph-container"></div>
+    <div v-if="layoutComputing.isLayoutComputing.value" class="computing-overlay">
+      <div class="computing-spinner"></div>
+      <p class="computing-text">正在计算布局...</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, provide, reactive, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, provide, reactive, watch, nextTick, inject } from 'vue'
 import { Graph as X6Graph, History, Selection, Snapline } from '@antv/x6'
 import { ForceLayout } from '@antv/layout'
 import { useGraphSceneStore } from '@/stores/graphSceneStore'
 import { useGraphEditorStore } from '@/stores/graphEditorStore'
 import { SceneNodeStatus } from '@/models/graphEditor/node'
-import { EdgeDirection } from '@/models/graphEditor/edge'
 import { createDnd, DND_ACTIONS_KEY } from '@/composables/useGraphDnd'
 import { useGraphKeyboard } from '@/composables/useGraphKeyboard'
-import { NODE_SIZE_PANO, NODE_SIZE_NO_PANO, PORT_RADIUS, COLORS, GRID_CONFIG, ZOOM_LIMITS, HISTORY_STACK_SIZE, SNAPLINE_TOLERANCE } from '@/utils/graphEditor/constants'
+import { NODE_SIZE_PANO, PORT_RADIUS, COLORS, GRID_CONFIG, ZOOM_LIMITS, HISTORY_STACK_SIZE, SNAPLINE_TOLERANCE } from '@/utils/graphEditor/constants'
 
 const containerRef = ref<HTMLElement | null>(null)
 const sceneStore = useGraphSceneStore()
@@ -24,15 +27,25 @@ let graph: X6Graph | null = null
 const canUndo = ref(false)
 const canRedo = ref(false)
 
+interface LayoutComputingState {
+  isLayoutComputing: { value: boolean }
+  setLayoutComputing: (val: boolean) => void
+}
+const layoutComputing = inject<LayoutComputingState>('layoutComputingState', {
+  isLayoutComputing: { value: false },
+  setLayoutComputing: () => {}
+})
+
 const dndActions = reactive<{ startDrag: ((nodeData: any, e: MouseEvent) => void) | null }>({ startDrag: null })
 provide(DND_ACTIONS_KEY, dndActions as any)
 
 const graphActionsObj = reactive({
-  get undo() { return () => graph?.undo() },
-  get redo() { return () => graph?.redo() },
-  get zoomIn() { return () => graph?.zoom(ZOOM_LIMITS.step) },
-  get zoomOut() { return () => graph?.zoom(-ZOOM_LIMITS.step) },
-  get fitCanvas() { return () => graph?.zoomToFit({ maxScale: 1 }) },
+  getGraph: () => graph,
+  undo: () => graph?.undo(),
+  redo: () => graph?.redo(),
+  zoomIn: () => graph?.zoom(ZOOM_LIMITS.step),
+  zoomOut: () => graph?.zoom(-ZOOM_LIMITS.step),
+  fitCanvas: () => graph?.zoomToFit({ maxScale: 1 }),
   get canUndo() { return canUndo.value },
   get canRedo() { return canRedo.value },
   uploadBackground(file: File) {
@@ -48,7 +61,6 @@ const graphActionsObj = reactive({
     }
     reader.readAsDataURL(file)
   },
-  getGraph() { return graph },
 })
 provide('graphActions', graphActionsObj)
 
@@ -65,14 +77,6 @@ function geoToCanvas(longitude: number, latitude: number): { x: number; y: numbe
   const x = CANVAS_PADDING + ((longitude - LNG_MIN) / (LNG_MAX - LNG_MIN)) * (CANVAS_WIDTH - CANVAS_PADDING * 2)
   const y = CANVAS_PADDING + ((LAT_MAX - latitude) / (LAT_MAX - LAT_MIN)) * (CANVAS_HEIGHT - CANVAS_PADDING * 2)
   return { x, y }
-}
-
-function getNodeSize(data: any): number {
-  return data.hasPano ? NODE_SIZE_PANO : NODE_SIZE_NO_PANO
-}
-
-function getNodeColor(data: any): string {
-  return data.hasPano ? COLORS.node.hasPano : COLORS.node.noPano
 }
 
 function getPortGroups() {
@@ -133,18 +137,18 @@ function getPortGroups() {
 }
 
 interface LayoutNode {
-  id: string
+  id: number
   size: number
   x: number
   y: number
-  name: string
-  hasPano: boolean
-  hasCoord: boolean
+  title: string
+  has_position: boolean
+  status: string
 }
 
 interface LayoutEdge {
-  source: string
-  target: string
+  source: number
+  target: number
 }
 
 let layoutData: { nodes: LayoutNode[]; edges: LayoutEdge[] } = { nodes: [], edges: [] }
@@ -160,13 +164,11 @@ function buildLayoutData() {
   sceneStore.placedNodes.forEach((nodeData) => {
     let x = 0
     let y = 0
-    let hasCoord = false
 
     if (nodeData.longitude && nodeData.latitude && nodeData.longitude !== 0 && nodeData.latitude !== 0) {
       const pos = geoToCanvas(nodeData.longitude, nodeData.latitude)
       x = pos.x
       y = pos.y
-      hasCoord = true
     } else {
       x = 100 + Math.random() * (areaWidth - 200)
       y = 100 + Math.random() * (areaHeight - 200)
@@ -174,12 +176,19 @@ function buildLayoutData() {
 
     nodes.push({
       id: nodeData.id,
-      size: getNodeSize(nodeData),
+      size: NODE_SIZE_PANO,
       x,
       y,
-      name: nodeData.name,
-      hasPano: nodeData.hasPano,
-      hasCoord,
+      title: nodeData.title,
+      has_position: nodeData.has_position,
+      status: nodeData.status,
+    })
+  })
+
+  sceneStore.edges?.forEach((edgeData) => {
+    edges.push({
+      source: edgeData.source_id,
+      target: edgeData.target_id,
     })
   })
 
@@ -194,7 +203,7 @@ function getModelFromLayoutData() {
 
   layoutData.nodes.forEach((item) => {
     model.nodes.push({
-      id: item.id,
+      id: String(item.id),
       shape: 'circle',
       width: item.size,
       height: item.size,
@@ -202,11 +211,11 @@ function getModelFromLayoutData() {
       y: item.y,
       attrs: {
         body: {
-          fill: item.hasPano ? COLORS.node.hasPano : COLORS.node.noPano,
+          fill: COLORS.node.hasPano,
           stroke: 'transparent',
         },
         label: {
-          text: item.name || '',
+          text: item.title || '',
           fill: '#374151',
           fontSize: 11,
           fontWeight: 500,
@@ -217,9 +226,9 @@ function getModelFromLayoutData() {
         },
       },
       data: {
-        name: item.name,
-        hasPano: item.hasPano,
-        hasCoord: item.hasCoord,
+        title: item.title,
+        has_position: item.has_position,
+        status: item.status,
       },
       ports: {
         groups: getPortGroups(),
@@ -235,8 +244,8 @@ function getModelFromLayoutData() {
 
   layoutData.edges.forEach((item) => {
     model.edges.push({
-      source: item.source,
-      target: item.target,
+      source: String(item.source),
+      target: String(item.target),
       attrs: {
         line: {
           stroke: COLORS.edge.default,
@@ -307,7 +316,6 @@ function initGraph() {
             args: { radius: 8 },
           },
           data: {
-            direction: EdgeDirection.UNIDIRECTIONAL,
             type: 'walk',
           },
         })
@@ -402,6 +410,7 @@ function resolveOverlaps(nodes: LayoutNode[], minDistance: number) {
 async function renderWithForceLayout() {
   if (!graph) return
 
+  layoutComputing.setLayoutComputing(true)
   buildLayoutData()
 
   const container = containerRef.value!
@@ -440,8 +449,8 @@ async function renderWithForceLayout() {
   }
 
   try {
-    const result = await forceLayout.execute(layoutGraphData as any)
-    
+    const result = await forceLayout.execute(layoutGraphData as any) as any
+
     if (result && result.nodes) {
       result.nodes.forEach((node: any) => {
         const layoutNode = layoutData.nodes.find(n => n.id === node.id)
@@ -451,7 +460,7 @@ async function renderWithForceLayout() {
         }
       })
     }
-    
+
     resolveOverlaps(layoutData.nodes, 100)
 
     const model = getModelFromLayoutData()
@@ -464,6 +473,8 @@ async function renderWithForceLayout() {
     graph!.fromJSON(model)
     graph!.zoomToFit({ padding: 80 })
     editorStore.setZoom(graph!.zoom())
+  } finally {
+    layoutComputing.setLayoutComputing(false)
   }
 }
 
@@ -496,14 +507,14 @@ function setupGraphEvents() {
     const sourceCell = edge.getSourceCell()
     const targetCell = edge.getTargetCell()
     if (sourceCell && targetCell) {
-      const sourceId = sourceCell.id
-      const targetId = targetCell.id
+      const sourceId = Number(sourceCell.id)
+      const targetId = Number(targetCell.id)
       const edgeData = edge.getData() || {}
       sceneStore.addEdge({
-        sourceId,
-        targetId,
-        direction: edgeData.direction || EdgeDirection.UNIDIRECTIONAL,
-        label: edgeData.label,
+        source_id: sourceId,
+        target_id: targetId,
+        hotspot_id: 0,
+        hotspot_title: '',
         type: edgeData.type || 'walk',
       })
     }
@@ -516,17 +527,17 @@ function setupGraphEvents() {
   graph.on('node:added', ({ node }) => {
     const data = node.getData()
     if (data && data.status === SceneNodeStatus.PENDING) {
-      sceneStore.markNodePlaced(node.id)
+      sceneStore.markNodePlaced(Number(node.id))
       node.setData({ ...data, status: SceneNodeStatus.PLACED })
     }
   })
 
   graph.on('node:removed', ({ node }) => {
-    sceneStore.markNodePending(node.id)
+    sceneStore.markNodePending(Number(node.id))
   })
 
   graph.on('edge:removed', ({ edge }) => {
-    sceneStore.removeEdge(edge.id)
+    sceneStore.removeEdge(Number(edge.id))
   })
 
   graph.on('scale', () => {
@@ -565,5 +576,40 @@ onUnmounted(() => {
 .graph-container {
   width: 100%;
   height: 100%;
+}
+
+.computing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: 100;
+}
+
+.computing-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: var(--color-primary, #4f46e5);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.computing-text {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

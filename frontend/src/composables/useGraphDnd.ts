@@ -2,7 +2,7 @@ import { type InjectionKey } from 'vue'
 import type { Graph } from '@antv/x6'
 import { Dnd } from '@antv/x6'
 import type { SceneNodeData } from '@/models/graphEditor/node'
-import { NODE_SIZE_PANO, NODE_SIZE_NO_PANO, PORT_RADIUS, COLORS } from '@/utils/graphEditor/constants'
+import { NODE_SIZE_PANO, PORT_RADIUS, COLORS } from '@/utils/graphEditor/constants'
 
 export interface DndActions {
   startDrag: (nodeData: SceneNodeData, e: MouseEvent) => void
@@ -75,10 +75,10 @@ export function createDnd(graph: Graph): DndActions {
   })
 
   function createNodeForDnd(data: SceneNodeData) {
-    const size = data.hasPano ? NODE_SIZE_PANO : NODE_SIZE_NO_PANO
-    const color = data.hasPano ? COLORS.node.hasPano : COLORS.node.noPano
+    const size = NODE_SIZE_PANO
+    const color = COLORS.node.hasPano
     return graph.createNode({
-      id: data.id,
+      id: String(data.id),
       shape: 'circle',
       x: 0,
       y: 0,
@@ -92,7 +92,7 @@ export function createDnd(graph: Graph): DndActions {
           strokeWidth: 0,
         },
         label: {
-          text: data.name || '',
+          text: data.title || '',
           fill: '#374151',
           fontSize: 11,
           fontWeight: 500,

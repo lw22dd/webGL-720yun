@@ -1,15 +1,8 @@
-export const EdgeDirection = {
-  UNIDIRECTIONAL: 'unidirectional',
-  BIDIRECTIONAL: 'bidirectional',
-} as const
-
-export type EdgeDirectionType = typeof EdgeDirection[keyof typeof EdgeDirection]
-
 export interface SceneEdgeData {
-  id: string
-  sourceId: string
-  targetId: string
-  direction: EdgeDirectionType
-  label?: string
+  id: number
+  source_id: number
+  target_id: number
+  hotspot_id: number
+  hotspot_title: string
   type: 'walk' | 'teleport'
 }

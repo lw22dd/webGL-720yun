@@ -1,17 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { SceneNodeData } from '@/models/graphEditor/node'
-import { SceneNodeStatus } from '@/models/graphEditor/node'
+import { SceneNodeStatus, type SceneNodeStatusType } from '@/models/graphEditor/node'
 import type { SceneEdgeData } from '@/models/graphEditor/edge'
-import type { BackgroundMap } from '@/models/graphEditor/scene'
-import { fetchSceneData, saveSceneData } from '@/apis/graphEditorMock'
-import { generateId } from '@/utils/graphEditor/helpers'
+import type { SpaceInfoForGraph } from '@/models/graphEditor/scene'
+import SpaceApi from '@/apis/spaceApi'
 
 export const useGraphSceneStore = defineStore('graphScene', () => {
-  const sceneName = ref('都江堰景区')
+  const spaceInfo = ref<SpaceInfoForGraph | null>(null)
   const allNodes = ref<SceneNodeData[]>([])
   const edges = ref<SceneEdgeData[]>([])
-  const backgroundMap = ref<BackgroundMap | null>(null)
   const loading = ref(false)
   const saving = ref(false)
 
@@ -24,27 +22,50 @@ export const useGraphSceneStore = defineStore('graphScene', () => {
   const placedCount = computed(() => placedNodes.value.length)
   const totalCount = computed(() => allNodes.value.length)
 
-  async function loadScene(sceneId: string) {
+  async function loadScene(spaceId: number) {
     loading.value = true
     try {
-      const data = await fetchSceneData(sceneId)
-      sceneName.value = data.name
-      allNodes.value = data.nodes
-      edges.value = data.edges
-      backgroundMap.value = data.backgroundMap || null
+      const response = await SpaceApi.getSpaceGraph(spaceId)
+      if (response.data) {
+        spaceInfo.value = response.data.space_info ?? null
+        edges.value = response.data.edges ?? []
+
+        const placedNodesRaw = response.data.nodes ?? []
+        const unplacedNodesRaw = response.data.unplaced ?? []
+
+        const placedNodesWithStatus = placedNodesRaw.map((n: SceneNodeData) => ({
+          ...n,
+          status: SceneNodeStatus.PLACED as SceneNodeStatusType,
+        }))
+
+        const unplacedNodesWithStatus = unplacedNodesRaw.map((n: SceneNodeData) => ({
+          ...n,
+          status: SceneNodeStatus.PENDING as SceneNodeStatusType,
+        }))
+
+        allNodes.value = [...placedNodesWithStatus, ...unplacedNodesWithStatus]
+
+        console.log('[GraphSceneStore] 从后端加载的数据:', {
+          spaceInfo: response.data.space_info,
+          placedNodes: placedNodesRaw.length,
+          unplacedNodes: unplacedNodesRaw.length,
+          totalNodes: allNodes.value.length,
+          totalEdges: edges.value.length,
+        })
+      }
     } finally {
       loading.value = false
     }
   }
 
-  function markNodePlaced(nodeId: string) {
+  function markNodePlaced(nodeId: number) {
     const node = allNodes.value.find(n => n.id === nodeId)
     if (node && node.status === SceneNodeStatus.PENDING) {
       node.status = SceneNodeStatus.PLACED
     }
   }
 
-  function markNodePending(nodeId: string) {
+  function markNodePending(nodeId: number) {
     const node = allNodes.value.find(n => n.id === nodeId)
     if (node) {
       node.status = SceneNodeStatus.PENDING
@@ -52,56 +73,51 @@ export const useGraphSceneStore = defineStore('graphScene', () => {
   }
 
   function addEdge(edge: Omit<SceneEdgeData, 'id'>) {
-    edges.value.push({ ...edge, id: generateId('edge') })
+    const newId = edges.value.length > 0 
+      ? Math.max(...edges.value.map(e => e.id)) + 1 
+      : 1
+    edges.value.push({ ...edge, id: newId })
   }
 
-  function updateEdge(edgeId: string, data: Partial<SceneEdgeData>) {
+  function updateEdge(edgeId: number, data: Partial<SceneEdgeData>) {
     const edge = edges.value.find(e => e.id === edgeId)
     if (edge) {
       Object.assign(edge, data)
     }
   }
 
-  function removeEdge(edgeId: string) {
+  function removeEdge(edgeId: number) {
     const index = edges.value.findIndex(e => e.id === edgeId)
     if (index !== -1) {
       edges.value.splice(index, 1)
     }
   }
 
-  function removeNode(nodeId: string) {
+  function removeNode(nodeId: number) {
     const index = allNodes.value.findIndex(n => n.id === nodeId)
     if (index !== -1) {
       allNodes.value.splice(index, 1)
     }
-    edges.value = edges.value.filter(e => e.sourceId !== nodeId && e.targetId !== nodeId)
+    edges.value = edges.value.filter(e => e.source_id !== nodeId && e.target_id !== nodeId)
   }
 
   async function saveScene() {
     saving.value = true
     try {
-      const data = {
-        id: 'scene-001',
-        name: sceneName.value,
-        nodes: allNodes.value,
-        edges: edges.value,
-        backgroundMap: backgroundMap.value || undefined,
-      }
-      return await saveSceneData(data)
+      return true
     } finally {
       saving.value = false
     }
   }
 
-  function getNodeById(nodeId: string): SceneNodeData | undefined {
+  function getNodeById(nodeId: number): SceneNodeData | undefined {
     return allNodes.value.find(n => n.id === nodeId)
   }
 
   return {
-    sceneName,
+    spaceInfo,
     allNodes,
     edges,
-    backgroundMap,
     loading,
     saving,
     pendingNodes,

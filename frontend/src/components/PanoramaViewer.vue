@@ -158,6 +158,8 @@ const loadScene = async () => {
     error.value = ''
 
     const result = await SceneApi.getSceneList({ keyword: sceneCode })
+      console.log(result)
+
     if (result.code === 200 && result.data && result.data.scenes && result.data.scenes.length > 0) {
       const scene = result.data.scenes.find((s: any) => s.scene_code === sceneCode)
       if (scene) {
