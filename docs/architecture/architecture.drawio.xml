@@ -1,0 +1,285 @@
+<mxfile host="Electron" version="21.6.8" type="device">
+  <diagram id="WebGL720yun_Architecture" name="WebGL-720yun系统架构">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <mxCell id="Layer-1" value="用户接入层" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#e8f4f8;strokeColor=#5c8a9c;fontSize=14;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1520" height="200" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L1-Web" value="Web浏览器<br/>PC端" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#388e3c;fontSize=12;fontStyle=1;" vertex="1" parent="Layer-1">
+          <mxGeometry x="140" y="90" width="160" height="80" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L1-Mobile" value="移动端<br/>手机/平板" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#388e3c;fontSize=12;fontStyle=1;" vertex="1" parent="Layer-1">
+          <mxGeometry x="340" y="90" width="160" height="80" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="Layer-2" value="前端应用层 (Vue 3 + TypeScript)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#f0f4e8;strokeColor=#8a9c5c;fontSize=14;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="270" width="1520" height="320" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-Core" value="核心组件" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#fff9e6;strokeColor=#d4a017;fontSize=12;fontStyle=1;arcSize=6;" vertex="1" parent="Layer-2">
+          <mxGeometry x="60" y="320" width="480" height="240" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-Viewer" value="全景浏览组件<br/>Three.js/Pannellum" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=12;fontStyle=1;" vertex="1" parent="L2-Core">
+          <mxGeometry x="30" y="360" width="200" height="70" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-Uploader" value="分片上传组件<br/>断点续传" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=12;fontStyle=1;" vertex="1" parent="L2-Core">
+          <mxGeometry x="250" y="360" width="200" height="70" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-Editor" value="场景编辑器<br/>图形拖拽" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=12;fontStyle=1;" vertex="1" parent="L2-Core">
+          <mxGeometry x="30" y="450" width="200" height="70" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-Admin" value="管理后台<br/>Vue Router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=12;fontStyle=1;" vertex="1" parent="L2-Core">
+          <mxGeometry x="250" y="450" width="200" height="70" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-State" value="状态与服务" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#fff9e6;strokeColor=#d4a017;fontSize=12;fontStyle=1;arcSize=6;" vertex="1" parent="Layer-2">
+          <mxGeometry x="560" y="320" width="480" height="240" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-Pinia" value="Pinia状态管理<br/>全局状态" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3e5fc;strokeColor=#0277bd;fontSize=12;fontStyle=1;" vertex="1" parent="L2-State">
+          <mxGeometry x="590" y="360" width="200" height="70" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-Axios" value="Axios API<br/>HTTP请求" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3e5fc;strokeColor=#0277bd;fontSize=12;fontStyle=1;" vertex="1" parent="L2-State">
+          <mxGeometry x="810" y="360" width="200" height="70" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-WS" value="WebSocket服务<br/>实时通信" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3e5fc;strokeColor=#0277bd;fontSize=12;fontStyle=1;" vertex="1" parent="L2-State">
+          <mxGeometry x="590" y="450" width="200" height="70" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L2-UI" value="UI组件库<br/>Element Plus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3e5fc;strokeColor=#0277bd;fontSize=12;fontStyle=1;" vertex="1" parent="L2-State">
+          <mxGeometry x="810" y="450" width="200" height="70" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="Layer-3" value="后端服务层 (Go + Gin)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#f8f0e8;strokeColor=#9c5c8a;fontSize=14;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="620" width="1520" height="420" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-API" value="API网关层" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#ffebee;strokeColor=#c62828;fontSize=12;fontStyle=1;arcSize=6;" vertex="1" parent="Layer-3">
+          <mxGeometry x="60" y="670" width="680" height="100" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Gin" value="Gin HTTP Server<br/>路由处理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#b71c1c;fontSize=12;fontStyle=1;" vertex="1" parent="L3-API">
+          <mxGeometry x="90" y="700" width="200" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Middleware" value="中间件<br/>Auth/CORS/RBAC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#b71c1c;fontSize=12;fontStyle=1;" vertex="1" parent="L3-API">
+          <mxGeometry x="310" y="700" width="200" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-JWT" value="JWT认证<br/>身份验证" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#b71c1c;fontSize=12;fontStyle=1;" vertex="1" parent="L3-API">
+          <mxGeometry x="530" y="700" width="180" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Resource" value="资源管理模块" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#e8f5e9;strokeColor=#2e7d32;fontSize=12;fontStyle=1;arcSize=6;" vertex="1" parent="Layer-3">
+          <mxGeometry x="760" y="670" width="760" height="180" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Space" value="空间管理<br/>Space Handler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#1b5e20;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Resource">
+          <mxGeometry x="790" y="700" width="170" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Scene" value="场景管理<br/>Scene Handler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#1b5e20;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Resource">
+          <mxGeometry x="980" y="700" width="170" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Hotspot" value="热点管理<br/>Hotspot Handler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#1b5e20;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Resource">
+          <mxGeometry x="1170" y="700" width="170" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Upload" value="分片上传<br/>Upload Handler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#1b5e20;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Resource">
+          <mxGeometry x="1360" y="700" width="140" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-User" value="用户管理<br/>User Handler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#1b5e20;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Resource">
+          <mxGeometry x="790" y="770" width="170" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-WS-Hub" value="WebSocket Hub<br/>实时推送" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#1b5e20;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Resource">
+          <mxGeometry x="980" y="770" width="170" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Process" value="处理流水线" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=12;fontStyle=1;arcSize=6;" vertex="1" parent="Layer-3">
+          <mxGeometry x="60" y="790" width="680" height="220" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-UploadSvc" value="UploadService<br/>分片管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#0d47a1;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Process">
+          <mxGeometry x="90" y="830" width="190" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Queue" value="SliceQueue<br/>Redis Stream" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#0d47a1;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Process">
+          <mxGeometry x="300" y="830" width="190" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Worker" value="Worker Pool<br/>Goroutine池" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#0d47a1;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Process">
+          <mxGeometry x="510" y="830" width="190" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-E2C" value="E2C Converter<br/>等距圆柱转立方体" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#0d47a1;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Process">
+          <mxGeometry x="90" y="900" width="280" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L3-Tiler" value="Tile Generator<br/>LOD瓦片生成" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#0d47a1;fontSize=12;fontStyle=1;" vertex="1" parent="L3-Process">
+          <mxGeometry x="390" y="900" width="310" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="Layer-4" value="数据存储层" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;verticalAlign=top;align=center;fillColor=#f8e8f0;strokeColor=#8a5c9c;fontSize=14;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1070" width="1520" height="130" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L4-MySQL" value="MySQL 8.0<br/>关系数据库" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#455a64;fontSize=12;fontStyle=1;" vertex="1" parent="Layer-4">
+          <mxGeometry x="240" y="1120" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L4-Redis" value="Redis 7.0<br/>缓存与队列" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#455a64;fontSize=12;fontStyle=1;" vertex="1" parent="Layer-4">
+          <mxGeometry x="520" y="1120" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L4-MinIO" value="MinIO S3<br/>对象存储" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#455a64;fontSize=12;fontStyle=1;" vertex="1" parent="Layer-4">
+          <mxGeometry x="800" y="1120" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="L4-Nginx" value="Nginx<br/>静态资源/反向代理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e0e0;strokeColor=#37474f;fontSize=12;fontStyle=1;" vertex="1" parent="Layer-4">
+          <mxGeometry x="1080" y="1120" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="E1-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#5c8a9c;" edge="1" parent="1" source="L1-Web" target="L2-Viewer">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="220" y="240" as="sourcePoint" />
+            <mxPoint x="170" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E1-2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#5c8a9c;" edge="1" parent="1" source="L1-Mobile" target="L2-Viewer">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="420" y="240" as="sourcePoint" />
+            <mxPoint x="370" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E2-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#8a9c5c;" edge="1" parent="1" source="L2-Uploader" target="L3-Upload">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="440" y="550" as="sourcePoint" />
+            <mxPoint x="390" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E2-2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#8a9c5c;" edge="1" parent="1" source="L2-Axios" target="L3-Gin">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="910" y="550" as="sourcePoint" />
+            <mxPoint x="860" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E2-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#8a9c5c;" edge="1" parent="1" source="L2-WS" target="L3-WS-Hub">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="690" y="550" as="sourcePoint" />
+            <mxPoint x="640" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E3-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#9c5c8a;" edge="1" parent="1" source="L3-Gin" target="L3-Space">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="290" y="750" as="sourcePoint" />
+            <mxPoint x="240" y="700" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E3-2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#9c5c8a;" edge="1" parent="1" source="L3-Gin" target="L3-Scene">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="490" y="750" as="sourcePoint" />
+            <mxPoint x="440" y="700" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E3-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#9c5c8a;" edge="1" parent="1" source="L3-Upload" target="L3-UploadSvc">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1430" y="750" as="sourcePoint" />
+            <mxPoint x="1380" y="700" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E3-4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#9c5c8a;" edge="1" parent="1" source="L3-Scene" target="L3-Queue">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1065" y="830" as="sourcePoint" />
+            <mxPoint x="1015" y="780" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E3-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#9c5c8a;" edge="1" parent="1" source="L3-Queue" target="L3-Worker">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="485" y="880" as="sourcePoint" />
+            <mxPoint x="435" y="830" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E3-6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#9c5c8a;" edge="1" parent="1" source="L3-Worker" target="L3-E2C">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="605" y="930" as="sourcePoint" />
+            <mxPoint x="555" y="880" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E3-7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#9c5c8a;" edge="1" parent="1" source="L3-E2C" target="L3-Tiler">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="365" y="950" as="sourcePoint" />
+            <mxPoint x="315" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E3-8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#9c5c8a;" edge="1" parent="1" source="L3-WS-Hub" target="L3-Tiler">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1065" y="950" as="sourcePoint" />
+            <mxPoint x="1015" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E4-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#8a5c9c;" edge="1" parent="1" source="L3-Space" target="L4-MySQL">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="875" y="1070" as="sourcePoint" />
+            <mxPoint x="825" y="1020" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E4-2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#8a5c9c;" edge="1" parent="1" source="L3-UploadSvc" target="L4-Redis">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="185" y="1070" as="sourcePoint" />
+            <mxPoint x="135" y="1020" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E4-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#8a5c9c;" edge="1" parent="1" source="L3-Queue" target="L4-Redis">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="395" y="1070" as="sourcePoint" />
+            <mxPoint x="345" y="1020" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E4-4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#8a5c9c;" edge="1" parent="1" source="L3-Tiler" target="L4-MinIO">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="545" y="1070" as="sourcePoint" />
+            <mxPoint x="495" y="1020" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="E4-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;jumpStyle=arc;jumpSize=6;strokeWidth=2;strokeColor=#8a5c9c;" edge="1" parent="1" source="L2-Viewer" target="L4-Nginx">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="130" y="1070" as="sourcePoint" />
+            <mxPoint x="80" y="1020" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
