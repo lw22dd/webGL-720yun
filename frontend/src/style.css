@@ -10,6 +10,59 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-primary-light: #e0e7ff;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  --node-default: #5F95FF;
+  --node-has-pano: #31d0c6;
+  --node-no-pano: #a0b4c8;
+  --node-selected: #4f46e5;
+
+  --edge-default: #5F95FF;
+  --edge-selected: #4f46e5;
+
+  --toolbar-height: 56px;
+  --sidebar-width: 320px;
+  --panel-padding: 16px;
+
+  --bg-canvas: #f8f9fa;
+  --bg-toolbar: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-panel: #f9fafb;
+  --bg-hover: #f3f4f6;
+  --bg-active: #e0e7ff;
+
+  --border-color: #e5e7eb;
+  --border-radius: 8px;
+  --border-radius-sm: 4px;
+  --border-radius-lg: 12px;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 24px;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
 }
 
 body {
@@ -25,3 +78,56 @@ body {
   text-align: left;
 }
 
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+}
+
+.x6-graph-scroller {
+  overflow: hidden !important;
+}
+
+.x6-node {
+  cursor: move;
+}
+
+.x6-edge {
+  cursor: pointer;
+}
+
+.x6-widget-selection-box {
+  border: 2px solid var(--color-primary) !important;
+  background: rgba(79, 70, 229, 0.05) !important;
+}
+
+.x6-widget-selection-inner {
+  border: 1px dashed var(--color-primary) !important;
+}
+
+.x6-widget-snapline {
+  z-index: 1000 !important;
+}
