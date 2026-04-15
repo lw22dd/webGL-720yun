@@ -1,4 +1,4 @@
-import type { Result } from '@/models/Result'
+import type { Result } from '@/models/result.model'
 import type {
   InitUploadRequest,
   InitUploadResponse,
@@ -7,9 +7,9 @@ import type {
   UploadStatusResponse,
   UploadOptions,
   UploadTask
-} from '@/models/UploadModel'
+} from '@/models/upload.model'
 import Axios from '@/utils/axios'
-import { useUploadStore } from '@/stores/uploadStore'
+import { useUploadStore } from '@/stores/scene/upload.store'
 
 const CHUNK_SIZE = 5 * 1024 * 1024
 const MAX_CONCURRENT = 4
@@ -62,9 +62,9 @@ class UploadService {
   }
 
   async completeUpload(uploadId: string, fileHash: string): Promise<Result<CompleteUploadResponse>> {
-    return await Axios.post('/upload/complete', { 
-      upload_id: uploadId, 
-      file_hash: fileHash 
+    return await Axios.post('/upload/complete', {
+      upload_id: uploadId,
+      file_hash: fileHash
     })
   }
 
@@ -185,7 +185,7 @@ class UploadService {
         if (!item) break
 
         const chunkMd5 = await this.calculateChunkMD5(item.chunk)
-        
+
         const uploadPromise = this.uploadChunkWithRetry(uploadId, item.index, item.chunk, chunkMd5)
           .then(response => {
             if (response.code === 200 && response.data) {

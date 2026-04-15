@@ -17,8 +17,8 @@
 
 <script setup lang="ts">
 import { inject } from 'vue'
-import { useGraphEditorStore } from '@/stores/graphEditorStore'
-import { formatZoom } from '@/utils/graphEditor/helpers'
+import { useGraphEditorStore } from '@/stores/graph/editor.store'
+import { formatZoom } from '@/utils/graph-editor/helpers'
 
 const editorStore = useGraphEditorStore()
 

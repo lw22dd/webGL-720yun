@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import wsClient from './websocketClient'
-import { useUserStore } from './userStore'
+import wsClient from '@/services/websocket.service'
+import { useUserStore } from '@/stores/user.store'
 
 export interface SliceTask {
   taskId: string
@@ -51,7 +51,7 @@ export const useSliceStore = defineStore('slice', () => {
         wsConnected.value = true
         console.log('Slice WebSocket initialized')
       })
-      .catch(err => {
+      .catch((err: Error) => {
         console.error('Failed to connect WebSocket:', err)
         wsConnected.value = false
       })

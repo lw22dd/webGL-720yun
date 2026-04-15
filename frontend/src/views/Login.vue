@@ -111,8 +111,8 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
-import UserApi from '@/apis/userApi'
-import { useUserStore } from '@/stores/userStore'
+import UserApi from '@/services/api/user.api'
+import { useUserStore } from '@/stores/user.store'
 
 const router = useRouter()
 const userStore = useUserStore()

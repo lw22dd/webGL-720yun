@@ -12,12 +12,12 @@
 import { ref, onMounted, onUnmounted, provide, reactive, watch, nextTick, inject } from 'vue'
 import { Graph as X6Graph, History, Selection, Snapline, Scroller } from '@antv/x6'
 import { ForceLayout } from '@antv/layout'
-import { useGraphSceneStore } from '@/stores/graphSceneStore'
-import { useGraphEditorStore } from '@/stores/graphEditorStore'
-import { SceneNodeStatus } from '@/models/graphEditor/node'
+import { useGraphSceneStore } from '@/stores/graph/scene.store'
+import { useGraphEditorStore } from '@/stores/graph/editor.store'
+import { SceneNodeStatus } from '@/models/graph/node.model'
 import { createDnd, DND_ACTIONS_KEY } from '@/composables/useGraphDnd'
 import { useGraphKeyboard } from '@/composables/useGraphKeyboard'
-import { NODE_SIZE_PANO, PORT_RADIUS, COLORS, GRID_CONFIG, ZOOM_LIMITS, HISTORY_STACK_SIZE, SNAPLINE_TOLERANCE } from '@/utils/graphEditor/constants'
+import { NODE_SIZE_PANO, PORT_RADIUS, COLORS, GRID_CONFIG, ZOOM_LIMITS, HISTORY_STACK_SIZE, SNAPLINE_TOLERANCE } from '@/utils/graph-editor/constants'
 
 const containerRef = ref<HTMLElement | null>(null)
 const sceneStore = useGraphSceneStore()

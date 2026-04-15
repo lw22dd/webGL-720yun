@@ -1,5 +1,5 @@
-import type { Result } from "@/models/Result";
-import type { HotspotListRequest, CreateHotspotRequest, UpdateHotspotRequest, HotspotDetailResponse, HotspotListResponse } from "@/models/HotspotModel";
+import type { Result } from "@/models/result.model";
+import type { HotspotListRequest, CreateHotspotRequest, UpdateHotspotRequest, HotspotDetailResponse, HotspotListResponse } from "@/models/hotspot.model";
 import Axios from "@/utils/axios";
 
 export default class HotspotApi {

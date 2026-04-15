@@ -171,9 +171,9 @@ import {
   StarIcon,
   HistoryIcon
 } from 'tdesign-icons-vue-next'
-import UserApi from '@/apis/userApi'
-import { useUserStore } from '@/stores/userStore'
-import { useFavoriteStore } from '@/stores/favoriteStore'
+import UserApi from '@/services/api/user.api'
+import { useUserStore } from '@/stores/user.store'
+import { useFavoriteStore } from '@/stores/favorite.store'
 
 const router = useRouter()
 const userStore = useUserStore()

@@ -1,6 +1,6 @@
-import type { Result } from "@/models/Result";
-import type { SpaceListRequest, SpaceDetailResponse, SpaceListResponse, CreateSpaceRequest, UpdateSpaceRequest } from "@/models/SpaceModel";
-import type { GraphDataResponse } from "@/models/graphEditor/scene";
+import type { Result } from "@/models/result.model";
+import type { SpaceListRequest, SpaceDetailResponse, SpaceListResponse, CreateSpaceRequest, UpdateSpaceRequest } from "@/models/space.model";
+import type { GraphDataResponse } from "@/models/graph/scene.model";
 import Axios from "@/utils/axios";
 
 export default class SpaceApi {

@@ -104,11 +104,11 @@
 
 <script setup lang="ts">
 import { computed, inject } from 'vue'
-import { useGraphEditorStore } from '@/stores/graphEditorStore'
-import { useGraphSceneStore } from '@/stores/graphSceneStore'
-import { SceneNodeStatus } from '@/models/graphEditor/node'
-import type { SceneNodeData } from '@/models/graphEditor/node'
-import type { SceneEdgeData } from '@/models/graphEditor/edge'
+import { useGraphEditorStore } from '@/stores/graph/editor.store'
+import { useGraphSceneStore } from '@/stores/graph/scene.store'
+import { SceneNodeStatus } from '@/models/graph/node.model'
+import type { SceneNodeData } from '@/models/graph/node.model'
+import type { SceneEdgeData } from '@/models/graph/edge.model'
 
 const editorStore = useGraphEditorStore()
 const sceneStore = useGraphSceneStore()

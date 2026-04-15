@@ -59,8 +59,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import AdminSideMenu from '@/components/admin/AdminSideMenu.vue'
-import { useUserStore } from '@/stores/userStore'
-import UserApi from '@/apis/userApi'
+import { useUserStore } from '@/stores/user.store'
+import UserApi from '@/services/api/user.api'
 
 const router = useRouter()
 const route = useRoute()

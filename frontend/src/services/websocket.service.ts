@@ -1,4 +1,4 @@
-import type { WebSocketMessage } from '@/models/UploadModel'
+import type { WebSocketMessage } from '@/models/upload.model'
 
 type EventHandler = (data: any) => void
 

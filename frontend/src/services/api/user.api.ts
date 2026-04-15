@@ -12,8 +12,8 @@ import type {
   ChangePasswordRequest,
   RefreshTokenRequest,
   RefreshTokenResponse,
-} from "@/models/UserModel";
-import type { Result } from "@/models/Result";
+} from "@/models/user.model";
+import type { Result } from "@/models/result.model";
 import Axios from "@/utils/axios";
 
 export default class UserApi {

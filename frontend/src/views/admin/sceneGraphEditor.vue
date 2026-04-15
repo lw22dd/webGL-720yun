@@ -8,7 +8,7 @@
 import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import EditorLayout from '@/components/editor/EditorLayout.vue'
-import { useGraphSceneStore } from '@/stores/graphSceneStore'
+import { useGraphSceneStore } from '@/stores/graph/scene.store'
 
 const route = useRoute()
 const sceneStore = useGraphSceneStore()

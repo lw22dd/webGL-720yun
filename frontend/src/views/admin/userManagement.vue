@@ -86,7 +86,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import AdminTable from '@/components/admin/AdminTable.vue'
-import UserApi from '@/apis/userApi'
+import UserApi from '@/services/api/user.api'
 
 
 interface UserItem {

@@ -132,12 +132,12 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import AdminTable from '@/components/admin/AdminTable.vue'
-import SpaceApi from '@/apis/spaceApi'
-import SceneApi from '@/apis/sceneApi'
+import SpaceApi from '@/services/api/space.api'
+import SceneApi from '@/services/api/scene.api'
 import uploadService from '@/services/uploadService'
-import { useSceneStore } from '@/stores/sceneStore'
-import type { SpaceListItem } from '@/models/SpaceModel'
-import type { SceneListItem } from '@/models/SceneModel'
+import { useSceneStore } from '@/stores/scene/scene.store'
+import type { SpaceListItem } from '@/models/space.model'
+import type { SceneListItem } from '@/models/scene.model'
 
 const sceneStore = useSceneStore()
 const uploadingTasks = computed(() => sceneStore.uploadingTasks)

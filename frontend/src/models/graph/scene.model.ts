@@ -1,5 +1,5 @@
-import type { SceneNodeData } from './node'
-import type { SceneEdgeData } from './edge'
+import type { SceneNodeData } from './node.model'
+import type { SceneEdgeData } from './edge.model'
 
 export interface SpaceInfoForGraph {
   id: number

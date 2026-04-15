@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { UploadTask, ProgressData, CompleteData, ErrorData } from '@/models/UploadModel'
-import wsClient from './websocketClient'
-import { useUserStore } from './userStore'
+import type { UploadTask, ProgressData, CompleteData, ErrorData } from '@/models/upload.model'
+import wsClient from '@/services/websocket.service'
+import { useUserStore } from '@/stores/user.store'
 
 export const useSceneStore = defineStore('scene', () => {
   const uploadTasks = ref<Map<string, UploadTask>>(new Map())

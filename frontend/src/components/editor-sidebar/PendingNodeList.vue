@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
-import { useGraphSceneStore } from '@/stores/graphSceneStore'
+import { useGraphSceneStore } from '@/stores/graph/scene.store'
 import PendingNodeItem from './PendingNodeItem.vue'
 
 const sceneStore = useGraphSceneStore()

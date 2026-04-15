@@ -1,42 +1,42 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/user.store'
 import index from '@/views/index.vue'
 import Login from '@/views/Login.vue'
-import userCenter from '@/views/userCenter.vue'
-import adminLayout from '@/views/admin/adminLayout.vue'
-import userDetail from '@/views/userDetail.vue'
-import userManagement from '@/views/admin/userManagement.vue'
-import spaceManagement from '@/views/admin/spaceManagement.vue'
-import sceneManagement from '@/views/admin/sceneManagement.vue'
-import SceneGraphEditor from '@/views/admin/sceneGraphEditor.vue'
-import systemSettings from '@/views/admin/systemSettings.vue'
-import logManagement from '@/views/admin/logManagement.vue'
-import favorites from '@/views/favorites.vue'
-import history from '@/views/history.vue'
-import ExcelUpload from '@/components/ExcelUpload.vue'
+import UserCenter from '@/views/user/UserCenter.vue'
+import AdminLayout from '@/layouts/AdminLayout.vue'
+import UserDetail from '@/views/user/UserDetail.vue'
+import UserManagement from '@/views/admin/UserManagement.vue'
+import SpaceManagement from '@/views/admin/SpaceManagement.vue'
+import SceneManagement from '@/views/admin/SceneManagement.vue'
+import SceneGraphEditor from '@/views/admin/SceneGraphEditor.vue'
+import SystemSettings from '@/views/admin/SystemSettings.vue'
+import LogManagement from '@/views/admin/LogManagement.vue'
+import Favorites from '@/views/user/Favorites.vue'
+import History from '@/views/user/History.vue'
+import ExcelUpload from '@/components/admin/ExcelUpload.vue'
 import PanoramaViewer from '@/components/PanoramaViewer.vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/login' },
   { path: '/index', component: index, name: 'home', meta: { requiresAuth: true } },
   { path: '/login', component: Login, name: 'login' },
-  { path: '/user/center', component: userCenter, name: 'userCenter' },
-  { path: '/user/:id', component: userDetail, name: 'userDetail' },
-  { path: '/favorites', component: favorites, name: 'favorites' },
-  { path: '/history', component: history, name: 'history' },
+  { path: '/user/center', component: UserCenter, name: 'userCenter' },
+  { path: '/user/:id', component: UserDetail, name: 'userDetail' },
+  { path: '/favorites', component: Favorites, name: 'favorites' },
+  { path: '/history', component: History, name: 'history' },
   {
     path: '/admin',
-    component: adminLayout,
+    component: AdminLayout,
     name: 'admin',
     children: [
       { path: '', redirect: '/admin/users' },
-      { path: 'users', component: userManagement, name: 'adminUsers' },
+      { path: 'users', component: UserManagement, name: 'adminUsers' },
       { path: 'batch-register', component: ExcelUpload, name: 'adminBatchRegister' },
-      { path: 'spaces', component: spaceManagement, name: 'adminSpaces' },
+      { path: 'spaces', component: SpaceManagement, name: 'adminSpaces' },
       { path: 'spaces/:id/graph', component: SceneGraphEditor, name: 'spaceGraph' },
-      { path: 'scenes', component: sceneManagement, name: 'adminScenes' },
-      { path: 'settings', component: systemSettings, name: 'adminSettings' },
-      { path: 'logs', component: logManagement, name: 'adminLogs' }
+      { path: 'scenes', component: SceneManagement, name: 'adminScenes' },
+      { path: 'settings', component: SystemSettings, name: 'adminSettings' },
+      { path: 'logs', component: LogManagement, name: 'adminLogs' }
     ]
   },
   { path: '/panorama', component: PanoramaViewer, name: 'panorama' },

@@ -133,7 +133,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import UserApi from '@/apis/userApi'
+import UserApi from '@/services/api/user.api'
 
 const UPLOAD_STATUS = {
   IDLE: 'idle',

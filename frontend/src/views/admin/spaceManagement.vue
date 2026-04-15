@@ -132,8 +132,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import FormDialog, { type FormField } from '@/components/admin/FormDialog.vue'
-import SpaceApi from '@/apis/spaceApi'
-import type { SpaceListItem } from '@/models/SpaceModel'
+import SpaceApi from '@/services/api/space.api'
+import type { SpaceListItem } from '@/models/space.model'
 
 const router = useRouter()
 const searchKeyword = ref('')

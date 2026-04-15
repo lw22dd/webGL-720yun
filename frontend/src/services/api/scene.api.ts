@@ -1,5 +1,5 @@
-import type { Result } from "@/models/Result";
-import type { SceneListRequest, SceneDetailResponse, SceneListResponse, BatchImportResponse, GraphDataResponse, UpdatePositionRequest, BatchUpdatePositionRequest, CreateSceneRequest, UpdateSceneRequest } from "@/models/SceneModel";
+import type { Result } from "@/models/result.model";
+import type { SceneListRequest, SceneDetailResponse, SceneListResponse, BatchImportResponse, GraphDataResponse, UpdatePositionRequest, BatchUpdatePositionRequest, CreateSceneRequest, UpdateSceneRequest } from "@/models/scene.model";
 import Axios from "@/utils/axios";
 
 export default class SceneApi {

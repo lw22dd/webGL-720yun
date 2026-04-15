@@ -90,8 +90,8 @@ import { useRouter } from 'vue-router'
 import Header from '@/components/Header.vue'
 import ChinaMap from '@/components/ChinaMap.vue'
 import SpaceDetailPanel from '@/components/SpaceDetailPanel.vue'
-import SpaceApi from '@/apis/spaceApi'
-import type { SpaceListItem } from '@/models/SpaceModel'
+import SpaceApi from '@/services/api/space.api'
+import type { SpaceListItem } from '@/models/space.model'
 
 interface SpaceWithScenes extends SpaceListItem {
   scenes?: any[]

@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import type { GraphDataResponse } from '@/models/SceneModel'
+import type { GraphDataResponse } from '@/models/scene.model'
 
 const MAX_HISTORY_SIZE = 50
 

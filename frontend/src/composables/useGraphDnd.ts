@@ -1,8 +1,8 @@
 import { type InjectionKey } from 'vue'
 import type { Graph } from '@antv/x6'
 import { Dnd } from '@antv/x6'
-import type { SceneNodeData } from '@/models/graphEditor/node'
-import { NODE_SIZE_PANO, PORT_RADIUS, COLORS } from '@/utils/graphEditor/constants'
+import type { SceneNodeData } from '@/models/graph/node.model'
+import { NODE_SIZE_PANO, PORT_RADIUS, COLORS } from '@/utils/graph-editor/constants'
 
 export interface DndActions {
   startDrag: (nodeData: SceneNodeData, e: MouseEvent) => void

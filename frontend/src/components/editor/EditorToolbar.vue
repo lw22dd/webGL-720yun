@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { inject, type Ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useGraphSceneStore } from '@/stores/graphSceneStore'
+import { useGraphSceneStore } from '@/stores/graph/scene.store'
 import ZoomControl from '@/components/editor-common/ZoomControl.vue'
 import UploadButton from '@/components/editor-common/UploadButton.vue'
 

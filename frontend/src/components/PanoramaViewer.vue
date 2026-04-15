@@ -110,10 +110,10 @@ import { Viewer } from '@photo-sphere-viewer/core'
 import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
 import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
-import SceneApi from '@/apis/sceneApi'
-import HotspotApi from '@/apis/hotspotApi'
+import SceneApi from '@/services/api/scene.api'
+import HotspotApi from '@/services/api/hotspot.api'
 import SceneStrip from './SceneStrip.vue'
-import type { SceneDetailResponse } from '@/models/SceneModel'
+import type { SceneDetailResponse } from '@/models/scene.model'
 
 
 const route = useRoute()

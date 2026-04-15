@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { useGraphEditorStore } from '@/stores/graphEditorStore'
+import { useGraphEditorStore } from '@/stores/graph/editor.store'
 import PropertyPanel from './PropertyPanel.vue'
 import PendingNodeList from '@/components/editor-sidebar/PendingNodeList.vue'
 

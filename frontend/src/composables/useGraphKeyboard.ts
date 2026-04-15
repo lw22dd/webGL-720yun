@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted } from 'vue'
-import { useGraphEditorStore } from '@/stores/graphEditorStore'
-import { useGraphSceneStore } from '@/stores/graphSceneStore'
+import { useGraphEditorStore } from '@/stores/graph/editor.store'
+import { useGraphSceneStore } from '@/stores/graph/scene.store'
 
 export function useGraphKeyboard() {
   const editorStore = useGraphEditorStore()

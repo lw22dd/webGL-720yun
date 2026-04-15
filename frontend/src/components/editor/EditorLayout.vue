@@ -13,7 +13,7 @@ import { ref, provide, readonly } from 'vue'
 import EditorToolbar from './EditorToolbar.vue'
 import EditorCanvas from './EditorCanvas.vue'
 import EditorSidebar from './EditorSidebar.vue'
-import { ZOOM_LIMITS } from '@/utils/graphEditor/constants'
+import { ZOOM_LIMITS } from '@/utils/graph-editor/constants'
 
 const isLayoutComputing = ref(false)
 const canUndo = ref(false)

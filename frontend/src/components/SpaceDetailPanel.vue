@@ -102,7 +102,7 @@
 import { computed } from 'vue'
 import { CloseIcon, LocationIcon, StarIcon } from 'tdesign-icons-vue-next'
 import SceneTopology from './SceneTopology.vue'
-import type { SpaceListItem } from '@/models/SpaceModel'
+import type { SpaceListItem } from '@/models/space.model'
 
 interface SceneSimple {
   id: number

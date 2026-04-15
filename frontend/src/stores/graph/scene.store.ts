@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { SceneNodeData } from '@/models/graphEditor/node'
-import { SceneNodeStatus, type SceneNodeStatusType } from '@/models/graphEditor/node'
-import type { SceneEdgeData } from '@/models/graphEditor/edge'
-import type { SpaceInfoForGraph } from '@/models/graphEditor/scene'
-import SpaceApi from '@/apis/spaceApi'
+import type { SceneNodeData } from '@/models/graph/node.model'
+import { SceneNodeStatus, type SceneNodeStatusType } from '@/models/graph/node.model'
+import type { SceneEdgeData } from '@/models/graph/edge.model'
+import type { SpaceInfoForGraph } from '@/models/graph/scene.model'
+import SpaceApi from '@/services/api/space.api'
 
 export const useGraphSceneStore = defineStore('graphScene', () => {
   const spaceInfo = ref<SpaceInfoForGraph | null>(null)
@@ -32,7 +32,6 @@ export const useGraphSceneStore = defineStore('graphScene', () => {
 
         const nodesRaw = response.data.nodes ?? []
 
-        // 根据 hasPosition 字段分离已放置和待处理节点
         const placedNodesRaw = nodesRaw.filter((n: SceneNodeData) => n.has_position)
         const unplacedNodesRaw = nodesRaw.filter((n: SceneNodeData) => !n.has_position)
 
@@ -76,8 +75,8 @@ export const useGraphSceneStore = defineStore('graphScene', () => {
   }
 
   function addEdge(edge: Omit<SceneEdgeData, 'id'>) {
-    const newId = edges.value.length > 0 
-      ? Math.max(...edges.value.map(e => e.id)) + 1 
+    const newId = edges.value.length > 0
+      ? Math.max(...edges.value.map(e => e.id)) + 1
       : 1
     edges.value.push({ ...edge, id: newId })
   }

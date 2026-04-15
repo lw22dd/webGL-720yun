@@ -1,6 +1,6 @@
 import type {
   Result,
-} from "@/models/Result";
+} from "@/models/result.model";
 import type {
   InitUploadRequest,
   InitUploadResponse,
@@ -9,7 +9,7 @@ import type {
   CompleteUploadResponse,
   UploadStatusResponse,
   FileInfo,
-} from "@/models/UploadModel";
+} from "@/models/upload.model";
 import Axios from "@/utils/axios";
 
 export default class UploadApi {

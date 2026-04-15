@@ -65,9 +65,9 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { SearchIcon } from 'tdesign-icons-vue-next'
 import * as echarts from 'echarts'
-import { getChinaGeoJSON } from '@/apis/geoApi'
-import SpaceApi from '@/apis/spaceApi'
-import type { SpaceListItem } from '@/models/SpaceModel'
+import { getChinaGeoJSON } from '@/services/api/geo.api'
+import SpaceApi from '@/services/api/space.api'
+import type { SpaceListItem } from '@/models/space.model'
 
 interface SpaceWithScenes extends SpaceListItem {
   scenes?: any[]

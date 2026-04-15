@@ -29,7 +29,7 @@
 
 <script setup lang="ts">
 import { inject } from 'vue'
-import type { SceneNodeData } from '@/models/graphEditor/node'
+import type { SceneNodeData } from '@/models/graph/node.model'
 import { DND_ACTIONS_KEY } from '@/composables/useGraphDnd'
 
 const props = defineProps<{
