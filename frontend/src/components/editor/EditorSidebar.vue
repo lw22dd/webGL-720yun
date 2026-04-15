@@ -27,13 +27,13 @@ const editorStore = useGraphEditorStore()
 <style scoped>
 .sidebar {
   width: var(--sidebar-width);
+  height: 100%;
   background: var(--bg-sidebar);
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-shrink: 0;
   position: relative;
   transition: width var(--transition-normal);
-  overflow: hidden;
 }
 
 .sidebar.collapsed {

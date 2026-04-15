@@ -2,7 +2,8 @@
   <div class="toolbar">
     <div class="toolbar-left">
       <button class="toolbar-btn back-btn" @click="handleBack">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
         <span>返回</span>
@@ -15,24 +16,16 @@
     </div>
 
     <div class="toolbar-center">
-      <button
-        class="toolbar-btn icon-btn"
-        :disabled="!canUndo"
-        title="撤销 (Ctrl+Z)"
-        @click="handleUndo"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button class="toolbar-btn icon-btn" :disabled="!canUndo" title="撤销 (Ctrl+Z)" @click="handleUndo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <polyline points="1 4 1 10 7 10"></polyline>
           <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
         </svg>
       </button>
-      <button
-        class="toolbar-btn icon-btn"
-        :disabled="!canRedo"
-        title="重做 (Ctrl+Shift+Z)"
-        @click="handleRedo"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button class="toolbar-btn icon-btn" :disabled="!canRedo" title="重做 (Ctrl+Shift+Z)" @click="handleRedo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"></polyline>
           <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
         </svg>
@@ -44,17 +37,16 @@
     <div class="toolbar-right">
       <UploadButton />
       <button class="toolbar-btn icon-btn" title="适应画布" @click="handleFitCanvas">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+          </path>
         </svg>
       </button>
-      <button
-        class="toolbar-btn save-btn"
-        :class="{ saving: sceneStore.saving }"
-        :disabled="sceneStore.saving"
-        @click="handleSave"
-      >
-        <svg v-if="!sceneStore.saving" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button class="toolbar-btn save-btn" :class="{ saving: sceneStore.saving }" :disabled="sceneStore.saving"
+        @click="handleSave">
+        <svg v-if="!sceneStore.saving" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
           <polyline points="17 21 17 13 7 13 7 21"></polyline>
           <polyline points="7 3 7 8 15 8"></polyline>
@@ -67,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, type Ref } from 'vue'
+import { inject, type Ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGraphSceneStore } from '@/stores/graphSceneStore'
 import ZoomControl from '@/components/editor-common/ZoomControl.vue'
@@ -76,27 +68,48 @@ import UploadButton from '@/components/editor-common/UploadButton.vue'
 const router = useRouter()
 const sceneStore = useGraphSceneStore()
 
+const historyState = inject<{
+  canUndo: Ref<boolean>
+  canRedo: Ref<boolean>
+} | null>('historyState', null)
+
 const graphActions = inject<{
   undo: () => void
   redo: () => void
   fitCanvas: () => void
-  canUndoRef: Ref<boolean>
-  canRedoRef: Ref<boolean>
 } | null>('graphActions', null)
 
-const canUndo = graphActions?.canUndoRef ?? { value: false }
-const canRedo = graphActions?.canRedoRef ?? { value: false }
+const canUndo = computed(() => historyState?.canUndo?.value ?? false)
+const canRedo = computed(() => historyState?.canRedo?.value ?? false)
 
 function handleBack() {
   router.push('/admin/spaces')
 }
 
 function handleUndo() {
-  graphActions?.undo()
+  console.log('[Toolbar] handleUndo 被调用')
+  console.log('[Toolbar] graphActions:', graphActions)
+  console.log('[Toolbar] graphActions?.undo:', graphActions?.undo)
+  if (graphActions?.undo) {
+    console.log('[Toolbar] 调用 graphActions.undo()')
+    const result = graphActions.undo()
+    console.log('[Toolbar] undo 返回结果:', result)
+  } else {
+    console.log('[Toolbar] graphActions?.undo 不存在')
+  }
 }
 
 function handleRedo() {
-  graphActions?.redo()
+  console.log('[Toolbar] handleRedo 被调用')
+  console.log('[Toolbar] graphActions:', graphActions)
+  console.log('[Toolbar] graphActions?.redo:', graphActions?.redo)
+  if (graphActions?.redo) {
+    console.log('[Toolbar] 调用 graphActions.redo()')
+    const result = graphActions.redo()
+    console.log('[Toolbar] redo 返回结果:', result)
+  } else {
+    console.log('[Toolbar] graphActions?.redo 不存在')
+  }
 }
 
 function handleFitCanvas() {
@@ -234,6 +247,8 @@ async function handleSave() {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

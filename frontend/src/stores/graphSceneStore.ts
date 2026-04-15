@@ -30,8 +30,11 @@ export const useGraphSceneStore = defineStore('graphScene', () => {
         spaceInfo.value = response.data.space_info ?? null
         edges.value = response.data.edges ?? []
 
-        const placedNodesRaw = response.data.nodes ?? []
-        const unplacedNodesRaw = response.data.unplaced ?? []
+        const nodesRaw = response.data.nodes ?? []
+
+        // 根据 hasPosition 字段分离已放置和待处理节点
+        const placedNodesRaw = nodesRaw.filter((n: SceneNodeData) => n.has_position)
+        const unplacedNodesRaw = nodesRaw.filter((n: SceneNodeData) => !n.has_position)
 
         const placedNodesWithStatus = placedNodesRaw.map((n: SceneNodeData) => ({
           ...n,

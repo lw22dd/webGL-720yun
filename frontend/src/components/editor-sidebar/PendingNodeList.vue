@@ -1,43 +1,71 @@
 <template>
   <div class="pending-list">
     <div class="list-header">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="8" y1="6" x2="21" y2="6"></line>
-        <line x1="8" y1="12" x2="21" y2="12"></line>
-        <line x1="8" y1="18" x2="21" y2="18"></line>
-        <line x1="3" y1="6" x2="3.01" y2="6"></line>
-        <line x1="3" y1="12" x2="3.01" y2="12"></line>
-        <line x1="3" y1="18" x2="3.01" y2="18"></line>
-      </svg>
-      <span>待处理节点 ({{ sceneStore.pendingNodes.length }})</span>
+      <template v-if="!searchVisible">
+        <t-icon name="search" @click="showSearch" class="search-icon" />
+        <span>待处理节点 ({{ sceneStore.pendingNodes.length }})</span>
+      </template>
+      <template v-else>
+        <t-input
+          v-model="searchQuery"
+          ref="searchInputRef"
+          placeholder="搜索节点..."
+          @blur="hideSearch"
+          @enter="hideSearch"
+          autofocus
+          class="search-input"
+        />
+      </template>
     </div>
 
-    <div class="list-body" v-if="sceneStore.pendingNodes.length > 0">
+    <div class="list-body" v-if="filteredNodes.length > 0">
       <PendingNodeItem
-        v-for="node in sceneStore.pendingNodes"
+        v-for="node in filteredNodes"
         :key="node.id"
         :node="node"
       />
     </div>
 
     <div class="list-empty" v-else>
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-      </svg>
-      <p>所有节点已放置完成</p>
+      <t-icon name="search" size="48px" />
+      <p v-if="searchQuery">未找到匹配的节点</p>
+      <p v-else>所有节点已放置完成</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, nextTick } from 'vue'
 import { useGraphSceneStore } from '@/stores/graphSceneStore'
 import PendingNodeItem from './PendingNodeItem.vue'
 
 const sceneStore = useGraphSceneStore()
 
+const searchVisible = ref(false)
+const searchQuery = ref('')
+const searchInputRef = ref<any>(null)
 
-console.log('[PendingNodeList] pendingNodes:', sceneStore.pendingNodes)
+const filteredNodes = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return sceneStore.pendingNodes
+  }
+  const query = searchQuery.value.toLowerCase()
+  return sceneStore.pendingNodes.filter(node =>
+    node.title.toLowerCase().includes(query) ||
+    node.scene_code.toLowerCase().includes(query)
+  )
+})
+
+const showSearch = async () => {
+  searchVisible.value = true
+  await nextTick()
+  searchInputRef.value?.focus()
+}
+
+const hideSearch = () => {
+  searchVisible.value = false
+  searchQuery.value = ''
+}
 </script>
 
 <style scoped>
@@ -59,8 +87,18 @@ console.log('[PendingNodeList] pendingNodes:', sceneStore.pendingNodes)
   flex-shrink: 0;
 }
 
-.list-header svg {
+.search-icon {
   color: #6b7280;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.search-icon:hover {
+  color: #374151;
+}
+
+.search-input {
+  flex: 1;
 }
 
 .list-body {

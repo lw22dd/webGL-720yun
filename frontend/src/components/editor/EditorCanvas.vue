@@ -40,15 +40,20 @@ const layoutComputing = inject<LayoutComputingState>('layoutComputingState', {
 const dndActions = reactive<{ startDrag: ((nodeData: any, e: MouseEvent) => void) | null }>({ startDrag: null })
 provide(DND_ACTIONS_KEY, dndActions as any)
 
+const historyState = inject<{
+  setCanUndo: (val: boolean) => void
+  setCanRedo: (val: boolean) => void
+} | null>('historyState', null)
+
+const layoutActions = inject<{
+  setGraph: (g: any) => void
+} | null>('graphActions', null)
+
 const graphActionsObj = {
   getGraph: () => graph,
-  undo: () => graph?.undo(),
-  redo: () => graph?.redo(),
   zoomIn: () => graph?.zoom(ZOOM_LIMITS.step),
   zoomOut: () => graph?.zoom(-ZOOM_LIMITS.step),
   fitCanvas: () => graph?.zoomToFit({ maxScale: 1 }),
-  canUndoRef: canUndo,
-  canRedoRef: canRedo,
   uploadBackground(file: File) {
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -346,6 +351,10 @@ function initGraph() {
     },
   })
 
+  // 将 graph 设置到父组件
+  layoutActions?.setGraph(graph)
+  console.log('[EditorCanvas] graph 已设置到父组件')
+
   historyInstance = new History({
     enabled: true,
     stackSize: HISTORY_STACK_SIZE,
@@ -588,6 +597,8 @@ function setupGraphEvents() {
       console.log('[History] canUndo:', graph.canUndo(), 'canRedo:', graph.canRedo())
       canUndo.value = undoSize > 0
       canRedo.value = redoSize > 0
+      historyState?.setCanUndo(undoSize > 0)
+      historyState?.setCanRedo(redoSize > 0)
     }
   })
 }
