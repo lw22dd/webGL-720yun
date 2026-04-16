@@ -106,13 +106,22 @@
               上传
             </t-button>
             <t-button
-              v-else
+              v-if="row.source_url"
               theme="primary"
               variant="text"
               size="small"
               @click="openPreviewDialog(row)"
             >
               预览
+            </t-button>
+            <t-button
+              v-if="row.slice_status === 'completed' || row.slice_status === 'ready'"
+              theme="success"
+              variant="text"
+              size="small"
+              @click="handleViewPanorama(row)"
+            >
+              查看
             </t-button>
             <t-button
               theme="primary"
@@ -232,6 +241,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import SceneApi from '@/services/api/scene.api'
 import uploadService from '@/services/uploadService'
@@ -239,6 +249,8 @@ import { useSceneStore } from '@/stores/scene/scene.store'
 import type { SpaceListItem } from '@/models/space.model'
 import type { SceneListItem } from '@/models/scene.model'
 import ScenePreviewDialog from '@/components/admin/ScenePreviewDialog.vue'
+
+const router = useRouter()
 
 interface Props {
   space: SpaceListItem | null
@@ -551,6 +563,10 @@ const confirmDelete = async () => {
 const openPreviewDialog = (scene: SceneListItem) => {
   previewScene.value = scene
   previewDialogVisible.value = true
+}
+
+const handleViewPanorama = (scene: SceneListItem) => {
+  router.push(`/panorama?scene=${scene.scene_code}`)
 }
 
 const handlePageChange = (context: { current: number; pageSize: number }) => {

@@ -66,23 +66,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
 import Header from '@/components/Header.vue'
-
-interface HistoryItem {
-  id: number
-  name: string
-  type: 'space' | 'scene'
-  thumbnail_url?: string
-  province?: string
-  city?: string
-  scene_code?: string
-  visitedAt: string
-}
-
-interface HistoryGroup {
-  date: string
-  dateLabel: string
-  items: HistoryItem[]
-}
+import type { HistoryItem, HistoryGroup } from '@/models/user.model'
 
 const router = useRouter()
 const historyList = ref<HistoryItem[]>([])

@@ -17,6 +17,16 @@ export interface User {
   updated_at?: string;
 }
 
+export interface UserItem {
+  id: number;
+  username: string;
+  email: string;
+  phone: string;
+  nickname: string;
+  role_id: number;
+  [key: string]: any;
+}
+
 export interface CreateUserRequest {
   id?: number;
   username: string;
@@ -142,4 +152,35 @@ export interface StudentExcelData {
   class_name: string;
   class_id: number;
   teacher_ids: number[];
+}
+
+export interface FavoriteItem {
+  id: number;
+  name: string;
+  type: 'space' | 'scene';
+  cover_url?: string;
+  slug?: string;
+  province?: string;
+  city?: string;
+  description?: string;
+  scene_count?: number;
+  scene_code?: string;
+  addedAt?: string;
+}
+
+export interface HistoryItem {
+  id: number;
+  name: string;
+  type: 'space' | 'scene';
+  thumbnail_url?: string;
+  province?: string;
+  city?: string;
+  scene_code?: string;
+  visitedAt: string;
+}
+
+export interface HistoryGroup {
+  date: string;
+  dateLabel: string;
+  items: HistoryItem[];
 }

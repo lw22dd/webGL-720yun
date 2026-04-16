@@ -41,7 +41,7 @@
             </p>
             <p class="card-desc">{{ item.description || '暂无描述' }}</p>
             <div class="card-footer">
-              <span class="card-time">收藏于 {{ formatDate(item.addedAt) }}</span>
+              <span class="card-time">收藏于 {{ formatDate(item.addedAt || '') }}</span>
               <span class="card-enter">进入漫游 →</span>
             </div>
           </div>
@@ -62,20 +62,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import Header from '@/components/Header.vue'
-
-interface FavoriteItem {
-  id: number
-  name: string
-  type: 'space' | 'scene'
-  cover_url?: string
-  slug?: string
-  province?: string
-  city?: string
-  description?: string
-  scene_count?: number
-  scene_code?: string
-  addedAt: string
-}
+import type { FavoriteItem } from '@/models/user.model'
 
 const router = useRouter()
 const favorites = ref<FavoriteItem[]>([])

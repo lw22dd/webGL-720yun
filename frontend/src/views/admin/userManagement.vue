@@ -87,18 +87,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import AdminTable from '@/components/admin/AdminTable.vue'
 import UserApi from '@/services/api/user.api'
-
-
-interface UserItem {
-  id: number
-  username: string
-  email: string
-  phone: string
-  nickname: string
-  role_id: number
-  status: number
-  [key: string]: any
-}
+import type { UserItem } from '@/models/user.model'
 
 const searchKeyword = ref('')
 const userList = ref<UserItem[]>([])

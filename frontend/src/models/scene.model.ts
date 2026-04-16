@@ -172,3 +172,33 @@ export type ScenePosition = {
 export type BatchUpdatePositionRequest = {
     positions: ScenePosition[]
 }
+
+export type SceneNode = {
+    id: number
+    title: string
+    scene_code: string
+    longitude: number
+    latitude: number
+    thumbnail_url?: string
+    view_count?: number
+    sort_order?: number
+    hotspots?: { target_scene_id?: number }[]
+}
+
+export type SceneSimple = {
+    id: number
+    title: string
+    scene_code: string
+    thumbnail_url?: string
+    view_count?: number
+    sort_order?: number
+    longitude: number
+    latitude: number
+}
+
+export type SceneItem = {
+    id: number
+    title: string
+    thumbnail_url?: string
+    scene_code?: string
+}

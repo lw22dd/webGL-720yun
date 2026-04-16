@@ -38,13 +38,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-
-interface SceneItem {
-  id: number
-  title: string
-  thumbnail_url?: string
-  scene_code?: string
-}
+import type { SceneItem } from '@/models/scene.model'
 
 defineProps<{
   scenes: SceneItem[]

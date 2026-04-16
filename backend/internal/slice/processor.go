@@ -27,6 +27,19 @@ const (
 	TileSize = 256
 )
 
+// LODSpec 定义三级 LOD 规格
+type LODSpec struct {
+	TileCount int // 每面瓦片数量 (2, 4, 8)
+	MaxSize   int // 单张瓦片最大尺寸
+}
+
+// LODSpecs 三级 LOD 规格：Level 0 (低清), Level 1 (中等), Level 2 (高清)
+var LODSpecs = map[int]LODSpec{
+	0: {TileCount: 2, MaxSize: 2048}, // 低清层：2×2 = 4 张瓦片
+	1: {TileCount: 4, MaxSize: 2048}, // 中等层：4×4 = 16 张瓦片
+	2: {TileCount: 8, MaxSize: 2048}, // 高清层：8×8 = 64 张瓦片
+}
+
 type SliceMetrics struct {
 	TaskID       string
 	SceneID      uint
@@ -393,24 +406,28 @@ func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir
 			}
 
 			tiles := make(map[int][]string)
+			originalSize := img.Bounds().Dx()
 
-			// 收集所有层级的图像，从高分辨率到低分辨率
-			var levelImages []image.Image
-			tempImg := img
-			for {
-				levelImages = append(levelImages, tempImg)
-				newSize := tempImg.Bounds().Dx() / 2
-				if newSize < TileSize {
-					break
+			// 按 LOD 规格生成三级瓦片
+			for level := 0; level <= 2; level++ {
+				spec := LODSpecs[level]
+				tileCount := spec.TileCount
+
+				// 计算该层级需要的图像尺寸
+				targetSize := tileCount * TileSize
+				if targetSize > spec.MaxSize {
+					targetSize = spec.MaxSize
 				}
-				tempImg = imaging.Resize(tempImg, newSize, newSize, imaging.Lanczos)
-			}
 
-			numLevels := len(levelImages)
-			for i, current := range levelImages {
-				// 反转层级索引：最小分辨率为 level_0，最高分辨率为 level_(numLevels-1)
-				levelIndex := numLevels - 1 - i
-				levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", levelIndex))
+				// 缩放图像到目标尺寸
+				var levelImg image.Image
+				if originalSize >= targetSize {
+					levelImg = imaging.Resize(img, targetSize, targetSize, imaging.Lanczos)
+				} else {
+					levelImg = img
+				}
+
+				levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", level))
 				if err := os.MkdirAll(levelDir, 0755); err != nil {
 					resultChan <- faceTilesResult{
 						faceName: name,
@@ -419,7 +436,7 @@ func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir
 					return
 				}
 
-				tileFiles, err := p.sliceImage(current, levelDir, levelIndex, name)
+				tileFiles, err := p.sliceImageByLOD(levelImg, levelDir, level, name, tileCount)
 				if err != nil {
 					resultChan <- faceTilesResult{
 						faceName: name,
@@ -428,7 +445,7 @@ func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir
 					return
 				}
 
-				tiles[levelIndex] = tileFiles
+				tiles[level] = tileFiles
 			}
 
 			resultChan <- faceTilesResult{
@@ -450,6 +467,54 @@ func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir
 			return nil, result.err
 		}
 		tileFiles[result.faceName] = result.tiles
+	}
+
+	return tileFiles, nil
+}
+
+// sliceImageByLOD 按 LOD 规格切割图像
+func (p *SliceProcessor) sliceImageByLOD(img image.Image, outputDir string, level int, faceName string, tileCount int) ([]string, error) {
+	bounds := img.Bounds()
+	imgWidth := bounds.Dx()
+	imgHeight := bounds.Dy()
+
+	tileWidth := imgWidth / tileCount
+	tileHeight := imgHeight / tileCount
+
+	var tileFiles []string
+
+	for y := 0; y < tileCount; y++ {
+		for x := 0; x < tileCount; x++ {
+			startX := x * tileWidth
+			startY := y * tileHeight
+
+			tileImg := imaging.New(tileWidth, tileHeight, image.Black)
+
+			for ty := 0; ty < tileHeight; ty++ {
+				for tx := 0; tx < tileWidth; tx++ {
+					tileImg.Set(tx, ty, img.At(startX+tx, startY+ty))
+				}
+			}
+
+			// 翻转 Y 坐标以匹配 WebGL 纹理坐标系（y=0 在底部）
+			// 图像处理中 y=0 在顶部，所以需要翻转
+			flippedY := tileCount - 1 - y
+			tileFileName := fmt.Sprintf("tile_%d_%d.jpg", flippedY, x)
+			tilePath := filepath.Join(outputDir, tileFileName)
+
+			file, err := os.Create(tilePath)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := jpeg.Encode(file, tileImg, &jpeg.Options{Quality: 85}); err != nil {
+				file.Close()
+				return nil, err
+			}
+			file.Close()
+
+			tileFiles = append(tileFiles, tilePath)
+		}
 	}
 
 	return tileFiles, nil

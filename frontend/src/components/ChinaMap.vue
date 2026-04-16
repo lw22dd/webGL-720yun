@@ -67,11 +67,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next'
 import * as echarts from 'echarts'
 import { getChinaGeoJSON } from '@/services/api/geo.api'
 import SpaceApi from '@/services/api/space.api'
-import type { SpaceListItem } from '@/models/space.model'
-
-interface SpaceWithScenes extends SpaceListItem {
-  scenes?: any[]
-}
+import type { SpaceListItem, SpaceWithScenes } from '@/models/space.model'
 
 const props = defineProps<{
   viewMode?: 'map' | 'card'

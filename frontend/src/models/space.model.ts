@@ -51,9 +51,11 @@ export type SceneSimple = {
     id: number
     title: string
     scene_code: string
-    thumbnail_url: string
-    view_count: number
-    sort_order: number
+    thumbnail_url?: string
+    view_count?: number
+    sort_order?: number
+    longitude: number
+    latitude: number
 }
 
 export type SpaceDetailResponse = {
@@ -82,4 +84,32 @@ export type SpaceListResponse = {
         total: number
     }
     spaces: SpaceListItem[]
+}
+
+export type SpaceWithScenes = {
+    id: number
+    name: string
+    slug: string
+    cover_url: string
+    description: string
+    province: string
+    city: string
+    longitude: number
+    latitude: number
+    zoom_level: number
+    sort_order: number
+    status: number
+    scene_count: number
+    created_at: string
+    updated_at: string
+    scenes?: {
+        id: number
+        title: string
+        scene_code: string
+        thumbnail_url?: string
+        view_count?: number
+        sort_order?: number
+        longitude: number
+        latitude: number
+    }[]
 }

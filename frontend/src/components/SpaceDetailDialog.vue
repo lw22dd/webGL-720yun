@@ -74,20 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import type { SpaceListItem } from '@/models/space.model'
-
-interface SceneSimple {
-  id: number
-  title: string
-  scene_code: string
-  thumbnail_url: string
-  view_count: number
-  sort_order: number
-}
-
-interface SpaceWithScenes extends SpaceListItem {
-  scenes?: SceneSimple[]
-}
+import type { SpaceWithScenes, SceneSimple } from '@/models/space.model'
 
 const props = defineProps<{
   visible: boolean

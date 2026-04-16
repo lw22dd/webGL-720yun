@@ -114,21 +114,8 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { CloseIcon, LocationIcon, StarIcon } from 'tdesign-icons-vue-next'
 import SceneTopology from './SceneTopology.vue'
-import type { SpaceListItem } from '@/models/space.model'
-
-interface SceneSimple {
-  id: number
-  title: string
-  scene_code: string
-  view_count?: number
-  sort_order?: number
-  longitude: number
-  latitude: number
-}
-
-interface SpaceWithScenes extends SpaceListItem {
-  scenes?: SceneSimple[]
-}
+import type { SpaceWithScenes, SceneSimple } from '@/models/space.model'
+import type { SceneNode } from '@/models/scene.model'
 
 const props = defineProps<{
   visible: boolean
@@ -137,7 +124,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'sceneClick', scene: SceneSimple): void
+  (e: 'sceneClick', scene: SceneNode): void
 }>()
 
 const router = useRouter()

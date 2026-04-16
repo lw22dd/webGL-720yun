@@ -107,6 +107,7 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { Viewer } from '@photo-sphere-viewer/core'
+import { CubemapAdapter } from '@photo-sphere-viewer/cubemap-adapter'
 import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
 import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
@@ -114,6 +115,9 @@ import SceneApi from '@/services/api/scene.api'
 import HotspotApi from '@/services/api/hotspot.api'
 import SceneStrip from './SceneStrip.vue'
 import type { SceneDetailResponse } from '@/models/scene.model'
+import { TilePreloader, getCubemapUrls } from '@/utils/tileLoader'
+
+const baseApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'
 
 
 const route = useRoute()
@@ -144,6 +148,7 @@ const quizOptions = computed(() => {
 
 let viewer: any = null
 let markersPlugin: any = null
+let tilePreloader: TilePreloader | null = null
 
 const loadScene = async () => {
   const sceneCode = route.query.scene as string
@@ -157,7 +162,7 @@ const loadScene = async () => {
     loading.value = true
     error.value = ''
 
-    const result = await SceneApi.getSceneList({ keyword: sceneCode })
+    const result = await SceneApi.getSceneList({ keyword: sceneCode, page: 1, page_size: 10 })
       console.log(result)
 
     if (result.code === 200 && result.data && result.data.scenes && result.data.scenes.length > 0) {
@@ -189,31 +194,86 @@ const initViewer = async () => {
     viewer = null
   }
 
-  const panoramaUrl = currentScene.value.tile_url || currentScene.value.source_url
-  if (!panoramaUrl) {
-    error.value = '全景图地址不存在'
-    return
+  if (tilePreloader) {
+    tilePreloader.clear()
+    tilePreloader = null
   }
 
+  const scene = currentScene.value
+  const sceneCode = scene.scene_code
+
+  const useCubemap = (scene.slice_status === 'ready' || scene.slice_status === 'completed') && sceneCode
+
   try {
-    viewer = new Viewer({
+    let panoramaConfig: any
+    let adapterConfig: any = null
+
+    if (useCubemap) {
+      adapterConfig = [CubemapAdapter, {
+        resolution: 64,
+      }]
+      const cubemapUrls = getCubemapUrls(sceneCode)
+      panoramaConfig = {
+        type: 'separate',
+        paths: cubemapUrls,
+        flipTopBottom: true,
+      }
+      tilePreloader = new TilePreloader(sceneCode)
+    } else {
+      const panoramaUrl = scene.tile_url || scene.source_url
+      if (!panoramaUrl) {
+        error.value = '全景图地址不存在'
+        return
+      }
+      panoramaConfig = panoramaUrl
+    }
+
+    const viewerConfig: any = {
       container: containerRef.value,
-      panorama: panoramaUrl,
-      defaultZoomLvl: currentScene.value.initial_fov || 50,
-      defaultPitch: currentScene.value.initial_pitch || 0,
-      defaultYaw: currentScene.value.initial_yaw || 0,
+      panorama: panoramaConfig,
+      defaultZoomLvl: scene.initial_fov || 50,
+      defaultPitch: scene.initial_pitch || 0,
+      defaultYaw: scene.initial_yaw || 0,
       minFov: 30,
       maxFov: 90,
       navbar: false,
       plugins: [
         [MarkersPlugin, {}]
       ]
-    })
+    }
+
+    if (adapterConfig) {
+      viewerConfig.adapter = adapterConfig
+    }
+
+    viewer = new Viewer(viewerConfig)
 
     markersPlugin = viewer.getPlugin(MarkersPlugin) as any
 
     viewer.addEventListener('ready', () => {
       loading.value = false
+      
+      if (tilePreloader) {
+        tilePreloader.preloadLevel(1).catch(console.error)
+      }
+    })
+
+    viewer.addEventListener('panorama-error', (err: any) => {
+      console.error('Panorama load error:', err)
+      console.log('scene.source_url:', scene.source_url)
+      console.log('scene.preview_url:', scene.preview_url)
+      console.log('sceneCode:', sceneCode)
+      
+      if (scene.source_url) {
+        console.log('Retrying with source image:', scene.source_url)
+        initViewerWithFallback(scene.source_url)
+      } else if (sceneCode) {
+        console.log('Retrying with preview API for scene:', sceneCode)
+        initViewerWithFallback(`${baseApiUrl}/api/v1/res/previews/${sceneCode}`)
+      } else {
+        error.value = '全景图加载失败，请重新上传或切片'
+        loading.value = false
+      }
     })
 
     markersPlugin?.addEventListener('select-marker', ({ marker }: any) => {
@@ -225,11 +285,62 @@ const initViewer = async () => {
   }
 }
 
+const initViewerWithFallback = async (panoramaUrl: string) => {
+  if (!containerRef.value || !currentScene.value) return
+
+  if (viewer) {
+    viewer.destroy()
+    viewer = null
+  }
+
+  const scene = currentScene.value
+
+  try {
+    const viewerConfig: any = {
+      container: containerRef.value,
+      panorama: panoramaUrl,
+      defaultZoomLvl: scene.initial_fov || 50,
+      defaultPitch: scene.initial_pitch || 0,
+      defaultYaw: scene.initial_yaw || 0,
+      minFov: 30,
+      maxFov: 90,
+      navbar: false,
+      plugins: [
+        [MarkersPlugin, {}]
+      ]
+    }
+
+    viewer = new Viewer(viewerConfig)
+    markersPlugin = viewer.getPlugin(MarkersPlugin) as any
+
+    viewer.addEventListener('ready', () => {
+      loading.value = false
+    })
+
+    viewer.addEventListener('panorama-error', () => {
+      error.value = '全景图加载失败'
+      loading.value = false
+    })
+
+    markersPlugin?.addEventListener('select-marker', ({ marker }: any) => {
+      handleMarkerClick(marker.config.id)
+    })
+
+  } catch (e: any) {
+    error.value = e.message || '初始化失败'
+    loading.value = false
+  }
+}
+
 const loadHotspots = async () => {
   if (!currentSceneId.value || !markersPlugin) return
 
   try {
-    const result = await HotspotApi.getHotspotList({ scene_id: currentSceneId.value })
+    const result = await HotspotApi.getHotspotList({ 
+      scene_id: currentSceneId.value,
+      page: 1,
+      page_size: 100
+    })
     if (result.code === 200 && result.data) {
       result.data.hotspots.forEach((hotspot: any) => {
         const markerConfig: any = {
@@ -381,6 +492,10 @@ onUnmounted(() => {
   if (viewer) {
     viewer.destroy()
     viewer = null
+  }
+  if (tilePreloader) {
+    tilePreloader.clear()
+    tilePreloader = null
   }
 })
 </script>

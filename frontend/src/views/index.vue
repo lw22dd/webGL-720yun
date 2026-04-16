@@ -105,11 +105,7 @@ import ChinaMap from '@/components/ChinaMap.vue'
 import SpaceDetailPanel from '@/components/SpaceDetailPanel.vue'
 import SpaceDetailDialog from '@/components/SpaceDetailDialog.vue'
 import SpaceApi from '@/services/api/space.api'
-import type { SpaceListItem } from '@/models/space.model'
-
-interface SpaceWithScenes extends SpaceListItem {
-  scenes?: any[]
-}
+import type { SpaceListItem, SpaceWithScenes } from '@/models/space.model'
 
 const router = useRouter()
 const chinaMapRef = ref<InstanceType<typeof ChinaMap> | null>(null)

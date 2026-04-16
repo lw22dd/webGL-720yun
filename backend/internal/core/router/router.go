@@ -132,10 +132,16 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		{
 			// GET /api/v1/res/tiles/:sceneCode/:face/:level/:x/:y
 			resGroup.GET("/tiles/:sceneCode/:face/:level/:x/:y", handler.GetTile(sceneService))
+			resGroup.HEAD("/tiles/:sceneCode/:face/:level/:x/:y", handler.GetTile(sceneService))
+			// GET /api/v1/res/cubemap/:sceneCode/:face
+			resGroup.GET("/cubemap/:sceneCode/:face", handler.GetCubemapFace(sceneService))
+			resGroup.HEAD("/cubemap/:sceneCode/:face", handler.GetCubemapFace(sceneService))
 			// GET /api/v1/res/previews/:sceneCode
 			resGroup.GET("/previews/:sceneCode", handler.GetPreview(sceneService))
+			resGroup.HEAD("/previews/:sceneCode", handler.GetPreview(sceneService))
 			// GET /api/v1/res/covers/:spaceName
 			resGroup.GET("/covers/:spaceName", handler.GetCover(sceneService))
+			resGroup.HEAD("/covers/:spaceName", handler.GetCover(sceneService))
 		}
 	}
 
