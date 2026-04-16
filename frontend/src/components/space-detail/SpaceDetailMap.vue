@@ -86,6 +86,8 @@ const activeSceneId = ref<number | null>(null)
 let l7Scene: L7Scene | null = null
 let aMapInstance: any = null
 let markerList: Marker[] = []
+let satelliteLayer: any = null
+let normalLayer: any = null
 
 const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || ''
 const AMAP_SECURITY_KEY = import.meta.env.VITE_AMAP_SECURITY_KEY || ''
@@ -275,7 +277,7 @@ async function initMap() {
     l7Scene = new L7Scene({
       id: mapContainer.value,
       map: new GaodeMap({
-        style: 'dark',
+        style: 'normal',
         center: [spaceData.value.longitude, spaceData.value.latitude],
         zoom: 15,
         pitch: 0,
@@ -357,10 +359,21 @@ async function initMap() {
 
 function handleBasemapSwitch(type: BasemapType) {
   basemapType.value = type
-  if (l7Scene && typeof (l7Scene as any).setMapStyle === 'function') {
-    ;(l7Scene as any).setMapStyle(type === 'satellite' ? 'satellite' : 'dark')
-  } else if (aMapInstance) {
-    aMapInstance.setMapStyle(type === 'satellite' ? 'amap://satellite' : 'amap://styles/dark')
+  
+  if (!aMapInstance || !(window as any).AMap) return
+
+  // 使用图层方式切换卫星图和矢量图
+  const AMap = (window as any).AMap
+  
+  if (type === 'satellite') {
+    // 切换到卫星图
+    if (!satelliteLayer) {
+      satelliteLayer = new AMap.TileLayer.Satellite()
+    }
+    aMapInstance.setLayers([satelliteLayer])
+  } else {
+    // 切换到标准矢量图（默认图层）
+    aMapInstance.setLayers([new AMap.TileLayer()])
   }
 }
 

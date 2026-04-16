@@ -94,6 +94,23 @@ func GetPreview(svc *service.SceneService) gin.HandlerFunc {
 	}
 }
 
+// GetSource 流式返回场景原始全景图
+// GET /api/v1/res/sources/:sceneCode
+func GetSource(svc *service.SceneService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sceneCode := c.Param("sceneCode")
+
+		result, err := svc.GetSourceStream(c.Request.Context(), sceneCode)
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		defer result.Stream.Close()
+
+		streamResponse(c, result)
+	}
+}
+
 // GetCover 流式返回空间封面
 // GET /api/v1/res/covers/:spaceName
 func GetCover(svc *service.SceneService) gin.HandlerFunc {

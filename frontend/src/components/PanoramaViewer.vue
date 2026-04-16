@@ -108,6 +108,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { Viewer } from '@photo-sphere-viewer/core'
 import { CubemapAdapter } from '@photo-sphere-viewer/cubemap-adapter'
+import { CubemapTilesAdapter } from '@photo-sphere-viewer/cubemap-tiles-adapter'
 import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
 import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
@@ -115,7 +116,8 @@ import SceneApi from '@/services/api/scene.api'
 import HotspotApi from '@/services/api/hotspot.api'
 import SceneStrip from './SceneStrip.vue'
 import type { SceneDetailResponse } from '@/models/scene.model'
-import { TilePreloader, getCubemapUrls } from '@/utils/tileLoader'
+import { TilePreloader, getCubemapUrls, getTileUrl } from '@/utils/tileLoader'
+
 
 const baseApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'
 
@@ -209,15 +211,39 @@ const initViewer = async () => {
     let adapterConfig: any = null
 
     if (useCubemap) {
-      adapterConfig = [CubemapAdapter, {
-        resolution: 64,
-      }]
       const cubemapUrls = getCubemapUrls(sceneCode)
-      panoramaConfig = {
-        type: 'separate',
-        paths: cubemapUrls,
-        flipTopBottom: true,
+      const faceMap: Record<string, string> = {
+        left: 'nx',
+        front: 'pz',
+        right: 'px',
+        back: 'nz',
+        top: 'py',
+        bottom: 'ny'
       }
+      const tileUrl = (face: string, col: number, row: number, level: number) => {
+        const mappedFace = faceMap[face] || face
+        return getTileUrl(sceneCode, mappedFace, level, col, row)
+      }
+
+      adapterConfig = CubemapTilesAdapter
+      panoramaConfig = {
+        baseUrl: {
+          left: cubemapUrls.left,
+          front: cubemapUrls.front,
+          right: cubemapUrls.right,
+          back: cubemapUrls.back,
+          top: cubemapUrls.top,
+          bottom: cubemapUrls.bottom,
+        },
+        flipTopBottom: true,
+        levels: [
+          { faceSize: 1024, nbTiles: 2 },
+          { faceSize: 2048, nbTiles: 4 },
+          { faceSize: 2048, nbTiles: 8 },
+        ],
+        tileUrl,
+      }
+      console.log('[Pano] 使用 CubemapTilesAdapter 瓦片渲染模式')
       tilePreloader = new TilePreloader(sceneCode)
     } else {
       const panoramaUrl = scene.tile_url || scene.source_url
@@ -226,12 +252,13 @@ const initViewer = async () => {
         return
       }
       panoramaConfig = panoramaUrl
+      console.log('[Pano] 使用 Equirectangular 全景图渲染模式')
     }
 
     const viewerConfig: any = {
       container: containerRef.value,
       panorama: panoramaConfig,
-      defaultZoomLvl: scene.initial_fov || 50,
+      defaultZoomLvl: 0,
       defaultPitch: scene.initial_pitch || 0,
       defaultYaw: scene.initial_yaw || 0,
       minFov: 30,
@@ -259,17 +286,11 @@ const initViewer = async () => {
     })
 
     viewer.addEventListener('panorama-error', (err: any) => {
-      console.error('Panorama load error:', err)
-      console.log('scene.source_url:', scene.source_url)
-      console.log('scene.preview_url:', scene.preview_url)
-      console.log('sceneCode:', sceneCode)
-      
-      if (scene.source_url) {
-        console.log('Retrying with source image:', scene.source_url)
-        initViewerWithFallback(scene.source_url)
-      } else if (sceneCode) {
-        console.log('Retrying with preview API for scene:', sceneCode)
-        initViewerWithFallback(`${baseApiUrl}/api/v1/res/previews/${sceneCode}`)
+      console.error('[Pano] Panorama load error:', err)
+
+      if (sceneCode) {
+        console.log('[Pano] Fallback: 使用 source API 重试')
+        initViewerWithFallback(`${baseApiUrl}/api/v1/res/sources/${sceneCode}`)
       } else {
         error.value = '全景图加载失败，请重新上传或切片'
         loading.value = false
@@ -299,7 +320,7 @@ const initViewerWithFallback = async (panoramaUrl: string) => {
     const viewerConfig: any = {
       container: containerRef.value,
       panorama: panoramaUrl,
-      defaultZoomLvl: scene.initial_fov || 50,
+      defaultZoomLvl: 0,
       defaultPitch: scene.initial_pitch || 0,
       defaultYaw: scene.initial_yaw || 0,
       minFov: 30,

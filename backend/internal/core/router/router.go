@@ -139,6 +139,9 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 			// GET /api/v1/res/previews/:sceneCode
 			resGroup.GET("/previews/:sceneCode", handler.GetPreview(sceneService))
 			resGroup.HEAD("/previews/:sceneCode", handler.GetPreview(sceneService))
+			// GET /api/v1/res/sources/:sceneCode
+			resGroup.GET("/sources/:sceneCode", handler.GetSource(sceneService))
+			resGroup.HEAD("/sources/:sceneCode", handler.GetSource(sceneService))
 			// GET /api/v1/res/covers/:spaceName
 			resGroup.GET("/covers/:spaceName", handler.GetCover(sceneService))
 			resGroup.HEAD("/covers/:spaceName", handler.GetCover(sceneService))

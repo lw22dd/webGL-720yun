@@ -781,6 +781,20 @@ func (s *SceneService) GetPreviewStream(ctx context.Context, sceneCode string) (
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 
+// GetSourceStream 流式获取场景原始全景图
+// 路径规则：spaces/{spaceName}/sources/{sceneCode}/source.jpg
+func (s *SceneService) GetSourceStream(ctx context.Context, sceneCode string) (*ResourceStreamResult, error) {
+	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	if err != nil {
+		return nil, fmt.Errorf("scene not found: %w", err)
+	}
+
+	spaceName := scene.Space.Slug
+	objectPath := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceName, sceneCode)
+
+	return s.getObjectStream(ctx, objectPath, "image/jpeg")
+}
+
 // GetCoverStream 流式获取空间封面
 // 路径规则：spaces/{spaceName}/covers/cover.jpg
 func (s *SceneService) GetCoverStream(ctx context.Context, spaceName string) (*ResourceStreamResult, error) {

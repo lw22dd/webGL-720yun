@@ -496,10 +496,7 @@ func (p *SliceProcessor) sliceImageByLOD(img image.Image, outputDir string, leve
 				}
 			}
 
-			// 翻转 Y 坐标以匹配 WebGL 纹理坐标系（y=0 在底部）
-			// 图像处理中 y=0 在顶部，所以需要翻转
-			flippedY := tileCount - 1 - y
-			tileFileName := fmt.Sprintf("tile_%d_%d.jpg", flippedY, x)
+			tileFileName := fmt.Sprintf("tile_%d_%d.jpg", y, x)
 			tilePath := filepath.Join(outputDir, tileFileName)
 
 			file, err := os.Create(tilePath)
