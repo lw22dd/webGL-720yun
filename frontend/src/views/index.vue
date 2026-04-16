@@ -41,7 +41,13 @@
           >
             <div class="space-card-cover">
               <img 
-                v-if="space.cover_url" 
+                v-if="space.slug" 
+                :src="getCoverUrl(space.slug)" 
+                :alt="space.name"
+                @error="console.error('封面加载失败:', space.name, getCoverUrl(space.slug))"
+              />
+              <img 
+                v-else-if="space.cover_url" 
                 :src="space.cover_url" 
                 :alt="space.name"
               />
@@ -80,6 +86,13 @@
         @close="handlePanelClose"
         @scene-click="handleSceneClick"
       />
+
+      <SpaceDetailDialog
+        :visible="dialogVisible"
+        :space="selectedSpace"
+        @close="handleDialogClose"
+        @scene-click="handleSceneClick"
+      />
     </main>
   </div>
 </template>
@@ -90,6 +103,7 @@ import { useRouter } from 'vue-router'
 import Header from '@/components/Header.vue'
 import ChinaMap from '@/components/ChinaMap.vue'
 import SpaceDetailPanel from '@/components/SpaceDetailPanel.vue'
+import SpaceDetailDialog from '@/components/SpaceDetailDialog.vue'
 import SpaceApi from '@/services/api/space.api'
 import type { SpaceListItem } from '@/models/space.model'
 
@@ -100,16 +114,26 @@ interface SpaceWithScenes extends SpaceListItem {
 const router = useRouter()
 const chinaMapRef = ref<InstanceType<typeof ChinaMap> | null>(null)
 const panelVisible = ref(false)
+const dialogVisible = ref(false)
 const selectedSpace = ref<SpaceWithScenes | null>(null)
 const viewMode = ref<'map' | 'card'>('map')
 const spaceList = ref<SpaceListItem[]>([])
 const loading = ref(false)
+
+const getCoverUrl = (slug: string) => {
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/api/v1/res/covers/${slug}`
+}
 
 const loadSpaceList = async () => {
   try {
     loading.value = true
     const result = await SpaceApi.getSpaceList({ page: 1, page_size: 100 })
     if (result.code === 200 && result.data) {
+      console.log("全景景区列表:", result.data.spaces)
+      // 打印每个空间的 slug 和生成的封面 URL
+      result.data.spaces.forEach((space: any) => {
+        console.log(`Space ${space.name}: slug=${space.slug}, coverUrl=${getCoverUrl(space.slug)}`)
+      })
       spaceList.value = result.data.spaces
     }
   } catch (error) {
@@ -120,15 +144,20 @@ const loadSpaceList = async () => {
 }
 
 const handleSpaceClick = (space: SpaceWithScenes) => {
-  selectedSpace.value = space
-  panelVisible.value = true
+  router.push({ name: 'spaceDetail', params: { id: space.id } })
 }
 
 const handlePanelClose = () => {
   panelVisible.value = false
 }
 
+const handleDialogClose = () => {
+  dialogVisible.value = false
+}
+
 const handleSceneClick = (scene: any) => {
+  panelVisible.value = false
+  dialogVisible.value = false
   router.push(`/panorama?scene=${scene.scene_code}`)
 }
 
@@ -137,16 +166,7 @@ const handleViewModeChange = (mode: 'map' | 'card') => {
 }
 
 const handleCardClick = async (space: SpaceListItem) => {
-  const detailResult = await SpaceApi.getSpaceDetail(space.id)
-  if (detailResult.code === 200 && detailResult.data) {
-    selectedSpace.value = {
-      ...space,
-      scenes: detailResult.data.scenes || []
-    }
-  } else {
-    selectedSpace.value = space
-  }
-  panelVisible.value = true
+  router.push({ name: 'spaceDetail', params: { id: space.id } })
 }
 
 onMounted(() => {

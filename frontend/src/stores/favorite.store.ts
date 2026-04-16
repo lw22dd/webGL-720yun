@@ -6,6 +6,7 @@ interface FavoriteItem {
   name: string
   type: 'space' | 'scene'
   cover_url?: string
+  slug?: string
   province?: string
   city?: string
   description?: string

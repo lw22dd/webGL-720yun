@@ -11,8 +11,8 @@
       <div class="space-info">
         <div class="space-cover">
           <img
-            v-if="space?.cover_url"
-            :src="space.cover_url"
+            v-if="space?.slug"
+            :src="getCoverUrl(space.slug)"
             :alt="space?.name"
           />
           <div v-else class="space-cover-placeholder">
@@ -44,8 +44,8 @@
           >
             <div class="scene-item-thumb">
               <img 
-                v-if="scene.thumbnail_url" 
-                :src="scene.thumbnail_url" 
+                v-if="scene.scene_code" 
+                :src="getPreviewUrl(scene.scene_code)" 
                 :alt="scene.title"
               />
               <div v-else class="scene-item-thumb-placeholder">
@@ -86,6 +86,17 @@
           theme="default" 
           size="large" 
           block 
+          @click="handleViewMap"
+        >
+          <template #icon>
+            <LocationIcon />
+          </template>
+          查看地图
+        </t-button>
+        <t-button 
+          theme="default" 
+          size="large" 
+          block 
           @click="handleToggleFavorite"
         >
           <template #icon>
@@ -100,6 +111,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { CloseIcon, LocationIcon, StarIcon } from 'tdesign-icons-vue-next'
 import SceneTopology from './SceneTopology.vue'
 import type { SpaceListItem } from '@/models/space.model'
@@ -108,9 +120,8 @@ interface SceneSimple {
   id: number
   title: string
   scene_code: string
-  thumbnail_url: string
-  view_count: number
-  sort_order: number
+  view_count?: number
+  sort_order?: number
   longitude: number
   latitude: number
 }
@@ -128,6 +139,8 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'sceneClick', scene: SceneSimple): void
 }>()
+
+const router = useRouter()
 
 const isFavorite = computed(() => {
   if (!props.space) return false
@@ -154,6 +167,12 @@ const handleEnterPanorama = () => {
   }
 }
 
+const handleViewMap = () => {
+  if (props.space) {
+    router.push({ name: 'spaceDetail', params: { id: props.space.id } })
+  }
+}
+
 const handleToggleFavorite = () => {
   if (!props.space) return
   
@@ -167,7 +186,7 @@ const handleToggleFavorite = () => {
       favorites.push({
         id: props.space.id,
         name: props.space.name,
-        cover_url: props.space.cover_url,
+        cover_url: getCoverUrl(props.space.slug),
         province: props.space.province,
         city: props.space.city,
         description: props.space.description,
@@ -180,6 +199,14 @@ const handleToggleFavorite = () => {
   } catch (e) {
     console.error('Failed to toggle favorite:', e)
   }
+}
+
+const getCoverUrl = (slug: string) => {
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/api/v1/res/covers/${slug}`
+}
+
+const getPreviewUrl = (sceneCode: string) => {
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/api/v1/res/previews/${sceneCode}`
 }
 </script>
 

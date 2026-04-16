@@ -253,8 +253,8 @@ func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, slug string)
 	}
 	defer src.Close()
 
-	ext := filepath.Ext(file.Filename)
-	objectName := fmt.Sprintf("spaces/%s/cover%s", slug, ext)
+	ext := ".jpg"
+	objectName := fmt.Sprintf("spaces/%s/covers/cover%s", slug, ext)
 
 	tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("upload_%d%s", time.Now().UnixNano(), ext))
 	dst, err := os.Create(tempFile)

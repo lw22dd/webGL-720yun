@@ -292,7 +292,7 @@ func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipar
 		return fmt.Errorf("生成缩略图失败: %w", err)
 	}
 
-	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/thumb.jpg", spaceSlug, scene.SceneCode)
+	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceSlug, scene.SceneCode)
 	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
 	if err != nil {
 		return fmt.Errorf("上传缩略图失败: %w", err)

@@ -24,7 +24,7 @@
           @click="handleItemClick(item)"
         >
           <div class="card-cover">
-            <img v-if="item.cover_url" :src="item.cover_url" :alt="item.name" />
+            <img v-if="item.slug" :src="getCoverUrl(item.slug)" :alt="item.name" />
             <div v-else class="card-cover-placeholder">
               <t-icon name="image" size="48" />
             </div>
@@ -68,6 +68,7 @@ interface FavoriteItem {
   name: string
   type: 'space' | 'scene'
   cover_url?: string
+  slug?: string
   province?: string
   city?: string
   description?: string
@@ -117,6 +118,11 @@ const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+const getCoverUrl = (slug?: string) => {
+  if (!slug) return ''
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/api/v1/res/covers/${slug}`
 }
 
 onMounted(() => {

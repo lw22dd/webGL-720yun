@@ -15,8 +15,8 @@
           >
             <div class="strip-thumb">
               <img 
-                v-if="scene.thumbnail_url" 
-                :src="scene.thumbnail_url" 
+                v-if="scene.scene_code" 
+                :src="getPreviewUrl(scene.scene_code)" 
                 :alt="scene.title"
               />
               <div v-else class="strip-thumb-placeholder">
@@ -54,6 +54,11 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'sceneSelect', sceneId: number): void
 }>()
+
+const getPreviewUrl = (sceneCode?: string) => {
+  if (!sceneCode) return ''
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/api/v1/res/previews/${sceneCode}`
+}
 
 const scrollContainer = ref<HTMLElement | null>(null)
 const scrollPosition = ref(0)

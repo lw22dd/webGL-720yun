@@ -31,12 +31,7 @@
         <span>空间管理</span>
       </t-menu-item>
 
-      <t-menu-item value="/admin/scenes">
-        <template #icon>
-          <t-icon name="photo" />
-        </template>
-        <span>场景管理</span>
-      </t-menu-item>
+
 
       <t-menu-item value="/admin/settings">
         <template #icon>
