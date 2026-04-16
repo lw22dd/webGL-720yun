@@ -5,7 +5,6 @@ import type {
   InitUploadRequest,
   InitUploadResponse,
   ChunkUploadResponse,
-  CompleteUploadRequest,
   CompleteUploadResponse,
   UploadStatusResponse,
   FileInfo,
@@ -21,25 +20,41 @@ export default class UploadApi {
         uploadId: string,
         chunkIndex: number,
         chunk: Blob,
-        onUploadProgress?: (progress: number) => void
+        chunkMd5: string,
+        signal?: AbortSignal
     ): Promise<Result<ChunkUploadResponse>> {
         const formData = new FormData();
         formData.append('upload_id', uploadId);
         formData.append('chunk_index', chunkIndex.toString());
-        formData.append('chunk', chunk);
+        formData.append('chunk_hash', chunkMd5);
+        formData.append('chunk_data', chunk);
 
-        return await Axios.post('/upload/chunk', formData, {
-            onUploadProgress: (progressEvent) => {
-                if (progressEvent.total && onUploadProgress) {
-                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                    onUploadProgress(percentCompleted);
-                }
-            },
-        });
+        const controller = new AbortController();
+        if (signal) {
+            signal.addEventListener('abort', () => controller.abort());
+        }
+
+        try {
+            return await Axios.post('/upload/chunk', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                },
+                timeout: 60000,
+                signal: controller.signal as any
+            });
+        } catch (error: any) {
+            if (error.name === 'CanceledError' || error.name === 'AbortError') {
+                throw new Error('UPLOAD_CANCELLED');
+            }
+            throw error;
+        }
     }
 
-    public static async completeUpload(data: CompleteUploadRequest): Promise<Result<CompleteUploadResponse>> {
-        return await Axios.post('/upload/complete', data);
+    public static async completeUpload(uploadId: string, fileHash: string): Promise<Result<CompleteUploadResponse>> {
+        return await Axios.post('/upload/complete', {
+            upload_id: uploadId,
+            file_hash: fileHash
+        });
     }
 
     public static async getUploadStatus(uploadId: string): Promise<Result<UploadStatusResponse>> {

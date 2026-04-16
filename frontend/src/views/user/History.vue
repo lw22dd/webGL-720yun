@@ -154,6 +154,7 @@ const handleItemClick = (item: HistoryItem) => {
   if (item.type === 'space') {
     router.push(`/?space=${item.id}`)
   } else if (item.scene_code) {
+    sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
     router.push(`/panorama?scene=${item.scene_code}`)
   }
 }

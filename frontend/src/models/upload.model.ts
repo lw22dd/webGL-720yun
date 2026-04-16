@@ -37,7 +37,7 @@ export type CompleteUploadResponse = {
 
 export type UploadStatusResponse = {
   upload_id: string
-  status: 'pending' | 'uploading' | 'merging' | 'completed' | 'failed'
+  status: 'pending' | 'uploading' | 'merging' | 'completed' | 'failed' | 'paused' | 'cancelled'
   uploaded_chunks: number[]
   total_chunks: number
   percentage: number
@@ -53,7 +53,7 @@ export type UploadTask = {
   fileMd5: string
   totalChunks: number
   uploadedChunks: number[]
-  status: 'pending' | 'uploading' | 'merging' | 'completed' | 'failed' | 'paused'
+  status: 'pending' | 'uploading' | 'merging' | 'completed' | 'failed' | 'paused' | 'cancelled'
   percentage: number
   speed: string
   startTime: number
@@ -124,6 +124,7 @@ export type UploadOptions = {
   space_id?: number
   scene_code?: string
   title?: string
+  onInit?: (uploadId: string) => void
   onProgress?: (progress: ProgressData) => void
   onComplete?: (data: { file_id: string; source_url: string; thumb_url: string }) => void
   onError?: (error: ErrorData) => void

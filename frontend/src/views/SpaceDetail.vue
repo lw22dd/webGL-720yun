@@ -12,6 +12,7 @@ import type { SceneMarkerData } from '@/composables/useSceneMarkers'
 const router = useRouter()
 
 function handleSceneClick(scene: SceneMarkerData) {
+  sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
   router.push(`/panorama?scene=${scene.scene_code}`)
 }
 </script>

@@ -30,28 +30,6 @@
       </div>
     </div>
 
-    <div v-if="uploadingTasks.length > 0" class="upload-progress-section">
-      <t-card title="上传进度" :bordered="false">
-        <div v-for="task in uploadingTasks" :key="task.uploadId" class="upload-task-item">
-          <div class="task-info">
-            <span class="file-name">{{ task.fileName }}</span>
-            <span class="file-size">{{ uploadService.formatFileSize(task.fileSize) }}</span>
-          </div>
-          <t-progress
-            :percentage="task.percentage"
-            :theme="task.status === 'failed' ? 'error' : 'primary'"
-            :label="`${task.percentage.toFixed(1)}%`"
-          />
-          <div class="task-status">
-            <t-tag :theme="getStatusTheme(task.status)">
-              {{ getStatusText(task.status) }}
-            </t-tag>
-            <span v-if="task.speed" class="speed">{{ task.speed }}</span>
-          </div>
-        </div>
-      </t-card>
-    </div>
-
     <div class="scene-table-container">
       <t-table
         :data="sceneList"
@@ -83,7 +61,48 @@
         </template>
 
         <template #slice_status="{ row }">
-          <t-tag :theme="getSliceStatusTheme(row.slice_status)">
+          <div v-if="getSceneProgress(row.scene_code)" class="scene-progress">
+            <t-progress
+              :percentage="getSceneProgress(row.scene_code)!.percentage"
+              :status="getSceneProgress(row.scene_code)!.status"
+              :label="getSceneProgress(row.scene_code)!.label"
+              :theme="getSceneProgressTheme(row.scene_code)"
+              :color="getSceneProgressColor(row.scene_code)"
+              size="small"
+            />
+            <div class="progress-actions">
+              <span class="progress-message">{{ getSceneProgress(row.scene_code)!.message }}</span>
+              <t-space v-if="getSceneProgress(row.scene_code)!.type === 'upload'">
+                <t-button
+                  v-if="getSceneProgress(row.scene_code)!.status === 'active'"
+                  theme="warning"
+                  variant="text"
+                  size="mini"
+                  @click="handlePauseUpload(row.scene_code)"
+                >
+                  暂停
+                </t-button>
+                <t-button
+                  v-if="getSceneProgress(row.scene_code)!.status === 'warning'"
+                  theme="success"
+                  variant="text"
+                  size="mini"
+                  @click="handleResumeUpload(row.scene_code)"
+                >
+                  继续
+                </t-button>
+                <t-button
+                  theme="danger"
+                  variant="text"
+                  size="mini"
+                  @click="handleCancelUpload(row.scene_code)"
+                >
+                  取消
+                </t-button>
+              </t-space>
+            </div>
+          </div>
+          <t-tag v-else :theme="getSliceStatusTheme(row.slice_status)">
             {{ getSliceStatusText(row.slice_status) }}
           </t-tag>
         </template>
@@ -161,34 +180,6 @@
     </t-dialog>
 
     <t-dialog
-      v-model:visible="uploadDialogVisible"
-      header="上传全景图"
-      width="500px"
-      :confirm-btn="{ content: '开始上传', loading: uploadLoading }"
-      @confirm="handleUpload"
-      @close="resetUploadForm"
-    >
-      <div class="upload-dialog-content">
-        <p class="upload-scene-info">
-          场景：<strong>{{ uploadingScene?.title }}</strong>
-        </p>
-        <t-form>
-          <t-form-item label="全景图文件">
-            <t-upload
-              v-model="panoramaFiles"
-              :auto-upload="false"
-              :multiple="false"
-              accept="image/jpeg,image/png"
-              :size-limit="{ size: 500, unit: 'MB' }"
-              theme="file-input"
-              placeholder="选择全景图文件（最大500MB）"
-            />
-          </t-form-item>
-        </t-form>
-      </div>
-    </t-dialog>
-
-    <t-dialog
       v-model:visible="addDialogVisible"
       :header="isEditing ? '编辑场景' : '新增场景'"
       width="600px"
@@ -199,13 +190,6 @@
       <t-form :data="formData" :rules="formRules" ref="formRef">
         <t-form-item label="场景标题" name="title">
           <t-input v-model="formData.title" placeholder="请输入场景标题" />
-        </t-form-item>
-        <t-form-item label="场景编码" name="scene_code">
-          <t-input
-            v-model="formData.scene_code"
-            placeholder="请输入场景编码（英文唯一）"
-            :disabled="isEditing"
-          />
         </t-form-item>
         <t-form-item label="初始FOV">
           <t-input-number v-model="formData.initial_fov" :min="30" :max="150" />
@@ -245,10 +229,20 @@ import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import SceneApi from '@/services/api/scene.api'
 import uploadService from '@/services/uploadService'
+import wsClient from '@/services/websocket.service'
 import { useSceneStore } from '@/stores/scene/scene.store'
 import type { SpaceListItem } from '@/models/space.model'
 import type { SceneListItem } from '@/models/scene.model'
+import type { CompleteData } from '@/models/upload.model'
 import ScenePreviewDialog from '@/components/admin/ScenePreviewDialog.vue'
+
+interface SceneProgress {
+  percentage: number
+  status: 'active' | 'success' | 'error' | 'warning'
+  label: string
+  message: string
+  type: 'upload' | 'slice'
+}
 
 const router = useRouter()
 
@@ -292,13 +286,13 @@ const editingSceneId = ref<number | null>(null)
 const deleteDialogVisible = ref(false)
 const deletingId = ref<number | null>(null)
 
-const uploadDialogVisible = ref(false)
-const uploadLoading = ref(false)
 const uploadingScene = ref<SceneListItem | null>(null)
-const panoramaFiles = ref<any[]>([])
+const uploadIdMap = ref<Map<string, string>>(new Map())
 
 const previewDialogVisible = ref(false)
 const previewScene = ref<SceneListItem | null>(null)
+
+const sceneProgressMap = ref<Map<string, SceneProgress>>(new Map())
 
 const formData = reactive({
   title: '',
@@ -313,8 +307,37 @@ const formData = reactive({
 })
 
 const formRules = {
-  title: [{ required: true, message: '请输入场景标题' }],
-  scene_code: [{ required: true, message: '请输入场景编码' }]
+  title: [{ required: true, message: '请输入场景标题' }]
+}
+
+const getSceneProgress = (sceneCode: string) => {
+  return sceneProgressMap.value.get(sceneCode) || null
+}
+
+const setSceneProgress = (sceneCode: string, progress: SceneProgress) => {
+  sceneProgressMap.value.set(sceneCode, progress)
+}
+
+const getSceneProgressTheme = (sceneCode: string) => {
+  const p = sceneProgressMap.value.get(sceneCode)
+  if (!p) return 'default'
+  switch (p.status) {
+    case 'success': return 'success'
+    case 'error': return 'danger'
+    case 'warning': return 'warning'
+    default: return 'primary'
+  }
+}
+
+const getSceneProgressColor = (sceneCode: string) => {
+  const p = sceneProgressMap.value.get(sceneCode)
+  if (!p) return ''
+  switch (p.status) {
+    case 'success': return '#00A870'
+    case 'error': return '#F53F3F'
+    case 'warning': return '#FF9900'
+    default: return '#0052D9'
+  }
 }
 
 const columns = [
@@ -377,6 +400,13 @@ const getPreviewUrl = (sceneCode: string) => {
 const handleThumbError = (event: Event) => {
   const img = event.target as HTMLImageElement
   img.style.display = 'none'
+  const container = img.parentElement
+  if (container && !container.querySelector('.thumb-error-placeholder')) {
+    const placeholder = document.createElement('div')
+    placeholder.className = 'thumb-error-placeholder'
+    placeholder.innerHTML = '<t-icon name="image" />'
+    container.appendChild(placeholder)
+  }
 }
 
 const loadSceneList = async () => {
@@ -457,7 +487,6 @@ const handleSubmit = async () => {
       const result = await SceneApi.createScene({
         space_id: props.space!.id,
         title: formData.title,
-        scene_code: formData.scene_code,
         initial_fov: formData.initial_fov,
         initial_pitch: formData.initial_pitch,
         initial_yaw: formData.initial_yaw,
@@ -492,48 +521,207 @@ const resetForm = () => {
     sort_order: 0,
     status: 1
   })
-  panoramaFiles.value = []
 }
 
 const openUploadDialog = (scene: SceneListItem) => {
   uploadingScene.value = scene
-  uploadDialogVisible.value = true
-}
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/jpeg,image/png'
+  input.onchange = async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0]
+    if (!file) return
 
-const handleUpload = async () => {
-  if (!uploadingScene.value || panoramaFiles.value.length === 0) {
-    MessagePlugin.warning('请选择全景图文件')
-    return
-  }
-
-  uploadLoading.value = true
-
-  try {
-    const file = panoramaFiles.value[0].raw
-    await uploadService.uploadFile(file, {
-      space_id: props.space!.id,
-      scene_code: uploadingScene.value.scene_code,
-      title: uploadingScene.value.title,
-      onComplete: () => {
-        MessagePlugin.success('上传成功')
-        uploadDialogVisible.value = false
-        resetUploadForm()
-        loadSceneList()
-      },
-      onError: (error) => {
-        MessagePlugin.error(error.message || '上传失败')
-      }
+    setSceneProgress(scene.scene_code, {
+      percentage: 0,
+      status: 'active',
+      label: '0%',
+      message: '准备上传...',
+      type: 'upload'
     })
-  } catch (error: any) {
-    MessagePlugin.error(error.message || '上传失败')
-  } finally {
-    uploadLoading.value = false
+
+    try {
+      const result = await uploadService.uploadFile(file, {
+        space_id: props.space!.id,
+        scene_code: scene.scene_code,
+        title: scene.title,
+        onInit: (uploadId) => {
+          uploadIdMap.value.set(scene.scene_code, uploadId)
+        },
+        onComplete: () => {
+          setSceneProgress(scene.scene_code, {
+            percentage: 100,
+            status: 'success',
+            label: '完成',
+            message: '上传完成',
+            type: 'upload'
+          })
+          loadSceneList()
+          uploadingScene.value = null
+          uploadIdMap.value.delete(scene.scene_code)
+        },
+        onError: (error) => {
+          setSceneProgress(scene.scene_code, {
+            percentage: 0,
+            status: 'error',
+            label: '失败',
+            message: error.message || '上传失败',
+            type: 'upload'
+          })
+          uploadingScene.value = null
+          uploadIdMap.value.delete(scene.scene_code)
+        }
+      })
+
+      wsClient.on('progress', handleUploadProgress)
+      wsClient.on('merge_progress', handleMergeProgress)
+      wsClient.on('complete', handleUploadComplete)
+      wsClient.on('slice_progress', handleSliceProgress)
+      wsClient.on('slice_complete', handleSliceComplete)
+      wsClient.on('slice_error', handleSliceError)
+    } catch (error: any) {
+      MessagePlugin.error(error.message || '上传失败')
+      setSceneProgress(scene.scene_code, {
+        percentage: 0,
+        status: 'error',
+        label: '失败',
+        message: error.message || '上传失败',
+        type: 'upload'
+      })
+      uploadingScene.value = null
+    }
+  }
+  input.click()
+}
+
+function handleUploadProgress(data: any) {
+  if (!uploadingScene.value) return
+  const sceneCode = uploadingScene.value.scene_code
+  setSceneProgress(sceneCode, {
+    percentage: data.percentage || 0,
+    status: 'active',
+    label: `${(data.percentage || 0).toFixed(1)}%`,
+    message: `上传中 ${data.uploaded_chunks}/${data.total_chunks}`,
+    type: 'upload'
+  })
+}
+
+function handleMergeProgress(data: any) {
+  if (!uploadingScene.value) return
+  const sceneCode = uploadingScene.value.scene_code
+  setSceneProgress(sceneCode, {
+    percentage: data.percentage || 0,
+    status: 'warning',
+    label: `${(data.percentage || 0).toFixed(0)}%`,
+    message: data.message || '合并中...',
+    type: 'upload'
+  })
+}
+
+function handleUploadComplete(data: any) {
+  if (!uploadingScene.value) return
+  const sceneCode = uploadingScene.value.scene_code
+  setSceneProgress(sceneCode, {
+    percentage: 100,
+    status: 'success',
+    label: '完成',
+    message: '上传完成',
+    type: 'upload'
+  })
+}
+
+function handlePauseUpload(sceneCode: string) {
+  const uploadId = uploadIdMap.value.get(sceneCode)
+  if (!uploadId) return
+  
+  uploadService.pauseUpload(uploadId)
+  
+  const progress = sceneProgressMap.value.get(sceneCode)
+  if (progress) {
+    setSceneProgress(sceneCode, {
+      ...progress,
+      status: 'warning',
+      label: '已暂停',
+      message: '上传已暂停'
+    })
+  }
+  MessagePlugin.info('上传已暂停')
+}
+
+function handleResumeUpload(sceneCode: string) {
+  const uploadId = uploadIdMap.value.get(sceneCode)
+  if (!uploadId) return
+  
+  uploadService.resumeUpload(uploadId)
+  
+  const progress = sceneProgressMap.value.get(sceneCode)
+  if (progress) {
+    setSceneProgress(sceneCode, {
+      ...progress,
+      status: 'active',
+      label: `${progress.percentage.toFixed(1)}%`,
+      message: '继续上传...'
+    })
+  }
+  MessagePlugin.info('继续上传')
+}
+
+async function handleCancelUpload(sceneCode: string) {
+  const uploadId = uploadIdMap.value.get(sceneCode)
+  if (!uploadId) return
+  
+  try {
+    await uploadService.cancelUpload(uploadId)
+    uploadIdMap.value.delete(sceneCode)
+    
+    setSceneProgress(sceneCode, {
+      percentage: 0,
+      status: 'error',
+      label: '已取消',
+      message: '上传已取消',
+      type: 'upload'
+    })
+    uploadingScene.value = null
+    MessagePlugin.info('上传已取消')
+  } catch (error) {
+    MessagePlugin.error('取消上传失败')
   }
 }
 
-const resetUploadForm = () => {
-  panoramaFiles.value = []
-  uploadingScene.value = null
+function handleSliceProgress(data: any) {
+  const task = sceneStore.getSliceTask(data.task_id)
+  if (!task) return
+  setSceneProgress(task.sceneCode, {
+    percentage: data.progress || 0,
+    status: 'warning',
+    label: `${data.progress || 0}%`,
+    message: data.message || '切片中...',
+    type: 'slice'
+  })
+}
+
+function handleSliceComplete(data: any) {
+  const task = sceneStore.getSliceTask(data.task_id)
+  if (!task) return
+  setSceneProgress(task.sceneCode, {
+    percentage: 100,
+    status: 'success',
+    label: '完成',
+    message: '切片完成',
+    type: 'slice'
+  })
+}
+
+function handleSliceError(data: any) {
+  const task = sceneStore.getSliceTask(data.task_id)
+  if (!task) return
+  setSceneProgress(task.sceneCode, {
+    percentage: 0,
+    status: 'error',
+    label: '失败',
+    message: data.error || '切片失败',
+    type: 'slice'
+  })
 }
 
 const openDeleteDialog = (id: number) => {
@@ -566,6 +754,7 @@ const openPreviewDialog = (scene: SceneListItem) => {
 }
 
 const handleViewPanorama = (scene: SceneListItem) => {
+  sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
   router.push(`/panorama?scene=${scene.scene_code}`)
 }
 
@@ -819,5 +1008,29 @@ defineExpose({
 
 .upload-scene-info strong {
   color: var(--td-text-color-primary);
+}
+
+.scene-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.scene-progress :deep(.t-progress) {
+  margin-bottom: 0;
+}
+
+.progress-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-message {
+  font-size: 11px;
+  color: var(--td-text-color-secondary);
+  text-align: center;
 }
 </style>

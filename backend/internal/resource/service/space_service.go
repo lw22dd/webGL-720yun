@@ -40,9 +40,17 @@ func (s *SpaceService) CreateSpace(req *dto.CreateSpaceRequest, createdBy uint, 
 		return nil, errors.New("景区名称已存在")
 	}
 
+	slug := req.Slug
+	if slug == "" {
+		slug = utils.SanitizeSceneCode(utils.ToPinyin(req.Name))
+		if slug == "" {
+			slug = "space"
+		}
+	}
+
 	space := &model.ResSpace{
 		Name:        req.Name,
-		Slug:        req.Slug,
+		Slug:        slug,
 		Description: req.Description,
 		Province:    req.Province,
 		City:        req.City,

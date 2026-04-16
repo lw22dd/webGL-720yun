@@ -154,6 +154,7 @@ const handleDialogClose = () => {
 const handleSceneClick = (scene: any) => {
   panelVisible.value = false
   dialogVisible.value = false
+  sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
   router.push(`/panorama?scene=${scene.scene_code}`)
 }
 

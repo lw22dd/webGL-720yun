@@ -16,13 +16,13 @@ type SpaceListRequest struct {
 
 type CreateSpaceRequest struct {
 	Name        string  `form:"name" json:"name" binding:"required,min=2,max=100"`
-	Slug        string  `form:"slug" json:"slug" binding:"required,min=2,max=100"`
+	Slug        string  `form:"slug" json:"slug" binding:"omitempty,min=2,max=100"`
 	Description string  `form:"description" json:"description" binding:"max=1000"`
 	Province    string  `form:"province" json:"province" binding:"max=50"`
 	City        string  `form:"city" json:"city" binding:"max=50"`
-	Longitude   float64 `form:"longitude" json:"longitude" binding:"min=-180,max=180"`
-	Latitude    float64 `form:"latitude" json:"latitude" binding:"min=-90,max=90"`
-	ZoomLevel   int     `form:"zoom_level" json:"zoom_level" binding:"min=0,max=20"`
+	Longitude   float64 `form:"longitude" json:"longitude" binding:"omitempty,min=-180,max=180"`
+	Latitude    float64 `form:"latitude" json:"latitude" binding:"omitempty,min=-90,max=90"`
+	ZoomLevel   int     `form:"zoom_level" json:"zoom_level" binding:"omitempty,min=0,max=20"`
 	SortOrder   int     `form:"sort_order" json:"sort_order"`
 }
 
@@ -82,12 +82,14 @@ type SpaceDetailResponse struct {
 }
 
 type SceneSimple struct {
-	ID           uint   `json:"id"`
-	Title        string `json:"title"`
-	SceneCode    string `json:"scene_code"`
-	ThumbnailURL string `json:"thumbnail_url"`
-	ViewCount    int64  `json:"view_count"`
-	SortOrder    int    `json:"sort_order"`
+	ID           uint    `json:"id"`
+	Title        string  `json:"title"`
+	SceneCode    string  `json:"scene_code"`
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	ThumbnailURL string  `json:"thumbnail_url"`
+	ViewCount    int64   `json:"view_count"`
+	SortOrder    int     `json:"sort_order"`
 }
 
 func ToSpaceListItem(space *model.ResSpace) *SpaceListItem {
@@ -136,6 +138,8 @@ func ToSpaceDetailResponse(space *model.ResSpace) *SpaceDetailResponse {
 				ID:           scene.ID,
 				Title:        scene.Title,
 				SceneCode:    scene.SceneCode,
+				Longitude:    scene.Longitude,
+				Latitude:     scene.Latitude,
 				ThumbnailURL: scene.ThumbnailURL,
 				ViewCount:    scene.ViewCount,
 				SortOrder:    scene.SortOrder,

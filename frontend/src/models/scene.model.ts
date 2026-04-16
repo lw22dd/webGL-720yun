@@ -10,7 +10,8 @@ export type SceneListRequest = {
 export type CreateSceneRequest = {
     space_id: number
     title: string
-    scene_code: string
+    scene_code?: string
+    file_id?: string
     panorama_type?: 'equirectangular' | 'cubemap'
     initial_fov?: number
     initial_pitch?: number
@@ -49,6 +50,7 @@ export type SceneListItem = {
     title: string
     scene_code: string
     panorama_type: string
+    source_url: string
     thumbnail_url: string
     source_width: number
     source_height: number

@@ -19,7 +19,7 @@ type CreateSceneRequest struct {
 	SpaceID      uint    `json:"space_id" binding:"required"`
 	Title        string  `json:"title" binding:"required,min=2,max=200"`
 	SceneCode    string  `json:"scene_code" binding:"omitempty,min=2,max=100"`
-	FileID       string  `json:"file_id" binding:"required"`
+	FileID       string  `json:"file_id" binding:"omitempty"`
 	PanoramaType string  `json:"panorama_type" binding:"omitempty,oneof=equirectangular cubemap"`
 	InitialFOV   float64 `json:"initial_fov" binding:"omitempty,min=30,max=150"`
 	InitialPitch float64 `json:"initial_pitch" binding:"omitempty,min=-90,max=90"`

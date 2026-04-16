@@ -48,6 +48,7 @@
                 v-if="scene.scene_code"
                 :src="getPreviewUrl(scene.scene_code)"
                 :alt="scene.title"
+                @error="handleThumbError"
               />
               <div v-else class="scene-thumb-placeholder">
                 <t-icon name="image" />
@@ -92,6 +93,18 @@ const getCoverUrl = (slug: string) => {
 
 const getPreviewUrl = (sceneCode: string) => {
   return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/api/v1/res/previews/${sceneCode}`
+}
+
+const handleThumbError = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  img.style.display = 'none'
+  const container = img.parentElement
+  if (container && !container.querySelector('.scene-thumb-placeholder')) {
+    const placeholder = document.createElement('div')
+    placeholder.className = 'scene-thumb-placeholder'
+    placeholder.innerHTML = '<t-icon name="image" />'
+    container.appendChild(placeholder)
+  }
 }
 
 const handleClose = () => {

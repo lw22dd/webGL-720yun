@@ -38,15 +38,15 @@ func GinZapLogger() gin.HandlerFunc {
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
 		method := c.Request.Method
+		contentType := c.GetHeader("Content-Type")
 
-		// 读取请求体（仅对非GET请求）
+		isUpload := path == "/upload/chunk" || contentType == "multipart/form-data"
+
 		var requestBody string
-		if method != "GET" && method != "HEAD" && method != "OPTIONS" {
-			// 保存原始请求体，以便后续处理
+		if method != "GET" && method != "HEAD" && method != "OPTIONS" && !isUpload {
 			body, err := io.ReadAll(c.Request.Body)
 			if err == nil && len(body) > 0 {
 				requestBody = string(body)
-				// 重新设置请求体，以便后续处理
 				c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 			}
 		}
@@ -56,7 +56,7 @@ func GinZapLogger() gin.HandlerFunc {
 		end := time.Now()
 		latency := end.Sub(start)
 
-		entry := log.WithFields(logrus.Fields{
+		fields := logrus.Fields{
 			"status":     c.Writer.Status(),
 			"method":     method,
 			"path":       path,
@@ -65,8 +65,13 @@ func GinZapLogger() gin.HandlerFunc {
 			"user-agent": c.Request.UserAgent(),
 			"time":       end.Format("2006-01-02 15:04:05"),
 			"latency":    latency,
-			"body":       requestBody,
-		})
+		}
+
+		if !isUpload {
+			fields["body"] = requestBody
+		}
+
+		entry := log.WithFields(fields)
 
 		if len(c.Errors) > 0 {
 			entry.Error(c.Errors.String())

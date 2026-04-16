@@ -139,39 +139,21 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		return nil, errors.New("场景编码已存在")
 	}
 
-	fileInfo, err := s.redisService.GetFileInfo(req.FileID)
-	if err != nil {
-		return nil, fmt.Errorf("获取文件信息失败: %w", err)
-	}
-	if fileInfo == nil {
-		return nil, errors.New("文件不存在，请先上传")
-	}
-
-	sourceURL, _ := fileInfo["source_url"].(string)
-	thumbURL, _ := fileInfo["thumb_url"].(string)
-	var fileSize int64
-	if fs, ok := fileInfo["file_size"].(float64); ok {
-		fileSize = int64(fs)
-	}
-
 	scene := &model.ResScene{
-		SpaceID:        req.SpaceID,
-		Title:          req.Title,
-		SceneCode:      sceneCode,
-		FileID:         req.FileID,
-		PanoramaType:   req.PanoramaType,
-		InitialFOV:     req.InitialFOV,
-		InitialPitch:   req.InitialPitch,
-		InitialYaw:     req.InitialYaw,
-		NorthOffset:    req.NorthOffset,
-		Longitude:      req.Longitude,
-		Latitude:       req.Latitude,
-		SortOrder:      req.SortOrder,
-		Status:         1,
-		SourceURL:      sourceURL,
-		ThumbnailURL:   thumbURL,
-		SourceFileSize: fileSize,
-		SliceStatus:    model.SliceStatusPending,
+		SpaceID:      req.SpaceID,
+		Title:        req.Title,
+		SceneCode:    sceneCode,
+		FileID:       req.FileID,
+		PanoramaType: req.PanoramaType,
+		InitialFOV:   req.InitialFOV,
+		InitialPitch: req.InitialPitch,
+		InitialYaw:   req.InitialYaw,
+		NorthOffset:  req.NorthOffset,
+		Longitude:    req.Longitude,
+		Latitude:     req.Latitude,
+		SortOrder:    req.SortOrder,
+		Status:       1,
+		SliceStatus:  model.SliceStatusPending,
 	}
 
 	if scene.InitialFOV == 0 {
@@ -181,41 +163,64 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		scene.PanoramaType = "equirectangular"
 	}
 
-	if w, ok := fileInfo["width"].(float64); ok {
-		scene.SourceWidth = int(w)
-	}
-	if h, ok := fileInfo["height"].(float64); ok {
-		scene.SourceHeight = int(h)
+	if req.FileID != "" {
+		fileInfo, err := s.redisService.GetFileInfo(req.FileID)
+		if err != nil {
+			return nil, fmt.Errorf("获取文件信息失败: %w", err)
+		}
+		if fileInfo == nil {
+			return nil, errors.New("文件不存在，请先上传")
+		}
+
+		sourceURL, _ := fileInfo["source_url"].(string)
+		thumbURL, _ := fileInfo["thumb_url"].(string)
+		var fileSize int64
+		if fs, ok := fileInfo["file_size"].(float64); ok {
+			fileSize = int64(fs)
+		}
+
+		scene.SourceURL = sourceURL
+		scene.ThumbnailURL = thumbURL
+		scene.SourceFileSize = fileSize
+
+		if w, ok := fileInfo["width"].(float64); ok {
+			scene.SourceWidth = int(w)
+		}
+		if h, ok := fileInfo["height"].(float64); ok {
+			scene.SourceHeight = int(h)
+		}
 	}
 
 	if err := s.repo.Create(scene); err != nil {
 		return nil, fmt.Errorf("创建场景失败: %w", err)
 	}
 
-	taskID := uuid.New().String()
-	scene.TaskID = taskID
+	if req.FileID != "" {
+		taskID := uuid.New().String()
+		scene.TaskID = taskID
 
-	if s.sliceQueue != nil {
-		task := &slice.SliceTask{
-			TaskID:    taskID,
-			SceneID:   scene.ID,
-			SceneCode: scene.SceneCode,
-			FileID:    scene.FileID,
-			SpaceName: space.Name,
-			SpaceSlug: space.Slug,
-			UserID:    userID,
-			CreatedAt: time.Now().Unix(),
-		}
+		if s.sliceQueue != nil {
+			task := &slice.SliceTask{
+				TaskID:    taskID,
+				SceneID:   scene.ID,
+				SceneCode: scene.SceneCode,
+				FileID:    scene.FileID,
+				SpaceName: space.Name,
+				SpaceSlug: space.Slug,
+				UserID:    userID,
+				CreatedAt: time.Now().Unix(),
+			}
 
-		if err := s.sliceQueue.PushTask(task); err != nil {
-			scene.SliceStatus = model.SliceStatusFailed
-			s.repo.Update(scene)
-			return nil, fmt.Errorf("推送切片任务失败: %w", err)
-		}
+			if err := s.sliceQueue.PushTask(task); err != nil {
+				scene.SliceStatus = model.SliceStatusFailed
+				s.repo.Update(scene)
+				return nil, fmt.Errorf("推送切片任务失败: %w", err)
+			}
 
-		scene.SliceStatus = model.SliceStatusSlicing
-		if err := s.repo.Update(scene); err != nil {
-			return nil, fmt.Errorf("更新场景状态失败: %w", err)
+			scene.SliceStatus = model.SliceStatusSlicing
+			if err := s.repo.Update(scene); err != nil {
+				return nil, fmt.Errorf("更新场景状态失败: %w", err)
+			}
 		}
 	}
 
@@ -224,7 +229,7 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		Title:       scene.Title,
 		SceneCode:   scene.SceneCode,
 		SliceStatus: scene.SliceStatus,
-		TaskID:      taskID,
+		TaskID:      scene.TaskID,
 	}, nil
 }
 

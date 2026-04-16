@@ -496,7 +496,17 @@ const submitQuiz = () => {
 }
 
 const goBack = () => {
-  router.push('/')
+  if (window.history.state && window.history.length > 2) {
+    router.back()
+  } else {
+    const from = sessionStorage.getItem('panoramaFrom')
+    if (from) {
+      sessionStorage.removeItem('panoramaFrom')
+      router.push(from)
+    } else {
+      router.push('/index')
+    }
+  }
 }
 
 watch(() => route.query.scene, () => {

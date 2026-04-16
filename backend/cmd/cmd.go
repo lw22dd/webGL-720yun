@@ -78,7 +78,7 @@ func Run() {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	uploadService := router.NewUploadService(db.GetDB(), minioClient, redisClient)
+	uploadService := router.NewUploadService(db.GetDB(), minioClient, redisClient, wsHub)
 
 	workerPool := router.NewWorkerPool(sliceQueue, db.GetDB(), minioClient, wsHub, DefaultWorkerCount)
 	go workerPool.Start()

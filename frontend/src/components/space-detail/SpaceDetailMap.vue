@@ -88,6 +88,7 @@ let aMapInstance: any = null
 let markerList: Marker[] = []
 let satelliteLayer: any = null
 let normalLayer: any = null
+let normalLayerCreated = false
 
 const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || ''
 const AMAP_SECURITY_KEY = import.meta.env.VITE_AMAP_SECURITY_KEY || ''
@@ -311,6 +312,23 @@ async function initMap() {
         aMapInstance = instance
         console.log('Got AMap instance:', !!aMapInstance)
 
+        // 获取地图当前的图层数组，保存默认矢量图层
+        if (!normalLayer) {
+          const layers = aMapInstance.getLayers()
+          console.log('Current layers:', layers)
+          // 查找矢量底图
+          const AMap = (window as any).AMap
+          layers.forEach((layer: any) => {
+            if (layer && typeof layer.setOpacity === 'function') {
+              normalLayer = layer
+            }
+          })
+          // 如果没找到，使用 createDefaultLayer 创建标准矢量图层
+          if (!normalLayer && AMap.createDefaultLayer) {
+            normalLayer = AMap.createDefaultLayer()
+          }
+        }
+
         if (typeof aMapInstance.setFeatures === 'function') {
           aMapInstance.setFeatures(['bg', 'road', 'building'])
         }
@@ -330,6 +348,21 @@ async function initMap() {
         aMapInstance = tryGetAMapInstance()
       }
       console.log('L7 loaded event fired, aMapInstance:', !!aMapInstance)
+
+      // 获取并保存默认矢量图层
+      if (!normalLayer && aMapInstance) {
+        const layers = aMapInstance.getLayers()
+        console.log('Current layers on loaded:', layers)
+        const AMap = (window as any).AMap
+        layers.forEach((layer: any) => {
+          if (layer && typeof layer.setOpacity === 'function') {
+            normalLayer = layer
+          }
+        })
+        if (!normalLayer && AMap.createDefaultLayer) {
+          normalLayer = AMap.createDefaultLayer()
+        }
+      }
 
       if (aMapInstance && typeof aMapInstance.setFeatures === 'function') {
         aMapInstance.setFeatures(['bg', 'road', 'building'])
@@ -359,22 +392,54 @@ async function initMap() {
 
 function handleBasemapSwitch(type: BasemapType) {
   basemapType.value = type
-  
-  if (!aMapInstance || !(window as any).AMap) return
 
-  // 使用图层方式切换卫星图和矢量图
+  if (!aMapInstance || !(window as any).AMap) {
+    console.warn('handleBasemapSwitch: aMapInstance or AMap not available')
+    return
+  }
+
   const AMap = (window as any).AMap
-  
+  console.log('Switching to:', type, 'normalLayer:', !!normalLayer, 'satelliteLayer:', !!satelliteLayer)
+
   if (type === 'satellite') {
-    // 切换到卫星图
+    // 切换到卫星图：隐藏矢量图层，显示卫星图层
+    if (normalLayer) {
+      normalLayer.hide()
+      console.log('Hid normalLayer')
+    }
     if (!satelliteLayer) {
       satelliteLayer = new AMap.TileLayer.Satellite()
+      aMapInstance.add(satelliteLayer)
+      console.log('Created and added satelliteLayer')
+    } else {
+      satelliteLayer.show()
+      console.log('Showed satelliteLayer')
     }
-    aMapInstance.setLayers([satelliteLayer])
   } else {
-    // 切换到标准矢量图（默认图层）
-    aMapInstance.setLayers([new AMap.TileLayer()])
+    // 切换到矢量图：隐藏卫星图层，显示矢量图层
+    if (satelliteLayer) {
+      satelliteLayer.hide()
+      console.log('Hid satelliteLayer')
+    }
+    if (!normalLayer) {
+      normalLayer = AMap.createDefaultLayer()
+      aMapInstance.add(normalLayer)
+      console.log('Created and added normalLayer')
+    } else {
+      normalLayer.show()
+      console.log('Showed normalLayer')
+    }
+    // 重新应用 setFeatures 确保样式一致
+    if (typeof aMapInstance.setFeatures === 'function') {
+      aMapInstance.setFeatures(showPOI.value ? ['bg', 'road', 'building', 'point'] : ['bg', 'road', 'building'])
+    }
   }
+
+  // 验证图层切换结果
+  setTimeout(() => {
+    const layers = aMapInstance.getLayers()
+    console.log('Current layers after switch:', layers.length, 'layers')
+  }, 100)
 }
 
 function handleTogglePOI(show: boolean) {

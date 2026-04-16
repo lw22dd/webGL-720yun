@@ -127,6 +127,7 @@ import { MessagePlugin } from 'tdesign-vue-next'
 import FormDialog, { type FormField } from '@/components/admin/FormDialog.vue'
 import SpaceApi from '@/services/api/space.api'
 import type { SpaceListItem } from '@/models/space.model'
+import { geocode } from '@/utils/amap'
 
 const emit = defineEmits<{
   (e: 'spaceClick', space: SpaceListItem): void
@@ -267,11 +268,33 @@ const handleEditSpace = (space: SpaceListItem) => {
 
 const handleSubmit = async (data: Record<string, any>) => {
   try {
+    let longitude = data.longitude ? Number(data.longitude) : null
+    let latitude = data.latitude ? Number(data.latitude) : null
+
+    if (!data.id && (longitude === null || latitude === null)) {
+      const address = [data.province, data.city].filter(Boolean).join(' ')
+      if (address) {
+        const coords = await geocode(address)
+        if (coords) {
+          longitude = coords.lng
+          latitude = coords.lat
+        }
+      }
+    }
+
+    const submitData = {
+      ...data,
+      longitude,
+      latitude,
+      zoom_level: data.zoom_level ? Number(data.zoom_level) : null,
+      sort_order: data.sort_order ? Number(data.sort_order) : null
+    }
+
     let result
     if (data.id) {
-      result = await SpaceApi.updateSpace(Number(data.id), data as any)
+      result = await SpaceApi.updateSpace(Number(data.id), submitData as any)
     } else {
-      result = await SpaceApi.createSpace(data as any)
+      result = await SpaceApi.createSpace(submitData as any)
     }
 
     if (result.code === 200) {
