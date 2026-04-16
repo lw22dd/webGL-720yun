@@ -192,3 +192,32 @@ func (m *MinIOClient) GetClient() *minio.Client {
 func (m *MinIOClient) GetConfig() *config.MinIOConfig {
 	return m.config
 }
+
+func (m *MinIOClient) UploadDirectory(prefix, localDir string) error {
+	return filepath.Walk(localDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		if info.IsDir() {
+			return nil
+		}
+		
+		// 计算相对路径
+		relPath, err := filepath.Rel(localDir, path)
+		if err != nil {
+			return err
+		}
+		
+		// 构建对象名称
+		objectName := filepath.Join(prefix, relPath)
+		
+		// 上传文件
+		_, err = m.UploadFile(objectName, path, "")
+		if err != nil {
+			return err
+		}
+		
+		return nil
+	})
+}

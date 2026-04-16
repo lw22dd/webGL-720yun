@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
+
+	"webGL-720yun/pkg/panorama"
 )
 
 var (
@@ -251,6 +253,28 @@ func (p *Processor) ValidateAndProcess(filePath string) (*ImageInfo, error) {
 	info.Format = format
 
 	return info, nil
+}
+
+func (p *Processor) GeneratePanoramaTiles(inputPath, outputDir string, tileSize int) error {
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("创建输出目录失败: %w", err)
+	}
+
+	// 使用全景图转换器生成瓦片
+	opts := panorama.DefaultOptions()
+	opts.Size = tileSize
+	opts.Layout = panorama.LayoutNone
+	opts.FaceNames = []string{"px", "nx", "py", "ny", "pz", "nz"}
+
+	converter := panorama.NewConverter(opts)
+
+	// 生成六面立方体瓦片
+	outputBase := filepath.Join(outputDir, "tile")
+	if err := converter.Convert(inputPath, outputBase); err != nil {
+		return fmt.Errorf("生成瓦片失败: %w", err)
+	}
+
+	return nil
 }
 
 func (p *Processor) ResizeImage(srcPath, dstPath string, width, height int) error {

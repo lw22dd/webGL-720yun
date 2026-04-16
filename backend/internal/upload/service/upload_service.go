@@ -334,6 +334,48 @@ func (s *UploadService) MergeChunks(uploadID string, userID uint) (*dto.MergeUpl
 		return nil, fmt.Errorf("上传缩略图失败: %w", err)
 	}
 
+	// 生成全景图瓦片
+	if s.wsHub != nil {
+		mergeData := &websocket.MergeProgressData{
+			Stage:      "tiling",
+			Percentage: 0,
+			Message:    "正在生成全景图瓦片...",
+		}
+		msg := websocket.NewMergeProgressMessage(uploadID, userID, mergeData)
+		s.wsHub.SendToUser(userID, msg)
+	}
+
+	tilesDir := filepath.Join(tempDir, "tiles")
+	if err := s.imageProcessor.GeneratePanoramaTiles(mergedFile, tilesDir, 512); err != nil {
+		return nil, fmt.Errorf("生成瓦片失败: %w", err)
+	}
+
+	if s.wsHub != nil {
+		mergeData := &websocket.MergeProgressData{
+			Stage:      "tiling",
+			Percentage: 50,
+			Message:    "瓦片生成完成，正在上传...",
+		}
+		msg := websocket.NewMergeProgressMessage(uploadID, userID, mergeData)
+		s.wsHub.SendToUser(userID, msg)
+	}
+
+	// 上传瓦片到MinIO
+	tilesObjectName := fmt.Sprintf("spaces/%s/tiles/%s", space.Name, task.SceneCode)
+	if err := s.minioClient.UploadDirectory(tilesObjectName, tilesDir); err != nil {
+		return nil, fmt.Errorf("上传瓦片失败: %w", err)
+	}
+
+	if s.wsHub != nil {
+		mergeData := &websocket.MergeProgressData{
+			Stage:      "tiling",
+			Percentage: 100,
+			Message:    "瓦片上传完成",
+		}
+		msg := websocket.NewMergeProgressMessage(uploadID, userID, mergeData)
+		s.wsHub.SendToUser(userID, msg)
+	}
+
 	scene := &model.ResScene{
 		SpaceID:        task.SpaceID,
 		Title:          task.Title,
