@@ -16,17 +16,31 @@ type SpaceListRequest struct {
 
 type CreateSpaceRequest struct {
 	Name        string  `form:"name" json:"name" binding:"required,min=2,max=100"`
+<<<<<<< HEAD
 	Description string  `form:"description" json:"description" binding:"max=1000"`
 	Province    string  `form:"province" json:"province" binding:"max=50"`
 	City        string  `form:"city" json:"city" binding:"max=50"`
 	Longitude   float64 `form:"longitude" json:"longitude" binding:"min=-180,max=180"`
 	Latitude    float64 `form:"latitude" json:"latitude" binding:"min=-90,max=90"`
 	ZoomLevel   int     `form:"zoom_level" json:"zoom_level" binding:"min=0,max=20"`
+=======
+	Slug        string  `form:"slug" json:"slug" binding:"omitempty,min=2,max=100"`
+	Description string  `form:"description" json:"description" binding:"max=1000"`
+	Province    string  `form:"province" json:"province" binding:"max=50"`
+	City        string  `form:"city" json:"city" binding:"max=50"`
+	Longitude   float64 `form:"longitude" json:"longitude" binding:"omitempty,min=-180,max=180"`
+	Latitude    float64 `form:"latitude" json:"latitude" binding:"omitempty,min=-90,max=90"`
+	ZoomLevel   int     `form:"zoom_level" json:"zoom_level" binding:"omitempty,min=0,max=20"`
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	SortOrder   int     `form:"sort_order" json:"sort_order"`
 }
 
 type UpdateSpaceRequest struct {
 	Name        string  `form:"name" json:"name" binding:"omitempty,min=2,max=100"`
+<<<<<<< HEAD
+=======
+	Slug        string  `form:"slug" json:"slug" binding:"omitempty,min=2,max=100"`
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	Description string  `form:"description" json:"description" binding:"omitempty,max=1000"`
 	Province    string  `form:"province" json:"province" binding:"omitempty,max=50"`
 	City        string  `form:"city" json:"city" binding:"omitempty,max=50"`
@@ -45,6 +59,10 @@ type SpaceListResponse struct {
 type SpaceListItem struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
+<<<<<<< HEAD
+=======
+	Slug        string    `json:"slug"`
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	CoverURL    string    `json:"cover_url"`
 	Description string    `json:"description"`
 	Province    string    `json:"province"`
@@ -62,6 +80,10 @@ type SpaceListItem struct {
 type SpaceDetailResponse struct {
 	ID          uint           `json:"id"`
 	Name        string         `json:"name"`
+<<<<<<< HEAD
+=======
+	Slug        string         `json:"slug"`
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	CoverURL    string         `json:"cover_url"`
 	Description string         `json:"description"`
 	Province    string         `json:"province"`
@@ -78,18 +100,33 @@ type SpaceDetailResponse struct {
 }
 
 type SceneSimple struct {
+<<<<<<< HEAD
 	ID           uint   `json:"id"`
 	Title        string `json:"title"`
 	SceneCode    string `json:"scene_code"`
 	ThumbnailURL string `json:"thumbnail_url"`
 	ViewCount    int64  `json:"view_count"`
 	SortOrder    int    `json:"sort_order"`
+=======
+	ID           uint    `json:"id"`
+	Title        string  `json:"title"`
+	SceneCode    string  `json:"scene_code"`
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	ThumbnailURL string  `json:"thumbnail_url"`
+	ViewCount    int64   `json:"view_count"`
+	SortOrder    int     `json:"sort_order"`
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 }
 
 func ToSpaceListItem(space *model.ResSpace) *SpaceListItem {
 	return &SpaceListItem{
 		ID:          space.ID,
 		Name:        space.Name,
+<<<<<<< HEAD
+=======
+		Slug:        space.Slug,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		CoverURL:    space.CoverURL,
 		Description: space.Description,
 		Province:    space.Province,
@@ -109,6 +146,10 @@ func ToSpaceDetailResponse(space *model.ResSpace) *SpaceDetailResponse {
 	response := &SpaceDetailResponse{
 		ID:          space.ID,
 		Name:        space.Name,
+<<<<<<< HEAD
+=======
+		Slug:        space.Slug,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		CoverURL:    space.CoverURL,
 		Description: space.Description,
 		Province:    space.Province,
@@ -130,6 +171,11 @@ func ToSpaceDetailResponse(space *model.ResSpace) *SpaceDetailResponse {
 				ID:           scene.ID,
 				Title:        scene.Title,
 				SceneCode:    scene.SceneCode,
+<<<<<<< HEAD
+=======
+				Longitude:    scene.Longitude,
+				Latitude:     scene.Latitude,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 				ThumbnailURL: scene.ThumbnailURL,
 				ViewCount:    scene.ViewCount,
 				SortOrder:    scene.SortOrder,

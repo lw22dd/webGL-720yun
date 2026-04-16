@@ -45,7 +45,11 @@ minio:
   endpoint: localhost:9000
   access_key: admin
   secret_key: admin123456
+<<<<<<< HEAD
   bucket: pannellum-resources
+=======
+  bucket: resource-scene
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
   use_ssl: false
   region: us-east-1
 

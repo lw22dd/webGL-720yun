@@ -1,6 +1,10 @@
 package service
 
 import (
+<<<<<<< HEAD
+=======
+	"context"
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+<<<<<<< HEAD
 	"webGL-720yun/internal/model"
 	"webGL-720yun/internal/resource/dto"
 	"webGL-720yun/internal/resource/repository"
@@ -20,6 +25,21 @@ import (
 
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
+=======
+	"github.com/google/uuid"
+	"github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
+
+	"webGL-720yun/internal/model"
+	"webGL-720yun/internal/resource/dto"
+	"webGL-720yun/internal/resource/repository"
+	"webGL-720yun/internal/slice"
+	"webGL-720yun/pkg/image"
+	"webGL-720yun/pkg/logger"
+	"webGL-720yun/pkg/minio_client"
+	"webGL-720yun/pkg/redis"
+	"webGL-720yun/pkg/utils"
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 )
 
 type SceneService struct {
@@ -27,6 +47,11 @@ type SceneService struct {
 	spaceRepo      *repository.SpaceRepository
 	minioClient    *minio_client.MinIOClient
 	imageProcessor *image.Processor
+<<<<<<< HEAD
+=======
+	sliceQueue     *slice.SliceQueue
+	redisService   *redis.RedisService
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 }
 
 func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient) *SceneService {
@@ -38,6 +63,20 @@ func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient) *SceneS
 	}
 }
 
+<<<<<<< HEAD
+=======
+func NewSceneServiceWithSliceQueue(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQueue *slice.SliceQueue, redisService *redis.RedisService) *SceneService {
+	return &SceneService{
+		repo:           repository.NewSceneRepository(db),
+		spaceRepo:      repository.NewSpaceRepository(db),
+		minioClient:    minioClient,
+		imageProcessor: image.NewProcessor(),
+		sliceQueue:     sliceQueue,
+		redisService:   redisService,
+	}
+}
+
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isAdmin bool, panoramaFile *multipart.FileHeader) (*model.ResScene, error) {
 	space, err := s.spaceRepo.FindByID(req.SpaceID)
 	if err != nil {
@@ -48,7 +87,17 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 		return nil, errors.New("无权限在此空间创建场景")
 	}
 
+<<<<<<< HEAD
 	exists, err := s.repo.CheckSceneCodeExists(req.SceneCode, 0)
+=======
+	// 自动生成或清理 SceneCode
+	sceneCode, err := s.generateSceneCode(req.SceneCode, req.Title)
+	if err != nil {
+		return nil, err
+	}
+
+	exists, err := s.repo.CheckSceneCodeExists(sceneCode, 0)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	if err != nil {
 		return nil, fmt.Errorf("检查场景编码失败: %w", err)
 	}
@@ -59,7 +108,11 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 	scene := &model.ResScene{
 		SpaceID:      req.SpaceID,
 		Title:        req.Title,
+<<<<<<< HEAD
 		SceneCode:    req.SceneCode,
+=======
+		SceneCode:    sceneCode,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		PanoramaType: req.PanoramaType,
 		InitialFOV:   req.InitialFOV,
 		InitialPitch: req.InitialPitch,
@@ -79,7 +132,11 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 	}
 
 	if panoramaFile != nil {
+<<<<<<< HEAD
 		if err := s.processPanoramaFile(scene, panoramaFile, space.Name); err != nil {
+=======
+		if err := s.processPanoramaFile(scene, panoramaFile, space.Slug); err != nil {
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 			return nil, fmt.Errorf("处理全景图失败: %w", err)
 		}
 	}
@@ -91,7 +148,129 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 	return scene, nil
 }
 
+<<<<<<< HEAD
 func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipart.FileHeader, spaceName string) error {
+=======
+func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID uint, isAdmin bool) (*dto.CreateSceneResponse, error) {
+	space, err := s.spaceRepo.FindByID(req.SpaceID)
+	if err != nil {
+		return nil, fmt.Errorf("空间不存在: %w", err)
+	}
+
+	if !isAdmin && space.CreatedBy != userID {
+		return nil, errors.New("无权限在此空间创建场景")
+	}
+
+	// 自动生成或清理 SceneCode
+	sceneCode, err := s.generateSceneCode(req.SceneCode, req.Title)
+	if err != nil {
+		return nil, err
+	}
+
+	exists, err := s.repo.CheckSceneCodeExists(sceneCode, 0)
+	if err != nil {
+		return nil, fmt.Errorf("检查场景编码失败: %w", err)
+	}
+	if exists {
+		return nil, errors.New("场景编码已存在")
+	}
+
+	scene := &model.ResScene{
+		SpaceID:      req.SpaceID,
+		Title:        req.Title,
+		SceneCode:    sceneCode,
+		FileID:       req.FileID,
+		PanoramaType: req.PanoramaType,
+		InitialFOV:   req.InitialFOV,
+		InitialPitch: req.InitialPitch,
+		InitialYaw:   req.InitialYaw,
+		NorthOffset:  req.NorthOffset,
+		Longitude:    req.Longitude,
+		Latitude:     req.Latitude,
+		SortOrder:    req.SortOrder,
+		Status:       1,
+		SliceStatus:  model.SliceStatusPending,
+	}
+
+	if scene.InitialFOV == 0 {
+		scene.InitialFOV = 100
+	}
+	if scene.PanoramaType == "" {
+		scene.PanoramaType = "equirectangular"
+	}
+
+	if req.FileID != "" {
+		fileInfo, err := s.redisService.GetFileInfo(req.FileID)
+		if err != nil {
+			return nil, fmt.Errorf("获取文件信息失败: %w", err)
+		}
+		if fileInfo == nil {
+			return nil, errors.New("文件不存在，请先上传")
+		}
+
+		sourceURL, _ := fileInfo["source_url"].(string)
+		thumbURL, _ := fileInfo["thumb_url"].(string)
+		var fileSize int64
+		if fs, ok := fileInfo["file_size"].(float64); ok {
+			fileSize = int64(fs)
+		}
+
+		scene.SourceURL = sourceURL
+		scene.ThumbnailURL = thumbURL
+		scene.SourceFileSize = fileSize
+
+		if w, ok := fileInfo["width"].(float64); ok {
+			scene.SourceWidth = int(w)
+		}
+		if h, ok := fileInfo["height"].(float64); ok {
+			scene.SourceHeight = int(h)
+		}
+	}
+
+	if err := s.repo.Create(scene); err != nil {
+		return nil, fmt.Errorf("创建场景失败: %w", err)
+	}
+
+	if req.FileID != "" {
+		taskID := uuid.New().String()
+		scene.TaskID = taskID
+
+		if s.sliceQueue != nil {
+			task := &slice.SliceTask{
+				TaskID:    taskID,
+				SceneID:   scene.ID,
+				SceneCode: scene.SceneCode,
+				FileID:    scene.FileID,
+				SpaceName: space.Name,
+				SpaceSlug: space.Slug,
+				UserID:    userID,
+				CreatedAt: time.Now().Unix(),
+			}
+
+			if err := s.sliceQueue.PushTask(task); err != nil {
+				scene.SliceStatus = model.SliceStatusFailed
+				s.repo.Update(scene)
+				return nil, fmt.Errorf("推送切片任务失败: %w", err)
+			}
+
+			scene.SliceStatus = model.SliceStatusSlicing
+			if err := s.repo.Update(scene); err != nil {
+				return nil, fmt.Errorf("更新场景状态失败: %w", err)
+			}
+		}
+	}
+
+	return &dto.CreateSceneResponse{
+		SceneID:     scene.ID,
+		Title:       scene.Title,
+		SceneCode:   scene.SceneCode,
+		SliceStatus: scene.SliceStatus,
+		TaskID:      scene.TaskID,
+	}, nil
+}
+
+func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipart.FileHeader, spaceSlug string) error {
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	src, err := file.Open()
 	if err != nil {
 		return fmt.Errorf("打开文件失败: %w", err)
@@ -143,7 +322,11 @@ func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipar
 		return nil
 	}
 
+<<<<<<< HEAD
 	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s_sphere.jpg", spaceName, scene.SceneCode)
+=======
+	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceSlug, scene.SceneCode)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, tempFile, "image/jpeg")
 	if err != nil {
 		return fmt.Errorf("上传源文件失败: %w", err)
@@ -156,7 +339,11 @@ func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipar
 		return fmt.Errorf("生成缩略图失败: %w", err)
 	}
 
+<<<<<<< HEAD
 	thumbObjectName := fmt.Sprintf("spaces/%s/thumbnails/%s_thumb.jpg", spaceName, scene.SceneCode)
+=======
+	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceSlug, scene.SceneCode)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
 	if err != nil {
 		return fmt.Errorf("上传缩略图失败: %w", err)
@@ -340,6 +527,7 @@ func (s *SceneService) BatchImport(spaceID uint, file *multipart.FileHeader, use
 	}
 
 	for i, item := range items {
+<<<<<<< HEAD
 		result := dto.BatchImportResult{
 			Index:     i + 1,
 			SceneCode: item.SceneCode,
@@ -347,20 +535,56 @@ func (s *SceneService) BatchImport(spaceID uint, file *multipart.FileHeader, use
 		}
 
 		exists, _ := s.repo.CheckSceneCodeExists(item.SceneCode, 0)
+=======
+		// 自动生成或清理 SceneCode
+		sceneCode, err := s.generateSceneCode(item.SceneCode, item.Title)
+		if err != nil {
+			response.Results[i] = dto.BatchImportResult{
+				Index:     i + 1,
+				SceneCode: item.SceneCode,
+				Title:     item.Title,
+				Status:    "failed",
+				Message:   err.Error(),
+			}
+			response.FailedCount++
+			response.Errors = append(response.Errors, dto.BatchImportError{
+				Index:     i + 1,
+				SceneCode: item.SceneCode,
+				Error:     err.Error(),
+			})
+			continue
+		}
+
+		result := dto.BatchImportResult{
+			Index:     i + 1,
+			SceneCode: sceneCode,
+			Title:     item.Title,
+		}
+
+		exists, _ := s.repo.CheckSceneCodeExists(sceneCode, 0)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		if exists {
 			result.Status = "failed"
 			result.Message = "场景编码已存在"
 			response.FailedCount++
 			response.Errors = append(response.Errors, dto.BatchImportError{
 				Index:     i + 1,
+<<<<<<< HEAD
 				SceneCode: item.SceneCode,
+=======
+				SceneCode: sceneCode,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 				Error:     "场景编码已存在",
 			})
 		} else {
 			scene := &model.ResScene{
 				SpaceID:   spaceID,
 				Title:     item.Title,
+<<<<<<< HEAD
 				SceneCode: item.SceneCode,
+=======
+				SceneCode: sceneCode,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 				Longitude: item.Longitude,
 				Latitude:  item.Latitude,
 				Status:    1,
@@ -372,7 +596,11 @@ func (s *SceneService) BatchImport(spaceID uint, file *multipart.FileHeader, use
 				response.FailedCount++
 				response.Errors = append(response.Errors, dto.BatchImportError{
 					Index:     i + 1,
+<<<<<<< HEAD
 					SceneCode: item.SceneCode,
+=======
+					SceneCode: sceneCode,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 					Error:     err.Error(),
 				})
 			} else {
@@ -478,18 +706,25 @@ func (s *SceneService) GetSpaceGraphData(spaceID uint) (*dto.GraphDataResponse, 
 	}
 
 	var nodes []*dto.SceneNodeData
+<<<<<<< HEAD
 	var unplaced []*dto.SceneNodeData
+=======
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	var edges []*dto.EdgeData
 
 	sceneMap := make(map[uint]bool)
 	for _, scene := range scenes {
 		sceneMap[scene.ID] = true
 		nodeData := dto.ToSceneNodeData(scene)
+<<<<<<< HEAD
 		if nodeData.HasPosition {
 			nodes = append(nodes, nodeData)
 		} else {
 			unplaced = append(unplaced, nodeData)
 		}
+=======
+		nodes = append(nodes, nodeData)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
 		for _, hotspot := range scene.Hotspots {
 			if hotspot.Type == model.HotspotTypeSwitch && hotspot.TargetSceneID != nil {
@@ -504,7 +739,10 @@ func (s *SceneService) GetSpaceGraphData(spaceID uint) (*dto.GraphDataResponse, 
 		SpaceInfo: dto.ToSpaceInfoForGraph(space),
 		Nodes:     nodes,
 		Edges:     edges,
+<<<<<<< HEAD
 		Unplaced:  unplaced,
+=======
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	}, nil
 }
 
@@ -550,3 +788,187 @@ func (s *SceneService) BatchUpdateScenePosition(positions []dto.ScenePosition, u
 
 	return s.repo.BatchUpdatePosition(updates)
 }
+<<<<<<< HEAD
+=======
+
+func (s *SceneService) generateSceneCode(sceneCode, title string) (string, error) {
+	// 如果提供了 SceneCode，清理并验证
+	if sceneCode != "" {
+		// 清理格式
+		sceneCode = utils.SanitizeSceneCode(sceneCode)
+
+		// 验证长度
+		if len(sceneCode) < 2 {
+			return "", errors.New("场景编码太短，至少需要 2 个字符")
+		}
+		if len(sceneCode) > 100 {
+			return "", errors.New("场景编码太长，最多 100 个字符")
+		}
+
+		return sceneCode, nil
+	}
+
+	// 未提供 SceneCode，自动生成
+	if title == "" {
+		return "", errors.New("标题不能为空，无法生成场景编码")
+	}
+
+	// 生成拼音-UUID 格式
+	return utils.GenerateSceneCode(title), nil
+}
+
+// ==================== 资源流式读取 ====================
+
+// validFaces cubemap 六个面的合法名称
+var validFaces = map[string]bool{
+	"px": true, "nx": true,
+	"py": true, "ny": true,
+	"pz": true, "nz": true,
+}
+
+// IsValidFace 校验 cubemap 面名称是否合法
+func IsValidFace(face string) bool {
+	return validFaces[face]
+}
+
+// ResourceStreamResult 资源流式读取的结果
+type ResourceStreamResult struct {
+	Stream      io.ReadCloser
+	Size        int64
+	ETag        string
+	ContentType string
+}
+
+// GetTileStream 流式获取瓦片图片
+// 路径规则：spaces/{spaceName}/tiles/{sceneCode}/cubemap/{face}/level_{level}/tile_{y}_{x}.jpg
+func (s *SceneService) GetTileStream(ctx context.Context, sceneCode, face string, level, x, y int) (*ResourceStreamResult, error) {
+	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	if err != nil {
+		return nil, fmt.Errorf("scene not found: %w", err)
+	}
+
+	spaceName := scene.Space.Slug
+
+	objectPath := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_%d/tile_%d_%d.jpg",
+		spaceName, sceneCode, face, level, y, x)
+
+	logger.Infof("🔍 GetTileStream: sceneCode=%s, face=%s, level=%d, x=%d, y=%d, objectPath=%s", sceneCode, face, level, x, y, objectPath)
+
+	return s.getObjectStream(ctx, objectPath, "image/jpeg")
+}
+
+// GetPreviewStream 流式获取预览图
+// 路径规则：spaces/{spaceName}/previews/{sceneCode}/preview.jpg
+func (s *SceneService) GetPreviewStream(ctx context.Context, sceneCode string) (*ResourceStreamResult, error) {
+	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	if err != nil {
+		return nil, fmt.Errorf("scene not found: %w", err)
+	}
+
+	spaceName := scene.Space.Slug
+	objectPath := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceName, sceneCode)
+
+	return s.getObjectStream(ctx, objectPath, "image/jpeg")
+}
+
+// GetSourceStream 流式获取场景原始全景图
+// 路径规则：spaces/{spaceName}/sources/{sceneCode}/source.jpg
+func (s *SceneService) GetSourceStream(ctx context.Context, sceneCode string) (*ResourceStreamResult, error) {
+	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	if err != nil {
+		return nil, fmt.Errorf("scene not found: %w", err)
+	}
+
+	spaceName := scene.Space.Slug
+	objectPath := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceName, sceneCode)
+
+	return s.getObjectStream(ctx, objectPath, "image/jpeg")
+}
+
+// GetCoverStream 流式获取空间封面
+// 路径规则：spaces/{spaceName}/covers/cover.jpg
+func (s *SceneService) GetCoverStream(ctx context.Context, spaceName string) (*ResourceStreamResult, error) {
+	objectPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", spaceName)
+	return s.getObjectStream(ctx, objectPath, "image/jpeg")
+}
+
+// GetCubemapFaceStream 流式获取完整的 cubemap 面图片
+// 路径规则：spaces/{spaceName}/tiles/{sceneCode}/cubemap/{face}.jpg
+// 如果完整的面图片不存在，尝试从 level_0 瓦片拼接生成
+func (s *SceneService) GetCubemapFaceStream(ctx context.Context, sceneCode, face string) (*ResourceStreamResult, error) {
+	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	if err != nil {
+		return nil, fmt.Errorf("scene not found: %w", err)
+	}
+
+	spaceName := scene.Space.Slug
+	objectPath := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s.jpg", spaceName, sceneCode, face)
+
+	// 先尝试获取完整的面图片
+	result, err := s.getObjectStream(ctx, objectPath, "image/jpeg")
+	if err == nil {
+		return result, nil
+	}
+
+	// 如果完整的面图片不存在，尝试从 level_0 瓦片拼接
+	return s.stitchCubemapFaceFromTiles(ctx, spaceName, sceneCode, face)
+}
+
+// stitchCubemapFaceFromTiles 从 level_0 瓦片拼接生成完整的 cubemap 面
+func (s *SceneService) stitchCubemapFaceFromTiles(ctx context.Context, spaceName, sceneCode, face string) (*ResourceStreamResult, error) {
+	// level_0 是 2x2 的瓦片布局
+	// 瓦片命名使用 WebGL 坐标系（y=0 在底部），但拼接时需要按图像坐标系（y=0 在顶部）
+	// 所以顺序是：第1行（顶部）先，第0行（底部）后
+	tilePaths := []string{
+		// 第1行（y=1，图像顶部）
+		fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_0/tile_1_0.jpg", spaceName, sceneCode, face),
+		fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_0/tile_1_1.jpg", spaceName, sceneCode, face),
+		// 第0行（y=0，图像底部）
+		fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_0/tile_0_0.jpg", spaceName, sceneCode, face),
+		fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_0/tile_0_1.jpg", spaceName, sceneCode, face),
+	}
+
+	// 检查瓦片是否存在
+	for _, path := range tilePaths {
+		exists, err := s.minioClient.ObjectExists(path)
+		if err != nil || !exists {
+			return nil, fmt.Errorf("tiles not found for face %s", face)
+		}
+	}
+
+	// 读取并拼接瓦片
+	stream, err := s.minioClient.StitchTilesToStream(ctx, tilePaths, 2, 2)
+	if err != nil {
+		return nil, fmt.Errorf("stitch tiles failed: %w", err)
+	}
+
+	return &ResourceStreamResult{
+		Stream:      stream,
+		Size:        0,
+		ETag:        fmt.Sprintf("%s-%s-stitched", sceneCode, face),
+		ContentType: "image/jpeg",
+	}, nil
+}
+
+// getObjectStream 通用的 MinIO 对象流式获取
+func (s *SceneService) getObjectStream(ctx context.Context, objectPath, contentType string) (*ResourceStreamResult, error) {
+	obj, err := s.minioClient.GetObjectStream(ctx, objectPath)
+	if err != nil {
+		return nil, fmt.Errorf("get object failed: %w", err)
+	}
+
+	// Stat 获取对象元信息（大小、ETag 等）
+	info, err := obj.Stat()
+	if err != nil {
+		obj.Close()
+		return nil, fmt.Errorf("object not found: %w", err)
+	}
+
+	return &ResourceStreamResult{
+		Stream:      obj,
+		Size:        info.Size,
+		ETag:        info.ETag,
+		ContentType: contentType,
+	}, nil
+}
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503

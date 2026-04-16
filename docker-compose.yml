@@ -50,6 +50,7 @@ services:
     networks:
       - panorama-network
 
+<<<<<<< HEAD
   minio-init:
     image: minio/mc:latest
     container_name: minio-init
@@ -68,6 +69,8 @@ services:
     networks:
       - panorama-network
 
+=======
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 networks:
   panorama-network:
     driver: bridge

@@ -1,8 +1,11 @@
 package minio_client
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
 	"mime"
 	"net/url"
@@ -10,6 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"webGL-720yun/config"
@@ -146,6 +150,28 @@ func (m *MinIOClient) DeleteObject(objectName string) error {
 	return nil
 }
 
+func (m *MinIOClient) DeleteObjectsWithPrefix(prefix string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	objectsCh := m.client.ListObjects(ctx, m.config.Bucket, minio.ListObjectsOptions{
+		Prefix:    prefix,
+		Recursive: true,
+	})
+
+	for obj := range objectsCh {
+		if obj.Err != nil {
+			return fmt.Errorf("列出对象失败 [%s]: %w", prefix, obj.Err)
+		}
+		if err := m.client.RemoveObject(ctx, m.config.Bucket, obj.Key, minio.RemoveObjectOptions{}); err != nil {
+			return fmt.Errorf("删除对象失败 [%s]: %w", obj.Key, err)
+		}
+	}
+
+	logger.Infof("🗑️  递归删除成功: %s", prefix)
+	return nil
+}
+
 func (m *MinIOClient) GetObjectURL(objectName string) string {
 	scheme := "http"
 	if m.config.UseSSL {
@@ -183,6 +209,72 @@ func (m *MinIOClient) ListObjects(prefix string, recursive bool) ([]minio.Object
 		objects = append(objects, obj)
 	}
 	return objects, nil
+}
+
+// GetObjectStream 流式获取 MinIO 对象，返回 *minio.Object（实现 io.ReadCloser）
+// 用于瓦片/预览图等资源的零拷贝流式转发，不会将整个文件读入内存
+func (m *MinIOClient) GetObjectStream(ctx context.Context, objectName string) (*minio.Object, error) {
+	obj, err := m.client.GetObject(ctx, m.config.Bucket, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取对象流失败 [%s]: %w", objectName, err)
+	}
+	return obj, nil
+}
+
+// StitchTilesToStream 从多个瓦片拼接成完整图片并返回流
+// tiles: 瓦片路径列表，按从左到右、从上到下的顺序排列
+// cols, rows: 瓦片的列数和行数
+func (m *MinIOClient) StitchTilesToStream(ctx context.Context, tilePaths []string, cols, rows int) (io.ReadCloser, error) {
+	if len(tilePaths) != cols*rows {
+		return nil, fmt.Errorf("瓦片数量 %d 与布局 %dx%d 不匹配", len(tilePaths), cols, rows)
+	}
+
+	// 读取所有瓦片
+	var tiles []image.Image
+	var tileWidth, tileHeight int
+
+	for i, path := range tilePaths {
+		obj, err := m.client.GetObject(ctx, m.config.Bucket, path, minio.GetObjectOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("获取瓦片失败 [%s]: %w", path, err)
+		}
+
+		img, err := imaging.Decode(obj)
+		obj.Close()
+		if err != nil {
+			return nil, fmt.Errorf("解码瓦片失败 [%s]: %w", path, err)
+		}
+
+		if i == 0 {
+			tileWidth = img.Bounds().Dx()
+			tileHeight = img.Bounds().Dy()
+		}
+
+		tiles = append(tiles, img)
+	}
+
+	// 创建拼接后的图片
+	resultWidth := tileWidth * cols
+	resultHeight := tileHeight * rows
+	resultImg := imaging.New(resultWidth, resultHeight, image.Black)
+
+	// 拼接瓦片
+	for i, tile := range tiles {
+		row := i / cols
+		col := i % cols
+		x := col * tileWidth
+		y := row * tileHeight
+		resultImg = imaging.Paste(resultImg, tile, image.Pt(x, y))
+	}
+
+	// 编码为 JPEG 并写入 buffer
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, resultImg, &jpeg.Options{Quality: 85}); err != nil {
+		return nil, fmt.Errorf("编码拼接图片失败: %w", err)
+	}
+
+	// 返回一个 io.ReadCloser
+	return io.NopCloser(&buf), nil
 }
 
 func (m *MinIOClient) GetClient() *minio.Client {

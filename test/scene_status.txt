@@ -1,0 +1,3 @@
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	title	slice_status	source_url	cubemap_url	tile_url
+38	Test Panorama Scene	ready	http://localhost:9000/resource-scene/spaces/net-test-711201563/sources/3882d988-64ea-4e83-8ad8-f8c2f5cb51e9/source.jpg		spaces/net-test-711201563/tiles/test-scene-126121675/

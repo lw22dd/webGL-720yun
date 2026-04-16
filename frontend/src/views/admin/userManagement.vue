@@ -86,6 +86,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import AdminTable from '@/components/admin/AdminTable.vue'
+<<<<<<< HEAD
 import UserApi from '@/apis/userApi'
 import { User } from '@/models/UserModel'
 
@@ -99,6 +100,10 @@ interface UserItem {
   status: number
   [key: string]: any
 }
+=======
+import UserApi from '@/services/api/user.api'
+import type { UserItem } from '@/models/user.model'
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
 const searchKeyword = ref('')
 const userList = ref<UserItem[]>([])
@@ -195,6 +200,7 @@ const columns = computed(() => [
     title: '角色',
     width: 100,
     align: 'center' as const,
+<<<<<<< HEAD
     cell: (h, { row }) => {
       if (!row) return h('span', {}, '-')
       if (row.role && row.role.name) {
@@ -202,6 +208,16 @@ const columns = computed(() => [
       }
       const role = roleOptions.find(r => r.value === row.role_id)
       return h('span', {}, role ? role.label : '-')
+=======
+    cell: (params: { row: any; rowIndex: number }) => {
+      const row = params.row
+      if (!row) return '-'
+      if (row.role && row.role.name) {
+        return row.role.name
+      }
+      const role = roleOptions.find(r => r.value === row.role_id)
+      return role ? role.label : '-'
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
     }
   },
   {
@@ -209,9 +225,16 @@ const columns = computed(() => [
     title: '状态',
     width: 80,
     align: 'center' as const,
+<<<<<<< HEAD
     cell: (h, { row }) => {
       if (!row) return h('span', {}, '-')
       return h('span', {}, row.status === 1 ? '启用' : '禁用')
+=======
+    cell: (params: { row: any; rowIndex: number }) => {
+      const row = params.row
+      if (!row) return '-'
+      return row.status === 1 ? '启用' : '禁用'
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
     }
   },
   {
@@ -230,9 +253,15 @@ const loadUserList = async () => {
       page: pagination.currentPage,
       page_size: pagination.pageSize
     })
+<<<<<<< HEAD
     if (result.code === 200) {
       console.log(result.data.users)
       userList.value = result.data.users
+=======
+    if (result.code === 200 && result.data) {
+      console.log(result.data.users)
+      userList.value = result.data.users as any
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
       pagination.total = result.data.total
       paginationConfig.total = result.data.total
     } else {

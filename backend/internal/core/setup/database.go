@@ -115,7 +115,11 @@ func printInitResult(steps []string, successSteps []string, failedSteps []string
 		fmt.Printf("❌ %s\n", step)
 	}
 	fmt.Printf("\n总步骤: %d, 成功: %d, 失败: %d\n", len(steps), len(successSteps), len(failedSteps))
+<<<<<<< HEAD
 	fmt.Println("========================\n")
+=======
+	fmt.Println("========================")
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 }
 
 func (d *Database) GetDB() *gorm.DB {

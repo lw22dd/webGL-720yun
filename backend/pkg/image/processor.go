@@ -41,9 +41,9 @@ type Processor struct {
 
 func NewProcessor() *Processor {
 	return &Processor{
-		maxFileSize:     5 * 1024 * 1024,
-		thumbnailWidth:  512,
-		thumbnailHeight: 256,
+		maxFileSize:     500 * 1024 * 1024,
+		thumbnailWidth:  256,
+		thumbnailHeight: 128,
 	}
 }
 
@@ -276,7 +276,6 @@ func (p *Processor) GeneratePanoramaTiles(inputPath, outputDir string, tileSize 
 
 	return nil
 }
-
 func (p *Processor) ResizeImage(srcPath, dstPath string, width, height int) error {
 	img, err := imaging.Open(srcPath)
 	if err != nil {

@@ -16,7 +16,7 @@ import (
 	"webGL-720yun/internal/core/router"
 	"webGL-720yun/internal/core/setup"
 	"webGL-720yun/internal/resource/service"
-	upload_service "webGL-720yun/internal/upload/service"
+	"webGL-720yun/internal/resource/upload"
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/logger"
@@ -24,6 +24,8 @@ import (
 	"webGL-720yun/pkg/redis"
 	"webGL-720yun/pkg/websocket"
 )
+
+const DefaultWorkerCount = 3
 
 func Run() {
 	if err := config.Init(); err != nil {
@@ -46,6 +48,15 @@ func Run() {
 
 	redisClient := redis.NewRedisService(&config.Conf.Redis)
 
+	minioSetup, err := setup.NewMinIOSetup(&config.Conf.MinIO)
+	if err != nil {
+		logger.Warnf("创建MinIO设置失败（非致命）: %v", err)
+	} else {
+		if err := minioSetup.EnsureBucketAndStructure(context.Background()); err != nil {
+			logger.Warnf("MinIO初始化失败（非致命）: %v", err)
+		}
+	}
+
 	minioClient, err := minio_client.NewMinIOClient(&config.MinIOConfig{
 		Endpoint:  config.Conf.MinIO.Endpoint,
 		AccessKey: config.Conf.MinIO.AccessKey,
@@ -55,7 +66,7 @@ func Run() {
 		Region:    config.Conf.MinIO.Region,
 	})
 	if err != nil {
-		logger.Warnf("MinIO初始化失败（非致命）: %v", err)
+		logger.Warnf("MinIO客户端创建失败（非致命）: %v", err)
 	}
 
 	jwtService := jwt.NewJWTService(&config.Conf.JWT)
@@ -64,12 +75,15 @@ func Run() {
 	var spaceService *service.SpaceService
 	var sceneService *service.SceneService
 	var hotspotService *service.HotspotService
-	var uploadService *upload_service.UploadService
+	var uploadService *upload.UploadService
+	var sliceQueue *router.SliceQueue
+	var workerPool *router.WorkerPool
 
 	if db != nil {
 		userService = user.NewUserService(db.GetDB(), jwtService, redisClient)
 		spaceService = service.NewSpaceService(db.GetDB(), minioClient)
-		sceneService = service.NewSceneService(db.GetDB(), minioClient)
+		sliceQueue = router.NewSliceQueue(redisClient)
+		sceneService = service.NewSceneServiceWithSliceQueue(db.GetDB(), minioClient, sliceQueue, redisClient)
 		hotspotService = service.NewHotspotService(db.GetDB())
 		
 		if err := setup.SeedTestData(db.GetDB()); err != nil {
@@ -77,7 +91,8 @@ func Run() {
 		}
 
 		if minioClient != nil {
-			resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, ".")
+			uploadRepo := upload.NewUploadRepository(redisClient, db.GetDB())
+			resourceInitService := service.NewResourceInitService(db.GetDB(), minioClient, sliceQueue, uploadRepo, ".")
 			if initErr := resourceInitService.SeedResourcesIfNeeded(); initErr != nil {
 				logger.Warnf("全景资源初始化失败（非致命）: %v", initErr)
 			}
@@ -90,20 +105,19 @@ func Run() {
 		hotspotService = &service.HotspotService{}
 	}
 
+
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
 	if db != nil {
 		uploadService = router.NewUploadService(db.GetDB(), minioClient, redisClient, wsHub)
+		workerPool = router.NewWorkerPool(sliceQueue, db.GetDB(), minioClient, wsHub, DefaultWorkerCount)
+		go workerPool.Start()
 	} else {
-		uploadService = upload_service.NewUploadService(
-			nil,
-			nil,
-			nil,
-			minioClient,
-			wsHub,
-		)
+		// 使用空实现，允许服务启动但功能受限
+		uploadService = &upload.UploadService{}
 	}
+
 
 	noAuthPaths := config.Conf.NoAuth
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, redisClient, noAuthPaths)
@@ -115,6 +129,7 @@ func Run() {
 		// 使用空实现
 		rbacMiddleware = &middleware.RBACMiddleware{}
 	}
+
 
 	serviceContext := &router.ServiceContext{
 		UserService:    userService,
@@ -128,6 +143,8 @@ func Run() {
 		RedisService:   redisClient,
 		JWTService:     jwtService,
 		WsHub:          wsHub,
+		SliceQueue:     sliceQueue,
+		WorkerPool:     workerPool,
 	}
 
 	if config.Conf.App.Debug {
@@ -166,6 +183,11 @@ func Run() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Error("强制关闭服务", "error", err)
+	}
+
+	if workerPool != nil {
+		workerPool.Stop()
+		logger.Info("Worker Pool 已停止")
 	}
 
 	if err := redisClient.Close(); err != nil {

@@ -10,10 +10,19 @@
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
+<<<<<<< HEAD
     "@antv/g6": "^5.1.0",
     "@antv/x6": "^3.1.7",
     "@antv/x6-vue-shape": "^3.0.2",
     "@photo-sphere-viewer/core": "^5.14.1",
+=======
+    "@antv/l7": "^2.25.4",
+    "@antv/l7-maps": "^2.25.4",
+    "@photo-sphere-viewer/core": "^5.14.1",
+    "@photo-sphere-viewer/cubemap-adapter": "^5.14.1",
+    "@photo-sphere-viewer/cubemap-tiles-adapter": "^5.14.1",
+    "@photo-sphere-viewer/markers-plugin": "^5.14.1",
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
     "@tailwindcss/vite": "^4.1.18",
     "@types/three": "^0.182.0",
     "autoprefixer": "^10.4.21",
@@ -32,6 +41,10 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^24.5.2",
     "@vitejs/plugin-vue": "^5.1.4",
+<<<<<<< HEAD
+=======
+    "less": "^4.6.4",
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
     "sass": "^1.95.0",
     "typescript": "~5.6.2",
     "unplugin-auto-import": "^21.0.0",

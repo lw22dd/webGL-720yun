@@ -40,8 +40,22 @@ func (s *SpaceService) CreateSpace(req *dto.CreateSpaceRequest, createdBy uint, 
 		return nil, errors.New("景区名称已存在")
 	}
 
+<<<<<<< HEAD
 	space := &model.ResSpace{
 		Name:        req.Name,
+=======
+	slug := req.Slug
+	if slug == "" {
+		slug = utils.SanitizeSceneCode(utils.ToPinyin(req.Name))
+		if slug == "" {
+			slug = "space"
+		}
+	}
+
+	space := &model.ResSpace{
+		Name:        req.Name,
+		Slug:        slug,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		Description: req.Description,
 		Province:    req.Province,
 		City:        req.City,
@@ -54,7 +68,11 @@ func (s *SpaceService) CreateSpace(req *dto.CreateSpaceRequest, createdBy uint, 
 	}
 
 	if coverFile != nil {
+<<<<<<< HEAD
 		coverURL, err := s.uploadCoverImage(coverFile, space.ID)
+=======
+		coverURL, err := s.uploadCoverImage(coverFile, space.Slug)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		if err != nil {
 			return nil, fmt.Errorf("上传封面图失败: %w", err)
 		}
@@ -89,6 +107,13 @@ func (s *SpaceService) UpdateSpace(id uint, req *dto.UpdateSpaceRequest, userID 
 		space.Name = req.Name
 	}
 
+<<<<<<< HEAD
+=======
+	if req.Slug != "" {
+		space.Slug = req.Slug
+	}
+
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	if req.Description != "" {
 		space.Description = req.Description
 	}
@@ -122,7 +147,11 @@ func (s *SpaceService) UpdateSpace(id uint, req *dto.UpdateSpaceRequest, userID 
 			}
 		}
 
+<<<<<<< HEAD
 		coverURL, err := s.uploadCoverImage(coverFile, space.ID)
+=======
+		coverURL, err := s.uploadCoverImage(coverFile, space.Slug)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		if err != nil {
 			return nil, fmt.Errorf("上传封面图失败: %w", err)
 		}
@@ -166,12 +195,22 @@ func (s *SpaceService) DeleteSpace(id uint, userID uint, isAdmin bool) error {
 		return err
 	}
 
+<<<<<<< HEAD
 	if space.CoverURL != "" {
 		oldObjectName := s.extractObjectName(space.CoverURL)
 		if oldObjectName != "" {
 			_ = s.minioClient.DeleteObject(oldObjectName)
 		}
 	}
+=======
+	// 删除 MinIO 中的所有相关文件（源图、瓦片、预览图、封面等）
+	// 同时尝试删除基于 slug 和基于 ID 的目录（兼容旧数据）
+	slugPrefix := fmt.Sprintf("spaces/%s/", space.Slug)
+	idPrefix := fmt.Sprintf("spaces/%d/", space.ID)
+
+	_ = s.minioClient.DeleteObjectsWithPrefix(slugPrefix)
+	_ = s.minioClient.DeleteObjectsWithPrefix(idPrefix)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
 	return nil
 }
@@ -240,15 +279,24 @@ func (s *SpaceService) GetSpaceByID(id uint) (*model.ResSpace, error) {
 	return s.repo.FindByID(id)
 }
 
+<<<<<<< HEAD
 func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, id uint) (string, error) {
+=======
+func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, slug string) (string, error) {
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	src, err := file.Open()
 	if err != nil {
 		return "", fmt.Errorf("打开文件失败: %w", err)
 	}
 	defer src.Close()
 
+<<<<<<< HEAD
 	ext := filepath.Ext(file.Filename)
 	objectName := fmt.Sprintf("spaces/%d/cover%s", id, ext)
+=======
+	ext := ".jpg"
+	objectName := fmt.Sprintf("spaces/%s/covers/cover%s", slug, ext)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
 	tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("upload_%d%s", time.Now().UnixNano(), ext))
 	dst, err := os.Create(tempFile)

@@ -86,7 +86,11 @@ export const setMarkerAnimation = (marker: any, type: 'breathe' | 'glow' | 'none
   }
 }
 
+<<<<<<< HEAD
 export const createCustomMarker = (map: any, position: [number, number], content: HTMLElement) => {
+=======
+export const createCustomMarker = (_map: any, position: [number, number], content: HTMLElement) => {
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
   const AMap = window.AMap
   return new AMap.Marker({
     position: position,

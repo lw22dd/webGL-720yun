@@ -9,11 +9,17 @@ import (
 
 	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/internal/resource/handler"
+<<<<<<< HEAD
 	"webGL-720yun/internal/resource/repository"
 	"webGL-720yun/internal/resource/service"
 	upload_handler "webGL-720yun/internal/upload/handler"
 	upload_repository "webGL-720yun/internal/upload/repository"
 	upload_service "webGL-720yun/internal/upload/service"
+=======
+	"webGL-720yun/internal/resource/service"
+	"webGL-720yun/internal/resource/upload"
+	"webGL-720yun/internal/slice"
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	"webGL-720yun/internal/user"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/minio_client"
@@ -26,13 +32,22 @@ type ServiceContext struct {
 	SpaceService   *service.SpaceService
 	SceneService   *service.SceneService
 	HotspotService *service.HotspotService
+<<<<<<< HEAD
 	UploadService  *upload_service.UploadService
+=======
+	UploadService  *upload.UploadService
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	AuthMiddleware *middleware.AuthMiddleware
 	RBACMiddleware *middleware.RBACMiddleware
 	MinIOClient    *minio_client.MinIOClient
 	RedisService   *redis.RedisService
 	JWTService     *jwt.JWTService
 	WsHub          *websocket.Hub
+<<<<<<< HEAD
+=======
+	SliceQueue     *slice.SliceQueue
+	WorkerPool     *slice.WorkerPool
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 }
 
 func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
@@ -43,7 +58,10 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	uploadService := ctx.UploadService
 	authMiddleware := ctx.AuthMiddleware
 	wsHub := ctx.WsHub
+<<<<<<< HEAD
 	jwtService := ctx.JWTService
+=======
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
 	api := r.Group("/api/v1")
 	{
@@ -117,6 +135,7 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		uploadGroup := api.Group("/upload")
 		uploadGroup.Use(authMiddleware.RequireAuth())
 		{
+<<<<<<< HEAD
 			uploadGroup.POST("/init", upload_handler.InitUpload(uploadService))
 			uploadGroup.POST("/chunk", upload_handler.UploadChunk(uploadService))
 			uploadGroup.POST("/merge", upload_handler.MergeChunks(uploadService))
@@ -125,6 +144,38 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		}
 
 		api.GET("/ws", upload_handler.HandleWebSocket(wsHub, jwtService))
+=======
+			uploadGroup.POST("/init", upload.InitUpload(uploadService))
+			uploadGroup.POST("/chunk", upload.UploadChunk(uploadService))
+			uploadGroup.POST("/complete", upload.CompleteUpload(uploadService))
+			uploadGroup.GET("/status/:upload_id", upload.GetUploadStatus(uploadService))
+			uploadGroup.DELETE("/:upload_id", upload.CancelUpload(uploadService))
+			uploadGroup.GET("/file/:file_id", upload.GetFileInfo(uploadService))
+		}
+
+		api.GET("/ws", websocket.HandleWebSocket(wsHub))
+
+		// 资源流式读取 —— 公开路由，无需鉴权
+		// 瓦片是高频请求（每个场景 500+ 张），不做 JWT 校验
+		resGroup := api.Group("/res")
+		{
+			// GET /api/v1/res/tiles/:sceneCode/:face/:level/:x/:y
+			resGroup.GET("/tiles/:sceneCode/:face/:level/:x/:y", handler.GetTile(sceneService))
+			resGroup.HEAD("/tiles/:sceneCode/:face/:level/:x/:y", handler.GetTile(sceneService))
+			// GET /api/v1/res/cubemap/:sceneCode/:face
+			resGroup.GET("/cubemap/:sceneCode/:face", handler.GetCubemapFace(sceneService))
+			resGroup.HEAD("/cubemap/:sceneCode/:face", handler.GetCubemapFace(sceneService))
+			// GET /api/v1/res/previews/:sceneCode
+			resGroup.GET("/previews/:sceneCode", handler.GetPreview(sceneService))
+			resGroup.HEAD("/previews/:sceneCode", handler.GetPreview(sceneService))
+			// GET /api/v1/res/sources/:sceneCode
+			resGroup.GET("/sources/:sceneCode", handler.GetSource(sceneService))
+			resGroup.HEAD("/sources/:sceneCode", handler.GetSource(sceneService))
+			// GET /api/v1/res/covers/:spaceName
+			resGroup.GET("/covers/:spaceName", handler.GetCover(sceneService))
+			resGroup.HEAD("/covers/:spaceName", handler.GetCover(sceneService))
+		}
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	}
 
 	r.GET("/health", func(c *gin.Context) {
@@ -135,9 +186,23 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	})
 }
 
+<<<<<<< HEAD
 func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService, wsHub *websocket.Hub) *upload_service.UploadService {
 	uploadRepo := upload_repository.NewUploadRepository(redisService)
 	sceneRepo := repository.NewSceneRepository(db)
 	spaceRepo := repository.NewSpaceRepository(db)
 	return upload_service.NewUploadService(uploadRepo, sceneRepo, spaceRepo, minioClient, wsHub)
+=======
+func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService, wsHub *websocket.Hub) *upload.UploadService {
+	uploadRepo := upload.NewUploadRepository(redisService, db)
+	return upload.NewUploadService(uploadRepo, db, minioClient, wsHub)
+}
+
+func NewSliceQueue(redisService *redis.RedisService) *slice.SliceQueue {
+	return slice.NewSliceQueue(redisService)
+}
+
+func NewWorkerPool(queue *slice.SliceQueue, db *gorm.DB, minioClient *minio_client.MinIOClient, wsHub *websocket.Hub, workerCount int) *slice.WorkerPool {
+	return slice.NewWorkerPool(queue, db, minioClient, wsHub, workerCount)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 }

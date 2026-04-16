@@ -31,12 +31,16 @@
         <span>空间管理</span>
       </t-menu-item>
 
+<<<<<<< HEAD
       <t-menu-item value="/admin/scenes">
         <template #icon>
           <t-icon name="photo" />
         </template>
         <span>场景管理</span>
       </t-menu-item>
+=======
+
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
       <t-menu-item value="/admin/settings">
         <template #icon>
@@ -44,6 +48,16 @@
         </template>
         <span>系统设置</span>
       </t-menu-item>
+<<<<<<< HEAD
+=======
+
+      <t-menu-item value="/admin/logs">
+        <template #icon>
+          <t-icon name="history" />
+        </template>
+        <span>日志管理</span>
+      </t-menu-item>
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
     </t-menu>
   </div>
 </template>

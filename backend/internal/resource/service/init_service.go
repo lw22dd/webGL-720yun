@@ -4,11 +4,23 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+<<<<<<< HEAD
 
 	"webGL-720yun/internal/core/setup"
 	"webGL-720yun/internal/model"
 	"webGL-720yun/pkg/logger"
 	miniocli "webGL-720yun/pkg/minio_client"
+=======
+	"time"
+
+	"webGL-720yun/internal/core/setup"
+	"webGL-720yun/internal/model"
+	"webGL-720yun/internal/resource/upload"
+	"webGL-720yun/internal/slice"
+	"webGL-720yun/pkg/logger"
+	miniocli "webGL-720yun/pkg/minio_client"
+	"webGL-720yun/pkg/utils"
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
 	"gorm.io/gorm"
 )
@@ -16,6 +28,7 @@ import (
 type ResourceInitService struct {
 	db           *gorm.DB
 	minioClient  miniocli.MinIOOperations
+<<<<<<< HEAD
 	seedBasePath string
 }
 
@@ -23,6 +36,19 @@ func NewResourceInitService(db *gorm.DB, minioCli miniocli.MinIOOperations, seed
 	return &ResourceInitService{
 		db:           db,
 		minioClient:  minioCli,
+=======
+	sliceQueue   *slice.SliceQueue
+	uploadRepo   *upload.UploadRepository
+	seedBasePath string
+}
+
+func NewResourceInitService(db *gorm.DB, minioCli miniocli.MinIOOperations, sliceQueue *slice.SliceQueue, uploadRepo *upload.UploadRepository, seedBasePath string) *ResourceInitService {
+	return &ResourceInitService{
+		db:           db,
+		minioClient:  minioCli,
+		sliceQueue:   sliceQueue,
+		uploadRepo:   uploadRepo,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		seedBasePath: seedBasePath,
 	}
 }
@@ -32,6 +58,16 @@ func (s *ResourceInitService) SeedResourcesIfNeeded() error {
 
 	scenicSpots := setup.GetScenicSpotSeeds()
 
+<<<<<<< HEAD
+=======
+	// 先尝试为现有的、Slug为空的记录补全 Slug
+	for _, spot := range scenicSpots {
+		s.db.Model(&model.ResSpace{}).
+			Where("name = ? AND (slug = '' OR slug IS NULL)", spot.Name).
+			Update("slug", spot.Slug)
+	}
+
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	for _, spot := range scenicSpots {
 		if err := s.seedScenicSpotIfNotExists(spot); err != nil {
 			logger.Errorf("初始化景区 %s 失败: %v", spot.Name, err)
@@ -49,7 +85,11 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 	err := s.db.Where("name = ?", spot.Name).First(&existingSpot).Error
 	if err == nil {
 		logger.Infof("⏭️  景区 [%s] 已存在，跳过创建", spot.Name)
+<<<<<<< HEAD
 		return s.checkAndSyncScenes(existingSpot.ID, existingSpot.Name, spot)
+=======
+		return s.checkAndSyncScenes(existingSpot.ID, existingSpot.Slug, spot)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	}
 
 	if err != gorm.ErrRecordNotFound {
@@ -58,6 +98,10 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 
 	newSpot := model.ResSpace{
 		Name:        spot.Name,
+<<<<<<< HEAD
+=======
+		Slug:        spot.Slug,
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 		Description: spot.Description,
 		Province:    spot.Province,
 		City:        spot.City,
@@ -73,7 +117,11 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 
 	coverLocalPath := filepath.Join(s.seedBasePath, spot.LocalPath, spot.CoverFile)
 	if _, err := os.Stat(coverLocalPath); err == nil {
+<<<<<<< HEAD
 		coverMinIOPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", newSpot.Name)
+=======
+		coverMinIOPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", newSpot.Slug)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
 		exists, _ := s.minioClient.ObjectExists(coverMinIOPath)
 		if !exists {
@@ -95,7 +143,11 @@ func (s *ResourceInitService) seedScenicSpotIfNotExists(spot setup.ScenicSpotSee
 	}
 
 	for _, sceneSeed := range spot.Scenes {
+<<<<<<< HEAD
 		if err := s.seedSceneIfNotExists(newSpot.ID, newSpot.Name, spot.LocalPath, sceneSeed); err != nil {
+=======
+		if err := s.seedSceneIfNotExists(newSpot.ID, newSpot.Slug, spot.LocalPath, sceneSeed); err != nil {
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 			logger.Warnf("导入场景 %s 失败: %v", sceneSeed.Title, err)
 		}
 	}
@@ -112,7 +164,22 @@ func (s *ResourceInitService) checkAndSyncScenes(spaceID uint, spaceName string,
 			if seedErr := s.seedSceneIfNotExists(spaceID, spaceName, spot.LocalPath, sceneSeed); seedErr != nil {
 				logger.Warnf("同步场景 %s 失败: %v", sceneSeed.Title, seedErr)
 			}
+<<<<<<< HEAD
 		} else if err != nil {
+=======
+		} else if err == nil {
+			// 如果场景已存在但坐标为0，尝试补全坐标
+			if existingScene.Longitude == 0 && existingScene.Latitude == 0 {
+				if lon, lat, found := setup.GetSceneCoordinate(sceneSeed.Title); found {
+					s.db.Model(&existingScene).Updates(map[string]interface{}{
+						"longitude": lon,
+						"latitude":  lat,
+					})
+					logger.Infof("📍 补全场景坐标: %s (%f, %f)", sceneSeed.Title, lon, lat)
+				}
+			}
+		} else {
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 			logger.Warnf("检查场景 %s 时出错: %v", sceneSeed.Title, err)
 		}
 	}
@@ -133,7 +200,12 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 	}
 
 	localFilePath := filepath.Join(s.seedBasePath, localPath, scene.FileName)
+<<<<<<< HEAD
 	minIOObjectPath := fmt.Sprintf("spaces/%s/sources/%s", spaceName, scene.FileName)
+=======
+	// 使用拼音语义化的 SceneCode 构建 MinIO 路径
+	minIOObjectPath := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceName, scene.SceneCode)
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 
 	fileInfo, err := os.Stat(localFilePath)
 	if err != nil {
@@ -144,6 +216,7 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 		return fmt.Errorf("获取文件信息失败: %w", err)
 	}
 
+<<<<<<< HEAD
 	exists, checkErr := s.minioClient.ObjectExists(minIOObjectPath)
 	if checkErr != nil {
 		return fmt.Errorf("检查MinIO对象存在性失败: %w", checkErr)
@@ -164,6 +237,53 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 	} else {
 		panoramaURL = s.minioClient.GetObjectURL(minIOObjectPath)
 		logger.Infof("♻️  MinIO中已存在: %s，复用URL", scene.FileName)
+=======
+	md5Str, md5Err := utils.CalculateFileMD5(localFilePath)
+	if md5Err != nil {
+		logger.Warnf("⚠️  计算本地文件 MD5 失败，将无法使用秒传: %v", md5Err)
+	}
+
+	var panoramaURL string
+	var resolvedFileID string
+
+	if md5Str != "" && s.uploadRepo != nil {
+		// === 双层校验: Redis -> MySQL ===
+		fileID, _ := s.uploadRepo.GetFileIDByMD5(md5Str)
+		if fileID != "" {
+			fileInfo, _ := s.uploadRepo.GetFileInfo(fileID)
+			if fileInfo != nil && fileInfo.SourceURL != "" {
+				panoramaURL = fileInfo.SourceURL
+				resolvedFileID = fileInfo.FileID
+				logger.Infof("♻️  命中 MD5 秒传 [%s]，复用链接", scene.FileName)
+			}
+		}
+	}
+
+	if panoramaURL == "" {
+		exists, checkErr := s.minioClient.ObjectExists(minIOObjectPath)
+		if checkErr != nil {
+			return fmt.Errorf("检查MinIO对象存在性失败: %w", checkErr)
+		}
+
+		if !exists {
+			url, uploadErr := s.minioClient.UploadFile(
+				minIOObjectPath,
+				localFilePath,
+				"image/jpeg",
+			)
+			if uploadErr != nil {
+				return fmt.Errorf("上传全景图到MinIO失败: %w", uploadErr)
+			}
+			panoramaURL = url
+			logger.Infof("☁️  已上传: %s → MinIO (%.2f MB)", scene.FileName, float64(fileInfo.Size())/1024/1024)
+		} else {
+			panoramaURL = s.minioClient.GetObjectURL(minIOObjectPath)
+			logger.Infof("☁️  MinIO中已存在对象: %s，直接应用", scene.FileName)
+		}
+		
+		// 新上传的文件我们使用 UUID 或 SceneCode 做为 FileID
+		resolvedFileID = scene.SceneCode
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	}
 
 	newScene := model.ResScene{
@@ -171,15 +291,56 @@ func (s *ResourceInitService) seedSceneIfNotExists(spaceID uint, spaceName, loca
 		Title:          scene.Title,
 		SceneCode:      scene.SceneCode,
 		PanoramaType:   "equirectangular",
+<<<<<<< HEAD
 		SourceURL:      panoramaURL,
 		SourceFileSize: fileInfo.Size(),
 		Status:         1,
+=======
+		FileID:         resolvedFileID,
+		SourceURL:      panoramaURL,
+		SourceFileSize: fileInfo.Size(),
+		SourceFileMD5:  md5Str,
+		Status:         1,
+		InitialFOV:     100,
+	}
+
+	// 设置坐标
+	if lon, lat, found := setup.GetSceneCoordinate(scene.Title); found {
+		newScene.Longitude = lon
+		newScene.Latitude = lat
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	}
 
 	if createErr := s.db.Create(&newScene).Error; createErr != nil {
 		return fmt.Errorf("创建场景记录失败: %w", createErr)
 	}
 
+<<<<<<< HEAD
+=======
+	if md5Str != "" && s.uploadRepo != nil {
+		_ = s.uploadRepo.SaveFileMD5(md5Str, newScene.FileID)
+	}
+
+	// 推送切片任务
+	if s.sliceQueue != nil {
+		task := &slice.SliceTask{
+			TaskID:    fmt.Sprintf("seed_%s_%s", spaceName, scene.SceneCode),
+			SceneID:   newScene.ID,
+			SceneCode: newScene.SceneCode,
+			FileID:    newScene.SceneCode,
+			SpaceName: spaceName, // During seed, we use slug as name for simplicity or we could fetch the name.
+			SpaceSlug: spaceName,
+			UserID:    0,
+			CreatedAt: time.Now().Unix(),
+		}
+		if err := s.sliceQueue.PushTask(task); err != nil {
+			logger.Warnf("推送种子场景切片任务失败: %v", err)
+		} else {
+			logger.Infof("🚀 已推送场景切片任务: %s", scene.Title)
+		}
+	}
+
+>>>>>>> 8146554307dc850256079e5aa35fb05bb5b6a503
 	logger.Infof("✅ 创建场景: %s (ID=%d)", newScene.Title, newScene.ID)
 	return nil
 }
