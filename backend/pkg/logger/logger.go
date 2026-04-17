@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 	"webGL-720yun/config"
@@ -40,7 +41,7 @@ func GinZapLogger() gin.HandlerFunc {
 		method := c.Request.Method
 		contentType := c.GetHeader("Content-Type")
 
-		isUpload := path == "/upload/chunk" || contentType == "multipart/form-data"
+		isUpload := strings.HasPrefix(path, "/api/v1/upload/chunk") || contentType == "multipart/form-data"
 
 		var requestBody string
 		if method != "GET" && method != "HEAD" && method != "OPTIONS" && !isUpload {

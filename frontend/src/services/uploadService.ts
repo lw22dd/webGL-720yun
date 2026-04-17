@@ -163,6 +163,7 @@ class UploadService {
 
     const initResponse = await this.initUpload({
       space_id: (options as any).space_id,
+      scene_code: (options as any).scene_code,
       filename: file.name,
       file_size: file.size,
       file_hash: fileMd5

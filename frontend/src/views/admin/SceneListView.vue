@@ -164,9 +164,11 @@
     </div>
 
     <div v-if="!loading && sceneList.length === 0" class="empty-state">
-      <t-icon name="folder-open" size="64" />
-      <p>暂无场景数据</p>
-      <t-button theme="primary" @click="openAddDialog">新增场景</t-button>
+      <div class="empty-icon">
+        <t-icon name="folder-open" size="64" />
+      </div>
+      <p class="empty-title">暂无场景数据</p>
+      <p class="empty-desc">点击右上角"新增场景"按钮创建第一个场景</p>
     </div>
 
     <t-dialog
@@ -404,7 +406,7 @@ const handleThumbError = (event: Event) => {
   if (container && !container.querySelector('.thumb-error-placeholder')) {
     const placeholder = document.createElement('div')
     placeholder.className = 'thumb-error-placeholder'
-    placeholder.innerHTML = '<t-icon name="image" />'
+    placeholder.innerHTML = '<t-icon name="image" /><span class="placeholder-text">无封面</span>'
     container.appendChild(placeholder)
   }
 }
@@ -541,37 +543,45 @@ const openUploadDialog = (scene: SceneListItem) => {
     })
 
     try {
-      const result = await uploadService.uploadFile(file, {
+      const uploadResult = await uploadService.uploadFile(file, {
         space_id: props.space!.id,
         scene_code: scene.scene_code,
         title: scene.title,
         onInit: (uploadId) => {
           uploadIdMap.value.set(scene.scene_code, uploadId)
         },
-        onComplete: () => {
-          setSceneProgress(scene.scene_code, {
-            percentage: 100,
-            status: 'success',
-            label: '完成',
-            message: '上传完成',
-            type: 'upload'
+        onProgress: (progress) => {
+          handleUploadProgress({
+            percentage: progress.percentage,
+            uploaded_chunks: progress.uploaded_chunks,
+            total_chunks: progress.total_chunks
           })
-          loadSceneList()
-          uploadingScene.value = null
-          uploadIdMap.value.delete(scene.scene_code)
-        },
-        onError: (error) => {
-          setSceneProgress(scene.scene_code, {
-            percentage: 0,
-            status: 'error',
-            label: '失败',
-            message: error.message || '上传失败',
-            type: 'upload'
-          })
-          uploadingScene.value = null
-          uploadIdMap.value.delete(scene.scene_code)
         }
       })
+
+      setSceneProgress(scene.scene_code, {
+        percentage: 100,
+        status: 'success',
+        label: '完成',
+        message: '上传完成，正在关联场景...',
+        type: 'upload'
+      })
+
+      await SceneApi.updateScene(scene.id, {
+        file_id: uploadResult.file_id
+      })
+
+      setSceneProgress(scene.scene_code, {
+        percentage: 0,
+        status: 'warning',
+        label: '待处理',
+        message: '等待切片处理...',
+        type: 'slice'
+      })
+
+      loadSceneList()
+      uploadingScene.value = null
+      uploadIdMap.value.delete(scene.scene_code)
 
       wsClient.on('progress', handleUploadProgress)
       wsClient.on('merge_progress', handleMergeProgress)
@@ -580,7 +590,7 @@ const openUploadDialog = (scene: SceneListItem) => {
       wsClient.on('slice_complete', handleSliceComplete)
       wsClient.on('slice_error', handleSliceError)
     } catch (error: any) {
-      MessagePlugin.error(error.message || '上传失败')
+      MessagePlugin.error(error.message || '操作失败')
       setSceneProgress(scene.scene_code, {
         percentage: 0,
         status: 'error',
@@ -589,6 +599,7 @@ const openUploadDialog = (scene: SceneListItem) => {
         type: 'upload'
       })
       uploadingScene.value = null
+      uploadIdMap.value.delete(scene.scene_code)
     }
   }
   input.click()
@@ -954,6 +965,28 @@ defineExpose({
   object-fit: cover;
 }
 
+.thumb-error-placeholder {
+  width: 80px;
+  height: 40px;
+  border-radius: 4px;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #86909c;
+  margin: 0 auto;
+  gap: 2px;
+}
+
+.placeholder-text {
+  font-size: 10px;
+}
+
+.thumb-error-placeholder :deep(.t-icon) {
+  font-size: 16px;
+}
+
 .no-thumbnail {
   width: 80px;
   height: 40px;
@@ -987,14 +1020,40 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 80px 20px;
+  padding: 100px 20px;
   color: var(--td-text-color-secondary);
-  gap: 16px;
+  gap: 12px;
+  background: var(--td-bg-color-container);
+  border-radius: 8px;
+  margin-top: 16px;
 }
 
-.empty-state p {
+.empty-icon {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--td-bg-color-secondarycontainer);
+  border-radius: 50%;
+  margin-bottom: 8px;
+}
+
+.empty-icon :deep(.t-icon) {
+  color: var(--td-text-color-placeholder);
+}
+
+.empty-title {
   margin: 0;
   font-size: 16px;
+  font-weight: 500;
+  color: var(--td-text-color-primary);
+}
+
+.empty-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--td-text-color-secondary);
 }
 
 .upload-dialog-content {

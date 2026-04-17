@@ -25,7 +25,7 @@ func (r *SceneRepository) Update(scene *model.ResScene) error {
 }
 
 func (r *SceneRepository) Delete(id uint) error {
-	return r.db.Delete(&model.ResScene{}, id).Error
+	return r.db.Unscoped().Delete(&model.ResScene{}, id).Error
 }
 
 func (r *SceneRepository) FindByID(id uint) (*model.ResScene, error) {
@@ -186,7 +186,7 @@ func (r *SceneRepository) Transaction(fn func(tx *gorm.DB) error) error {
 }
 
 func (r *SceneRepository) DeleteHotspotsBySceneID(sceneID uint) error {
-	return r.db.Where("scene_id = ?", sceneID).Delete(&model.ResHotspot{}).Error
+	return r.db.Unscoped().Where("scene_id = ?", sceneID).Delete(&model.ResHotspot{}).Error
 }
 
 func (r *SceneRepository) IncrementViewCount(id uint) error {

@@ -162,10 +162,6 @@ func (p *MinIOPathStructure) GetPreviewPath(spaceName, sceneCode string) string 
 	return fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceName, sceneCode)
 }
 
-func (p *MinIOPathStructure) GetThumbPath(spaceName, sceneCode string) string {
-	return fmt.Sprintf("spaces/%s/previews/%s/thumb.jpg", spaceName, sceneCode)
-}
-
 func (p *MinIOPathStructure) GetTilesPath(spaceName, sceneCode string) string {
 	return fmt.Sprintf("spaces/%s/tiles/%s/", spaceName, sceneCode)
 }

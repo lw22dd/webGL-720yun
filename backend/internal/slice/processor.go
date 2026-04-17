@@ -14,6 +14,7 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/minio/minio-go/v7"
+	"github.com/schollz/progressbar/v3"
 	"gorm.io/gorm"
 
 	"webGL-720yun/internal/model"
@@ -141,6 +142,26 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 		}
 	}()
 
+	fmt.Printf("[切片] 开始处理场景: %s (TaskID: %s)\n", task.SceneCode, task.TaskID)
+
+	bar := progressbar.NewOptions(100,
+		progressbar.OptionSetWriter(os.Stdout),
+		progressbar.OptionSetWidth(40),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "█",
+			SaucerHead:    "█",
+			SaucerPadding: "░",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}),
+		progressbar.OptionOnCompletion(func() {
+			fmt.Printf("\n")
+		}),
+	)
+	defer bar.Close()
+
+	bar.Set(5)
+
 	// 检查是否已经存在处理好的资源，避免重复切片
 	if p.checkAssetsExist(ctx, task.SpaceSlug, task.SceneCode) {
 		log.Printf("⏩ 场景 [%s] 的资源已在 MinIO 中存在，跳过切片任务", task.SceneCode)
@@ -185,8 +206,10 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 	}
 
 	p.notifyProgress(task, 10, StageDownloading, "源文件下载完成")
+	bar.Set(10)
 
 	p.notifyProgress(task, 15, StagePreview, "开始生成快速预览...")
+	bar.Set(15)
 
 	previewStart := time.Now()
 	previewURL, err := p.generateQuickPreview(ctx, sourceFile, task.SceneCode, task.SpaceSlug)
@@ -204,8 +227,10 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 	}
 
 	p.notifyProgress(task, 25, StagePreview, "快速预览已生成，开始后台处理...")
+	bar.Set(25)
 
 	p.notifyProgress(task, 30, StageE2C, "开始E2C转换...")
+	bar.Set(30)
 
 	cubemapDir := filepath.Join(tempDir, "cubemap")
 	if err := os.MkdirAll(cubemapDir, 0755); err != nil {
@@ -224,8 +249,10 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 	metrics.E2CTime = time.Since(e2cStart)
 
 	p.notifyProgress(task, 45, StageE2C, "E2C转换完成")
+	bar.Set(45)
 
 	p.notifyProgress(task, 50, StageTiles, "开始生成瓦片...")
+	bar.Set(50)
 
 	tilesDir := filepath.Join(tempDir, "tiles")
 	if err := os.MkdirAll(tilesDir, 0755); err != nil {
@@ -252,8 +279,10 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 	metrics.TileCount = tileCount
 
 	p.notifyProgress(task, 70, StageTiles, "瓦片生成完成")
+	bar.Set(70)
 
 	p.notifyProgress(task, 75, StageUploading, "开始上传瓦片...")
+	bar.Set(75)
 
 	uploadStart := time.Now()
 	tileURL, err := p.uploadTiles(ctx, tileFiles, cubemapFiles, task.SceneCode, task.SpaceSlug)
@@ -265,6 +294,9 @@ func (p *SliceProcessor) Process(ctx context.Context, task *SliceTask) error {
 	metrics.UploadTime = time.Since(uploadStart)
 
 	p.notifyProgress(task, 95, StageUploading, "瓦片上传完成")
+	bar.Set(95)
+
+	fmt.Printf("[切片] 场景处理完成: %s\n", task.SceneCode)
 
 	if err := p.updateSceneStatus(task.SceneID, model.SliceStatusReady, tileURL, previewURL); err != nil {
 		metrics.Success = false

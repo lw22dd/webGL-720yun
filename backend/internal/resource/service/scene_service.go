@@ -163,6 +163,11 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		scene.PanoramaType = "equirectangular"
 	}
 
+	// 先创建场景到数据库
+	if err := s.repo.Create(scene); err != nil {
+		return nil, fmt.Errorf("创建场景失败: %w", err)
+	}
+
 	if req.FileID != "" {
 		fileInfo, err := s.redisService.GetFileInfo(req.FileID)
 		if err != nil {
@@ -173,6 +178,10 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		}
 
 		sourceURL, _ := fileInfo["source_url"].(string)
+		if sourceURL == "" {
+			return nil, errors.New("文件上传未完成，请先完成上传")
+		}
+
 		thumbURL, _ := fileInfo["thumb_url"].(string)
 		var fileSize int64
 		if fs, ok := fileInfo["file_size"].(float64); ok {
@@ -189,13 +198,7 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		if h, ok := fileInfo["height"].(float64); ok {
 			scene.SourceHeight = int(h)
 		}
-	}
 
-	if err := s.repo.Create(scene); err != nil {
-		return nil, fmt.Errorf("创建场景失败: %w", err)
-	}
-
-	if req.FileID != "" {
 		taskID := uuid.New().String()
 		scene.TaskID = taskID
 
@@ -355,8 +358,63 @@ func (s *SceneService) UpdateScene(id uint, req *dto.UpdateSceneRequest, userID 
 		scene.Status = *req.Status
 	}
 
+	shouldTriggerSlice := false
+	if req.FileID != "" && scene.FileID == "" {
+		fileInfo, err := s.redisService.GetFileInfo(req.FileID)
+		if err != nil {
+			logger.Warnf("获取文件信息失败: %v", err)
+		} else if fileInfo != nil {
+			scene.FileID = req.FileID
+			if sourceURL, ok := fileInfo["source_url"].(string); ok {
+				scene.SourceURL = sourceURL
+			}
+			if thumbURL, ok := fileInfo["thumb_url"].(string); ok {
+				scene.ThumbnailURL = thumbURL
+			}
+			if fileSize, ok := fileInfo["file_size"].(float64); ok {
+				scene.SourceFileSize = int64(fileSize)
+			}
+			if width, ok := fileInfo["width"].(float64); ok {
+				scene.SourceWidth = int(width)
+			}
+			if height, ok := fileInfo["height"].(float64); ok {
+				scene.SourceHeight = int(height)
+			}
+			shouldTriggerSlice = true
+		}
+	}
+
 	if err := s.repo.Update(scene); err != nil {
 		return nil, fmt.Errorf("更新场景失败: %w", err)
+	}
+
+	if shouldTriggerSlice && s.sliceQueue != nil {
+		if scene.SourceURL == "" {
+			logger.Warnf("⚠️  场景 [%s] 的 SourceURL 为空，跳过切片任务", scene.SceneCode)
+		} else {
+			taskID := uuid.New().String()
+			scene.TaskID = taskID
+			s.repo.Update(scene)
+
+			task := &slice.SliceTask{
+				TaskID:    taskID,
+				SceneID:   scene.ID,
+				SceneCode: scene.SceneCode,
+				FileID:    scene.FileID,
+				SpaceName: scene.Space.Name,
+				SpaceSlug: scene.Space.Slug,
+				UserID:    userID,
+				CreatedAt: time.Now().Unix(),
+			}
+
+			if err := s.sliceQueue.PushTask(task); err != nil {
+				logger.Warnf("推送切片任务失败: %v", err)
+			} else {
+				scene.SliceStatus = model.SliceStatusSlicing
+				s.repo.Update(scene)
+				logger.Infof("🚀 已为场景 [%s] 推送切片任务: %s", scene.Title, taskID)
+			}
+		}
 	}
 
 	return scene, nil
@@ -399,6 +457,18 @@ func (s *SceneService) DeleteScene(id uint, userID uint, isAdmin bool) error {
 		thumbObjectName := s.extractObjectName(scene.ThumbnailURL)
 		if thumbObjectName != "" {
 			_ = s.minioClient.DeleteObject(thumbObjectName)
+		}
+	}
+
+	if scene.FileID != "" {
+		if err := s.redisService.DeleteFileInfo(scene.FileID); err != nil {
+			logger.Warnf("清理Redis文件信息失败: %v", err)
+		}
+	}
+
+	if scene.SourceFileMD5 != "" {
+		if err := s.redisService.DeleteFileMD5(scene.SourceFileMD5); err != nil {
+			logger.Warnf("清理Redis MD5缓存失败: %v", err)
 		}
 	}
 

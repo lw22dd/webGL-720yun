@@ -25,7 +25,7 @@ func (r *SpaceRepository) Update(space *model.ResSpace) error {
 }
 
 func (r *SpaceRepository) Delete(id uint) error {
-	return r.db.Delete(&model.ResSpace{}, id).Error
+	return r.db.Unscoped().Delete(&model.ResSpace{}, id).Error
 }
 
 func (r *SpaceRepository) FindByID(id uint) (*model.ResSpace, error) {
@@ -119,10 +119,10 @@ func (r *SpaceRepository) Transaction(fn func(tx *gorm.DB) error) error {
 }
 
 func (r *SpaceRepository) DeleteScenesBySpaceID(spaceID uint) error {
-	return r.db.Where("space_id = ?", spaceID).Delete(&model.ResScene{}).Error
+	return r.db.Unscoped().Where("space_id = ?", spaceID).Delete(&model.ResScene{}).Error
 }
 
 func (r *SpaceRepository) DeleteHotspotsBySpaceID(spaceID uint) error {
-	return r.db.Where("scene_id IN (SELECT id FROM res_scene WHERE space_id = ?)", spaceID).
+	return r.db.Unscoped().Where("scene_id IN (SELECT id FROM res_scene WHERE space_id = ?)", spaceID).
 		Delete(&model.ResHotspot{}).Error
 }

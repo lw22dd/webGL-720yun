@@ -41,6 +41,7 @@ type CreateSceneResponse struct {
 type UpdateSceneRequest struct {
 	Title        string  `json:"title" binding:"omitempty,min=2,max=200"`
 	PanoramaType string  `json:"panorama_type" binding:"omitempty,oneof=equirectangular cubemap"`
+	FileID       string  `json:"file_id" binding:"omitempty"`
 	InitialFOV   float64 `json:"initial_fov" binding:"omitempty,min=30,max=150"`
 	InitialPitch float64 `json:"initial_pitch" binding:"omitempty,min=-90,max=90"`
 	InitialYaw   float64 `json:"initial_yaw" binding:"omitempty,min=-180,max=180"`

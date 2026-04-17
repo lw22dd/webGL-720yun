@@ -29,6 +29,12 @@ const (
 	MaxFileSize = 500 * 1024 * 1024
 )
 
+type noopWriter struct{}
+
+func (nw *noopWriter) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
 type UploadService struct {
 	uploadRepo     *UploadRepository
 	spaceRepo      *repository.SpaceRepository
@@ -70,7 +76,7 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		return nil, fmt.Errorf("检查上传权限失败: %w", err)
 	}
 	if !canUpload {
-		return nil, errors.New("同时上传文件数量超过限制（最多3个）")
+		return nil, fmt.Errorf("同时上传文件数量超过限制（最多%d个）", MaxConcurrentUploads)
 	}
 
 	fileID, err := s.uploadRepo.GetFileIDByMD5(req.FileMD5)
@@ -101,6 +107,7 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		SpaceID:       req.SpaceID,
 		SpaceName:     space.Name,
 		SpaceSlug:     space.Slug,
+		SceneCode:     req.SceneCode,
 		FileName:      req.FileName,
 		FileSize:      req.FileSize,
 		FileMD5:       req.FileMD5,
@@ -131,15 +138,13 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 			BarEnd:        "]",
 		}),
 		progressbar.OptionShowCount(),
-		progressbar.OptionOnCompletion(func() {
-			fmt.Printf("\n")
-		}),
 	)
 	s.progressMu.Lock()
 	s.progressBars[uploadID] = bar
 	s.progressMu.Unlock()
 
-	fmt.Printf("[上传] 开始上传文件: %s (%.2f MB)\n", req.FileName, float64(req.FileSize)/(1024*1024))
+	fmt.Printf("[上传] 开始上传: %s (%.2f MB, %d 个切片)\n",
+		req.FileName, float64(req.FileSize)/(1024*1024), totalChunks)
 
 	return &InitUploadResponse{
 		UploadID:       uploadID,
@@ -311,25 +316,16 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 		return nil, fmt.Errorf("获取图片信息失败: %w", err)
 	}
 
-	fileID := uuid.New().String()
+	resolvedFileID := task.SceneCode
+	if resolvedFileID == "" {
+		resolvedFileID = uuid.New().String()
+	}
+
 	s.notifyMergeProgress(req.UploadID, userID, "uploading", 50, "上传源文件...")
-	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", task.SpaceSlug, fileID)
+	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", task.SpaceSlug, resolvedFileID)
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, mergedFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传源文件失败: %w", err)
-	}
-
-	thumbFile := filepath.Join(tempDir, "thumb.jpg")
-	s.notifyMergeProgress(req.UploadID, userID, "uploading", 70, "生成缩略图...")
-	if err := s.imageProcessor.GenerateThumbnail(mergedFile, thumbFile); err != nil {
-		return nil, fmt.Errorf("生成缩略图失败: %w", err)
-	}
-
-	s.notifyMergeProgress(req.UploadID, userID, "uploading", 80, "上传缩略图...")
-	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/thumb.jpg", task.SpaceSlug, fileID)
-	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
-	if err != nil {
-		return nil, fmt.Errorf("上传缩略图失败: %w", err)
 	}
 
 	s.notifyMergeProgress(req.UploadID, userID, "cleanup", 90, "清理临时文件...")
@@ -338,17 +334,18 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 		client.RemoveObject(ctx, bucket, chunkObjectName, minio.RemoveObjectOptions{})
 	}
 
-	if err := s.uploadRepo.SaveFileMD5(task.FileMD5, fileID); err != nil {
+	if err := s.uploadRepo.SaveFileMD5(task.FileMD5, resolvedFileID); err != nil {
 		return nil, fmt.Errorf("保存文件MD5映射失败: %w", err)
 	}
 
-	if err := s.uploadRepo.SaveFileInfo(fileID, &FileInfo{
-		FileID:    fileID,
+	// ThumbURL 将在切片任务中由 processor 生成
+	if err := s.uploadRepo.SaveFileInfo(resolvedFileID, &FileInfo{
+		FileID:    resolvedFileID,
 		SpaceID:   task.SpaceID,
 		SpaceName: task.SpaceName,
 		SpaceSlug: task.SpaceSlug,
 		SourceURL: sourceURL,
-		ThumbURL:  thumbURL,
+		ThumbURL:  "",
 		FileSize:  imageInfo.FileSize,
 		Width:     imageInfo.Width,
 		Height:    imageInfo.Height,
@@ -362,7 +359,7 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 	s.uploadRepo.DecrementUserUploadCount(userID)
 
 	s.notifyMergeProgress(req.UploadID, userID, "completed", 100, "上传完成！")
-	s.notifyComplete(req.UploadID, userID, fileID, sourceURL, thumbURL)
+	s.notifyComplete(req.UploadID, userID, resolvedFileID, sourceURL, "")
 
 	s.progressMu.Lock()
 	delete(s.progressBars, req.UploadID)
@@ -371,9 +368,9 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 	fmt.Printf("[上传] 文件上传完成: %s\n", task.FileName)
 
 	return &CompleteUploadResponse{
-		FileID:    fileID,
+		FileID:    resolvedFileID,
 		SourceURL: sourceURL,
-		ThumbURL:  thumbURL,
+		ThumbURL:  "",
 		FileSize:  imageInfo.FileSize,
 	}, nil
 }

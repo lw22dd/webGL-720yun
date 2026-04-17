@@ -2,8 +2,6 @@ package model
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // ResSpace 空间/景区表
@@ -22,7 +20,6 @@ type ResSpace struct {
 	Status      uint8          `gorm:"default:1;column:status;comment:状态(1启用0禁用)" json:"status"`
 	CreatedAt   time.Time      `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt   time.Time      `gorm:"column:updated_at" json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index;column:deleted_at" json:"deleted_at,omitempty"`
 	CreatedBy   uint           `gorm:"index;column:created_by;comment:创建者ID" json:"created_by"`
 
 	Scenes []ResScene `gorm:"foreignKey:SpaceID" json:"scenes,omitempty"`
@@ -68,9 +65,8 @@ type ResScene struct {
 	ViewCount int64          `gorm:"default:0;column:view_count;comment:浏览次数" json:"view_count"`
 	SortOrder int            `gorm:"default:0;column:sort_order;comment:排序" json:"sort_order"`
 	Status    uint8          `gorm:"default:1;column:status;comment:状态(1启用0禁用)" json:"status"`
-	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index;column:deleted_at" json:"deleted_at,omitempty"`
+	CreatedAt time.Time     `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time     `gorm:"column:updated_at" json:"updated_at"`
 
 	Space    ResSpace     `gorm:"foreignKey:SpaceID" json:"space,omitempty"`
 	Hotspots []ResHotspot `gorm:"foreignKey:SceneID" json:"hotspots,omitempty"`

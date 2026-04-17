@@ -3,10 +3,11 @@ package upload
 import "time"
 
 type InitUploadRequest struct {
-	SpaceID  uint   `json:"space_id" binding:"required"`
-	FileName string `json:"filename" binding:"required"`
-	FileSize int64  `json:"file_size" binding:"required,min=1"`
-	FileMD5  string `json:"file_hash" binding:"required,len=32"`
+	SpaceID   uint   `json:"space_id" binding:"required"`
+	SceneCode string `json:"scene_code" binding:"omitempty"`
+	FileName  string `json:"filename" binding:"required"`
+	FileSize  int64  `json:"file_size" binding:"required,min=1"`
+	FileMD5   string `json:"file_hash" binding:"required,len=32"`
 }
 
 type InitUploadResponse struct {
@@ -74,6 +75,7 @@ type UploadTask struct {
 	SpaceID       uint   `json:"space_id"`
 	SpaceName     string `json:"space_name"`
 	SpaceSlug     string `json:"space_slug"`
+	SceneCode     string `json:"scene_code"`
 	FileName      string `json:"file_name"`
 	FileSize      int64  `json:"file_size"`
 	FileMD5       string `json:"file_md5"`

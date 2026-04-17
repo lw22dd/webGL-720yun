@@ -365,3 +365,8 @@ func (s *RedisService) DeleteFileInfo(fileID string) error {
 	key := fmt.Sprintf("%s%s", KeyPrefixFileInfo, fileID)
 	return s.client.Del(key).Err()
 }
+
+func (s *RedisService) DeleteFileMD5(md5 string) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileMD5, md5)
+	return s.client.Del(key).Err()
+}

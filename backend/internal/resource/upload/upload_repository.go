@@ -39,6 +39,7 @@ func (r *UploadRepository) CreateTask(task *UploadTask) error {
 		"space_id":       task.SpaceID,
 		"space_name":     task.SpaceName,
 		"space_slug":     task.SpaceSlug,
+		"scene_code":     task.SceneCode,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
 		"file_md5":       task.FileMD5,
@@ -71,6 +72,9 @@ func (r *UploadRepository) GetTask(uploadID string) (*UploadTask, error) {
 	}
 	if v, ok := taskData["space_slug"].(string); ok {
 		task.SpaceSlug = v
+	}
+	if v, ok := taskData["scene_code"].(string); ok {
+		task.SceneCode = v
 	}
 	if v, ok := taskData["file_name"].(string); ok {
 		task.FileName = v

@@ -1,5 +1,6 @@
 export type InitUploadRequest = {
   space_id: number
+  scene_code?: string
   filename: string
   file_size: number
   file_hash: string
