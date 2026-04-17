@@ -53,6 +53,7 @@ type ErrorData struct {
 type SliceProgressData struct {
 	TaskID    string `json:"task_id"`
 	SceneID   uint   `json:"scene_id"`
+	SceneCode string `json:"scene_code"`
 	Status    string `json:"status"`
 	Progress  int    `json:"progress"`
 	Stage     string `json:"stage"`
@@ -63,6 +64,7 @@ type SliceProgressData struct {
 type SliceCompleteData struct {
 	TaskID     string `json:"task_id"`
 	SceneID    uint   `json:"scene_id"`
+	SceneCode  string `json:"scene_code"`
 	Status     string `json:"status"`
 	TileURL    string `json:"tile_url"`
 	PreviewURL string `json:"preview_url"`
@@ -72,6 +74,7 @@ type SliceCompleteData struct {
 type SliceErrorData struct {
 	TaskID    string `json:"task_id"`
 	SceneID   uint   `json:"scene_id"`
+	SceneCode string `json:"scene_code"`
 	Error     string `json:"error"`
 	Timestamp int64  `json:"timestamp"`
 }

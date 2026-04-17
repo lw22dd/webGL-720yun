@@ -5,6 +5,7 @@ import "time"
 type SliceProgressData struct {
 	TaskID    string `json:"task_id"`
 	SceneID   uint   `json:"scene_id"`
+	SceneCode string `json:"scene_code"`
 	Status    string `json:"status"`
 	Progress  int    `json:"progress"`
 	Stage     string `json:"stage"`
@@ -15,6 +16,7 @@ type SliceProgressData struct {
 type SliceCompleteData struct {
 	TaskID     string `json:"task_id"`
 	SceneID    uint   `json:"scene_id"`
+	SceneCode  string `json:"scene_code"`
 	Status     string `json:"status"`
 	TileURL    string `json:"tile_url"`
 	PreviewURL string `json:"preview_url"`
@@ -24,6 +26,7 @@ type SliceCompleteData struct {
 type SliceErrorData struct {
 	TaskID    string `json:"task_id"`
 	SceneID   uint   `json:"scene_id"`
+	SceneCode string `json:"scene_code"`
 	Error     string `json:"error"`
 	Timestamp int64  `json:"timestamp"`
 }
@@ -58,10 +61,11 @@ const (
 	StatusFailed     = "failed"
 )
 
-func NewSliceProgressData(taskID string, sceneID uint, progress int, stage string, message string) *SliceProgressData {
+func NewSliceProgressData(taskID string, sceneID uint, sceneCode string, progress int, stage string, message string) *SliceProgressData {
 	return &SliceProgressData{
 		TaskID:    taskID,
 		SceneID:   sceneID,
+		SceneCode: sceneCode,
 		Status:    StatusProcessing,
 		Progress:  progress,
 		Stage:     stage,
@@ -70,10 +74,11 @@ func NewSliceProgressData(taskID string, sceneID uint, progress int, stage strin
 	}
 }
 
-func NewSliceCompleteData(taskID string, sceneID uint, tileURL string, previewURL string) *SliceCompleteData {
+func NewSliceCompleteData(taskID string, sceneID uint, sceneCode string, tileURL string, previewURL string) *SliceCompleteData {
 	return &SliceCompleteData{
 		TaskID:     taskID,
 		SceneID:    sceneID,
+		SceneCode:  sceneCode,
 		Status:     StatusCompleted,
 		TileURL:    tileURL,
 		PreviewURL: previewURL,
@@ -81,10 +86,11 @@ func NewSliceCompleteData(taskID string, sceneID uint, tileURL string, previewUR
 	}
 }
 
-func NewSliceErrorData(taskID string, sceneID uint, errorMsg string) *SliceErrorData {
+func NewSliceErrorData(taskID string, sceneID uint, sceneCode string, errorMsg string) *SliceErrorData {
 	return &SliceErrorData{
 		TaskID:    taskID,
 		SceneID:   sceneID,
+		SceneCode: sceneCode,
 		Error:     errorMsg,
 		Timestamp: time.Now().Unix(),
 	}

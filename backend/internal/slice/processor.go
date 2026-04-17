@@ -746,7 +746,7 @@ func (p *SliceProcessor) notifyProgress(task *SliceTask, progress int, stage str
 		return
 	}
 
-	data := NewSliceProgressData(task.TaskID, task.SceneID, progress, stage, message)
+	data := NewSliceProgressData(task.TaskID, task.SceneID, task.SceneCode, progress, stage, message)
 
 	p.wsHub.Broadcast(&websocket.Message{
 		Type:   websocket.MessageTypeSliceProgress,
@@ -757,10 +757,12 @@ func (p *SliceProcessor) notifyProgress(task *SliceTask, progress int, stage str
 
 func (p *SliceProcessor) notifyComplete(task *SliceTask, tileURL string, previewURL string) {
 	if p.wsHub == nil {
+		log.Printf("[切片] wsHub is nil, cannot send complete notification")
 		return
 	}
 
-	data := NewSliceCompleteData(task.TaskID, task.SceneID, tileURL, previewURL)
+	data := NewSliceCompleteData(task.TaskID, task.SceneID, task.SceneCode, tileURL, previewURL)
+	log.Printf("[切片] Sending complete notification: task_id=%s, scene_code=%s, user_id=%d", task.TaskID, task.SceneCode, task.UserID)
 
 	p.wsHub.Broadcast(&websocket.Message{
 		Type:   websocket.MessageTypeSliceComplete,
@@ -774,7 +776,7 @@ func (p *SliceProcessor) notifyError(task *SliceTask, errorMsg string) {
 		return
 	}
 
-	data := NewSliceErrorData(task.TaskID, task.SceneID, errorMsg)
+	data := NewSliceErrorData(task.TaskID, task.SceneID, task.SceneCode, errorMsg)
 
 	p.wsHub.Broadcast(&websocket.Message{
 		Type:   websocket.MessageTypeSliceError,

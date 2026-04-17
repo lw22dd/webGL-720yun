@@ -98,6 +98,7 @@ export type MergeProgressData = {
 export type SliceProgressData = {
   task_id: string
   scene_id: number
+  scene_code: string
   status: string
   progress: number
   stage: string
@@ -108,6 +109,7 @@ export type SliceProgressData = {
 export type SliceCompleteData = {
   task_id: string
   scene_id: number
+  scene_code: string
   status: string
   tile_url: string
   preview_url: string
@@ -117,6 +119,7 @@ export type SliceCompleteData = {
 export type SliceErrorData = {
   task_id: string
   scene_id: number
+  scene_code: string
   error: string
   timestamp: number
 }

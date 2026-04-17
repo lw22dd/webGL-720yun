@@ -124,7 +124,11 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 			uploadGroup.GET("/file/:file_id", upload.GetFileInfo(uploadService))
 		}
 
-		api.GET("/ws", websocket.HandleWebSocket(wsHub))
+		wsGroup := api.Group("/ws")
+		wsGroup.Use(authMiddleware.RequireAuth())
+		{
+			wsGroup.GET("", websocket.HandleWebSocket(wsHub))
+		}
 
 		// 资源流式读取 —— 公开路由，无需鉴权
 		// 瓦片是高频请求（每个场景 500+ 张），不做 JWT 校验

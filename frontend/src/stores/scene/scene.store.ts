@@ -65,8 +65,10 @@ export const useSceneStore = defineStore('scene', () => {
     const userStore = useUserStore()
     const token = userStore.accessToken
 
+    console.log('[SceneStore] initWebSocket called, token exists:', !!token)
+
     if (!token) {
-      console.error('No access token available')
+      console.error('[SceneStore] No access token available')
       return
     }
 
@@ -81,13 +83,14 @@ export const useSceneStore = defineStore('scene', () => {
     wsClient.on('disconnected', handleDisconnected)
     wsClient.on('error', handleWsError)
 
+    console.log('[SceneStore] Connecting WebSocket...')
     wsClient.connect(token)
       .then(() => {
         wsConnected.value = true
-        console.log('WebSocket initialized')
+        console.log('[SceneStore] WebSocket connected successfully')
       })
       .catch(err => {
-        console.error('Failed to connect WebSocket:', err)
+        console.error('[SceneStore] Failed to connect WebSocket:', err)
         wsConnected.value = false
       })
   }
@@ -134,31 +137,52 @@ export const useSceneStore = defineStore('scene', () => {
   }
 
   function handleSliceProgress(data: SliceProgressData) {
+    console.log('[Store] Slice progress:', data)
     const task = sliceTasks.value.get(data.task_id)
     if (task) {
-      task.progress = data.progress
-      task.stage = data.stage
-      task.message = data.message
-      task.status = 'slicing'
+      const updatedTask = {
+        ...task,
+        progress: data.progress,
+        stage: data.stage,
+        message: data.message,
+        status: 'slicing' as const
+      }
+      sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
+    } else {
+      console.log('[Store] Task not found for progress:', data.task_id)
     }
   }
 
   function handleSliceComplete(data: SliceCompleteData) {
+    console.log('[Store] Slice complete:', data)
     const task = sliceTasks.value.get(data.task_id)
     if (task) {
-      task.status = 'completed'
-      task.progress = 100
-      task.tileUrl = data.tile_url
-      task.previewUrl = data.preview_url
-      task.message = '切片完成'
+      const updatedTask = {
+        ...task,
+        status: 'completed' as const,
+        progress: 100,
+        tileUrl: data.tile_url,
+        previewUrl: data.preview_url,
+        message: '切片完成'
+      }
+      sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
+    } else {
+      console.log('[Store] Task not found for complete:', data.task_id)
     }
   }
 
   function handleSliceError(data: SliceErrorData) {
+    console.log('[Store] Slice error:', data)
     const task = sliceTasks.value.get(data.task_id)
     if (task) {
-      task.status = 'failed'
-      task.message = data.error
+      const updatedTask = {
+        ...task,
+        status: 'failed' as const,
+        message: data.error
+      }
+      sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
+    } else {
+      console.log('[Store] Task not found for error:', data.task_id)
     }
   }
 
@@ -199,11 +223,19 @@ export const useSceneStore = defineStore('scene', () => {
   }
 
   function addSliceTask(taskInfo: SliceTaskInfo) {
-    sliceTasks.value.set(taskInfo.taskId, taskInfo)
+    sliceTasks.value = new Map(sliceTasks.value.set(taskInfo.taskId, taskInfo))
   }
 
   function getSliceTask(taskId: string): SliceTaskInfo | undefined {
     return sliceTasks.value.get(taskId)
+  }
+
+  function updateSliceTask(taskId: string, updates: Partial<SliceTaskInfo>) {
+    const task = sliceTasks.value.get(taskId)
+    if (task) {
+      const updatedTask = { ...task, ...updates }
+      sliceTasks.value = new Map(sliceTasks.value.set(taskId, updatedTask))
+    }
   }
 
   function removeSliceTask(taskId: string) {
@@ -251,6 +283,7 @@ export const useSceneStore = defineStore('scene', () => {
     getUploadTask,
     addSliceTask,
     getSliceTask,
+    updateSliceTask,
     removeSliceTask,
     pauseUpload,
     resumeUpload,

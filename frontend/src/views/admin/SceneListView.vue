@@ -62,45 +62,55 @@
 
         <template #slice_status="{ row }">
           <div v-if="getSceneProgress(row.scene_code)" class="scene-progress">
-            <t-progress
-              :percentage="getSceneProgress(row.scene_code)!.percentage"
-              :status="getSceneProgress(row.scene_code)!.status"
-              :label="getSceneProgress(row.scene_code)!.label"
-              :theme="getSceneProgressTheme(row.scene_code)"
-              :color="getSceneProgressColor(row.scene_code)"
-              size="small"
-            />
-            <div class="progress-actions">
-              <span class="progress-message">{{ getSceneProgress(row.scene_code)!.message }}</span>
-              <t-space v-if="getSceneProgress(row.scene_code)!.type === 'upload'">
-                <t-button
-                  v-if="getSceneProgress(row.scene_code)!.status === 'active'"
-                  theme="warning"
-                  variant="text"
-                  size="mini"
-                  @click="handlePauseUpload(row.scene_code)"
-                >
-                  暂停
-                </t-button>
-                <t-button
-                  v-if="getSceneProgress(row.scene_code)!.status === 'warning'"
-                  theme="success"
-                  variant="text"
-                  size="mini"
-                  @click="handleResumeUpload(row.scene_code)"
-                >
-                  继续
-                </t-button>
-                <t-button
-                  theme="danger"
-                  variant="text"
-                  size="mini"
-                  @click="handleCancelUpload(row.scene_code)"
-                >
-                  取消
-                </t-button>
-              </t-space>
-            </div>
+            <!-- 上传进度显示进度条 -->
+            <template v-if="getSceneProgress(row.scene_code)!.type === 'upload'">
+              <t-progress
+                :percentage="getSceneProgress(row.scene_code)!.percentage"
+                :status="getSceneProgress(row.scene_code)!.status"
+                :label="getSceneProgress(row.scene_code)!.label"
+                :theme="getSceneProgressTheme(row.scene_code)"
+                :color="getSceneProgressColor(row.scene_code)"
+                size="small"
+              />
+              <div class="progress-actions">
+                <span class="progress-message">{{ getSceneProgress(row.scene_code)!.message }}</span>
+                <t-space>
+                  <t-button
+                    v-if="getSceneProgress(row.scene_code)!.status === 'active'"
+                    theme="primary"
+                    variant="text"
+                    size="small"
+                    @click="handlePauseUpload(row.scene_code)"
+                  >
+                    暂停
+                  </t-button>
+                  <t-button
+                    v-if="getSceneProgress(row.scene_code)!.status === 'warning'"
+                    theme="primary"
+                    variant="text"
+                    size="small"
+                    @click="handleResumeUpload(row.scene_code)"
+                  >
+                    继续
+                  </t-button>
+                  <t-button
+                    theme="primary"
+                    variant="text"
+                    size="small"
+                    @click="handleCancelUpload(row.scene_code)"
+                  >
+                    取消
+                  </t-button>
+                </t-space>
+              </div>
+            </template>
+            <!-- 切片进度显示百分比+文字 -->
+            <template v-else>
+              <div class="slice-status-display">
+                <span class="slice-percentage">{{ getSceneProgress(row.scene_code)!.percentage }}%</span>
+                <span class="slice-message">{{ getSceneProgress(row.scene_code)!.message }}</span>
+              </div>
+            </template>
           </div>
           <t-tag v-else :theme="getSliceStatusTheme(row.slice_status)">
             {{ getSliceStatusText(row.slice_status) }}
@@ -135,7 +145,7 @@
             </t-button>
             <t-button
               v-if="row.slice_status === 'completed' || row.slice_status === 'ready'"
-              theme="success"
+              theme="primary"
               variant="text"
               size="small"
               @click="handleViewPanorama(row)"
@@ -151,7 +161,7 @@
               编辑
             </t-button>
             <t-button
-              theme="danger"
+              theme="primary"
               variant="text"
               size="small"
               @click="openDeleteDialog(row.id)"
@@ -261,6 +271,30 @@ const emit = defineEmits<{
 const sceneStore = useSceneStore()
 const uploadingTasks = computed(() => sceneStore.uploadingTasks)
 
+// 监听切片任务变化，用于显示进度
+const sliceTasksMap = computed(() => {
+  const map = new Map<string, SceneProgress>()
+  sceneStore.sliceTasks.forEach((task) => {
+    const statusMap: Record<string, 'active' | 'success' | 'error' | 'warning'> = {
+      'pending': 'warning',
+      'slicing': 'warning',
+      'completed': 'success',
+      'failed': 'error'
+    }
+    // 显示格式: 75% - 开始上传瓦片...
+    const label = `${task.progress}%`
+    const message = task.message || '处理中...'
+    map.set(task.sceneCode, {
+      percentage: task.progress,
+      status: statusMap[task.status] || 'warning',
+      label: label,
+      message: message,
+      type: 'slice'
+    })
+  })
+  return map
+})
+
 const loading = ref(false)
 const searchKeyword = ref('')
 const sceneList = ref<SceneListItem[]>([])
@@ -313,7 +347,14 @@ const formRules = {
 }
 
 const getSceneProgress = (sceneCode: string) => {
-  return sceneProgressMap.value.get(sceneCode) || null
+  // 首先检查本地进度（上传进度）
+  const localProgress = sceneProgressMap.value.get(sceneCode)
+  if (localProgress) {
+    return localProgress
+  }
+
+  // 然后检查切片任务进度（使用计算属性确保响应式）
+  return sliceTasksMap.value.get(sceneCode) || null
 }
 
 const setSceneProgress = (sceneCode: string, progress: SceneProgress) => {
@@ -321,9 +362,9 @@ const setSceneProgress = (sceneCode: string, progress: SceneProgress) => {
 }
 
 const getSceneProgressTheme = (sceneCode: string) => {
-  const p = sceneProgressMap.value.get(sceneCode)
-  if (!p) return 'default'
-  switch (p.status) {
+  const progress = getSceneProgress(sceneCode)
+  if (!progress) return 'default'
+  switch (progress.status) {
     case 'success': return 'success'
     case 'error': return 'danger'
     case 'warning': return 'warning'
@@ -332,9 +373,9 @@ const getSceneProgressTheme = (sceneCode: string) => {
 }
 
 const getSceneProgressColor = (sceneCode: string) => {
-  const p = sceneProgressMap.value.get(sceneCode)
-  if (!p) return ''
-  switch (p.status) {
+  const progress = getSceneProgress(sceneCode)
+  if (!progress) return ''
+  switch (progress.status) {
     case 'success': return '#00A870'
     case 'error': return '#F53F3F'
     case 'warning': return '#FF9900'
@@ -394,8 +435,14 @@ const columns = [
   }
 ]
 
+const previewTimestamps = ref<Record<string, number>>({})
+
 const getPreviewUrl = (sceneCode: string) => {
   const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'
+  const timestamp = previewTimestamps.value[sceneCode]
+  if (timestamp) {
+    return `${base}/api/v1/res/previews/${sceneCode}?t=${timestamp}`
+  }
   return `${base}/api/v1/res/previews/${sceneCode}`
 }
 
@@ -567,28 +614,28 @@ const openUploadDialog = (scene: SceneListItem) => {
         type: 'upload'
       })
 
-      await SceneApi.updateScene(scene.id, {
+      const updateResult = await SceneApi.updateScene(scene.id, {
         file_id: uploadResult.file_id
       })
 
-      setSceneProgress(scene.scene_code, {
-        percentage: 0,
-        status: 'warning',
-        label: '待处理',
-        message: '等待切片处理...',
-        type: 'slice'
-      })
+      if (updateResult.code === 200 && updateResult.data && updateResult.data.task_id) {
+        sceneStore.addSliceTask({
+          taskId: updateResult.data.task_id,
+          sceneId: scene.id,
+          sceneCode: scene.scene_code,
+          status: 'pending',
+          progress: 0,
+          stage: 'pending',
+          message: '等待切片处理...'
+        })
+      }
+
+      // 清除上传进度，让 getSceneProgress 从 sliceTasks 读取
+      sceneProgressMap.value.delete(scene.scene_code)
 
       loadSceneList()
       uploadingScene.value = null
       uploadIdMap.value.delete(scene.scene_code)
-
-      wsClient.on('progress', handleUploadProgress)
-      wsClient.on('merge_progress', handleMergeProgress)
-      wsClient.on('complete', handleUploadComplete)
-      wsClient.on('slice_progress', handleSliceProgress)
-      wsClient.on('slice_complete', handleSliceComplete)
-      wsClient.on('slice_error', handleSliceError)
     } catch (error: any) {
       MessagePlugin.error(error.message || '操作失败')
       setSceneProgress(scene.scene_code, {
@@ -700,39 +747,44 @@ async function handleCancelUpload(sceneCode: string) {
 }
 
 function handleSliceProgress(data: any) {
-  const task = sceneStore.getSliceTask(data.task_id)
-  if (!task) return
-  setSceneProgress(task.sceneCode, {
-    percentage: data.progress || 0,
-    status: 'warning',
-    label: `${data.progress || 0}%`,
-    message: data.message || '切片中...',
-    type: 'slice'
-  })
+  console.log('[View] Slice progress:', data)
 }
 
 function handleSliceComplete(data: any) {
-  const task = sceneStore.getSliceTask(data.task_id)
-  if (!task) return
-  setSceneProgress(task.sceneCode, {
-    percentage: 100,
-    status: 'success',
-    label: '完成',
-    message: '切片完成',
-    type: 'slice'
-  })
+  console.log('[View] Slice complete:', data)
+  if (data.scene_code) {
+    // 先更新进度为100%，让用户看到完成状态
+    const task = Array.from(sceneStore.sliceTasks.values()).find(t => t.sceneCode === data.scene_code)
+    if (task) {
+      sceneStore.updateSliceTask(task.taskId, {
+        progress: 100,
+        status: 'completed',
+        message: '切片完成'
+      })
+    }
+
+    // 延迟1秒后清除进度显示并刷新列表
+    setTimeout(() => {
+      // 清除该场景的进度显示
+      sceneProgressMap.value.delete(data.scene_code)
+      // 从 store 中移除已完成的任务
+      const taskToRemove = Array.from(sceneStore.sliceTasks.values()).find(t => t.sceneCode === data.scene_code)
+      if (taskToRemove) {
+        sceneStore.removeSliceTask(taskToRemove.taskId)
+      }
+      // 刷新列表显示 ready 状态
+      loadSceneList()
+      // 延迟2秒后更新预览图时间戳并刷新，确保封面图已生成
+      setTimeout(() => {
+        previewTimestamps.value[data.scene_code] = Date.now()
+        loadSceneList()
+      }, 2000)
+    }, 1000)
+  }
 }
 
 function handleSliceError(data: any) {
-  const task = sceneStore.getSliceTask(data.task_id)
-  if (!task) return
-  setSceneProgress(task.sceneCode, {
-    percentage: 0,
-    status: 'error',
-    label: '失败',
-    message: data.error || '切片失败',
-    type: 'slice'
-  })
+  console.log('[View] Slice error:', data)
 }
 
 const openDeleteDialog = (id: number) => {
@@ -836,7 +888,17 @@ watch(() => props.space, () => {
 import { watch } from 'vue'
 
 onMounted(() => {
+  console.log('[SceneListView] Component mounted, initializing WebSocket...')
   sceneStore.initWebSocket()
+
+  wsClient.on('progress', handleUploadProgress)
+  wsClient.on('merge_progress', handleMergeProgress)
+  wsClient.on('complete', handleUploadComplete)
+  wsClient.on('slice_progress', handleSliceProgress)
+  wsClient.on('slice_complete', handleSliceComplete)
+  wsClient.on('slice_error', handleSliceError)
+
+  console.log('[SceneListView] WebSocket event handlers registered')
 })
 
 defineExpose({
@@ -1078,6 +1140,24 @@ defineExpose({
 
 .scene-progress :deep(.t-progress) {
   margin-bottom: 0;
+}
+
+.slice-status-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.slice-percentage {
+  font-weight: 600;
+  color: var(--td-brand-color);
+  min-width: 36px;
+}
+
+.slice-message {
+  color: var(--td-text-color-secondary);
+  font-size: 12px;
 }
 
 .progress-actions {

@@ -15,13 +15,18 @@ class WebSocketClient {
   connect(token: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.token = token
-      const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/ws?token=${token}`
+      // 构建 WebSocket URL
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'
+      const wsProtocol = apiBase.startsWith('https:') ? 'wss:' : 'ws:'
+      const wsHost = apiBase.replace(/^https?:\/\//, '')
+      const wsUrl = `${wsProtocol}//${wsHost}/api/v1/ws?token=${token}`
+      console.log('[WebSocket] Connecting to:', wsUrl)
 
       try {
         this.ws = new WebSocket(wsUrl)
 
         this.ws.onopen = () => {
-          console.log('WebSocket connected')
+          console.log('[WebSocket] Connected successfully')
           this.isConnected = true
           this.reconnectAttempts = 0
           this.startHeartbeat()
@@ -38,7 +43,7 @@ class WebSocketClient {
         }
 
         this.ws.onclose = (event) => {
-          console.log('WebSocket closed:', event.code, event.reason)
+          console.log('[WebSocket] Closed:', event.code, event.reason)
           this.isConnected = false
           this.stopHeartbeat()
           this.emit('disconnected', { code: event.code, reason: event.reason })
@@ -49,7 +54,7 @@ class WebSocketClient {
         }
 
         this.ws.onerror = (error) => {
-          console.error('WebSocket error:', error)
+          console.error('[WebSocket] Error:', error)
           this.emit('error', error)
           if (!this.isConnected) {
             reject(error)
@@ -89,6 +94,7 @@ class WebSocketClient {
   }
 
   private handleMessage(message: WebSocketMessage) {
+    console.log('[WebSocket] Received message:', message.type, message)
     this.emit(message.type, message.data)
     this.emit('message', message)
   }

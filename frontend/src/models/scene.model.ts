@@ -24,6 +24,7 @@ export type CreateSceneRequest = {
 
 export type UpdateSceneRequest = {
     title?: string
+    file_id?: string
     panorama_type?: 'equirectangular' | 'cubemap'
     initial_fov?: number
     initial_pitch?: number

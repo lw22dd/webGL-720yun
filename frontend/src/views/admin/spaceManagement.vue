@@ -1,12 +1,12 @@
 <template>
-  <div class="space-management-container">
+  <div class="space-management-container" v-loading="initializing">
     <SpaceListView
-      v-if="!currentSpace"
+      v-if="!currentSpace && !initializing"
       ref="spaceListRef"
       @spaceClick="handleSpaceClick"
     />
     <SceneListView
-      v-else
+      v-if="currentSpace"
       ref="sceneListRef"
       :space="currentSpace"
       @back="handleBack"
@@ -15,10 +15,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { MessagePlugin } from 'tdesign-vue-next'
 import SpaceListView from './SpaceListView.vue'
 import SceneListView from './SceneListView.vue'
+import SpaceApi from '@/services/api/space.api'
 import type { SpaceListItem } from '@/models/space.model'
 
 const route = useRoute()
@@ -27,6 +29,8 @@ const router = useRouter()
 const spaceListRef = ref<InstanceType<typeof SpaceListView> | null>(null)
 const sceneListRef = ref<InstanceType<typeof SceneListView> | null>(null)
 const currentSpace = ref<SpaceListItem | null>(null)
+const loading = ref(false)
+const initializing = ref(false)
 
 const handleSpaceClick = (space: SpaceListItem) => {
   currentSpace.value = space
@@ -38,14 +42,35 @@ const handleBack = () => {
   router.replace({ query: {} })
 }
 
-const initFromRoute = () => {
-  const spaceId = route.query.spaceId
-  if (spaceId) {
-    console.log('Initializing with spaceId:', spaceId)
+const loadSpaceDetail = async (spaceId: number) => {
+  try {
+    initializing.value = true
+    const result = await SpaceApi.getSpaceDetail(spaceId)
+    if (result.code === 200 && result.data) {
+      currentSpace.value = result.data as SpaceListItem
+    } else {
+      MessagePlugin.error(result.msg || '获取空间详情失败')
+    }
+  } catch (error) {
+    MessagePlugin.error('获取空间详情失败')
+  } finally {
+    initializing.value = false
   }
 }
 
-initFromRoute()
+const initFromRoute = async () => {
+  const spaceId = route.query.spaceId
+  if (spaceId) {
+    const id = parseInt(spaceId as string, 10)
+    if (!isNaN(id)) {
+      await loadSpaceDetail(id)
+    }
+  }
+}
+
+onMounted(() => {
+  initFromRoute()
+})
 </script>
 
 <style scoped>

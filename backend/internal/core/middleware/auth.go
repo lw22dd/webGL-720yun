@@ -32,21 +32,27 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
+		var tokenString string
+
+		// 首先尝试从 Header 获取
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenString = parts[1]
+			}
+		}
+
+		// 如果 Header 没有，尝试从 Query 参数获取（用于 WebSocket）
+		if tokenString == "" {
+			tokenString = c.Query("token")
+		}
+
+		if tokenString == "" {
 			utils.Unauthorized(c.Writer, "缺少认证令牌")
 			c.Abort()
 			return
 		}
-
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			utils.Unauthorized(c.Writer, "认证令牌格式错误")
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
 
 		if m.redisService.IsInBlacklist(tokenString) {
 			utils.Unauthorized(c.Writer, "令牌已失效")

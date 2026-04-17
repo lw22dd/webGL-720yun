@@ -61,6 +61,7 @@ func (h *Hub) SendToUser(userID uint, message *Message) {
 	clients, ok := h.clients[userID]
 	if !ok {
 		h.mu.RUnlock()
+		log.Printf("[WebSocket] User %d not connected, message type: %s", userID, message.Type)
 		return
 	}
 
@@ -70,6 +71,8 @@ func (h *Hub) SendToUser(userID uint, message *Message) {
 		h.mu.RUnlock()
 		return
 	}
+
+	log.Printf("[WebSocket] Sending message to user %d, type: %s", userID, message.Type)
 
 	for client := range clients {
 		select {
