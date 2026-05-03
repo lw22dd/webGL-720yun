@@ -118,26 +118,13 @@
       :default-data="defaultFormData"
       @submit="handleSubmit"
     />
-
-    <t-dialog
-      v-model:visible="locationPickerVisible"
-      header="选择地点"
-      width="680px"
-      :footer="false"
-    >
-      <LocationPicker
-        :initial-keyword="locationPickerKeyword"
-        @select="handleLocationSelect"
-      />
-    </t-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import FormDialog, { type FormField } from '@/components/admin/FormDialog.vue'
-import LocationPicker from '@/components/admin/LocationPicker.vue'
 import SpaceApi from '@/services/api/space.api'
 import type { SpaceListItem } from '@/models/space.model'
 import { geocode } from '@/utils/amap'
@@ -166,7 +153,19 @@ const formFields: FormField[] = [
     label: '空间名称',
     type: 'input',
     required: true,
-    placeholder: '请输入空间名称'
+    placeholder: '请输入空间名称，输入时自动搜索地点'
+  },
+  {
+    name: 'longitude',
+    label: '经度',
+    type: 'input',
+    placeholder: '选择地点后自动填写'
+  },
+  {
+    name: 'latitude',
+    label: '纬度',
+    type: 'input',
+    placeholder: '选择地点后自动填写'
   },
   {
     name: 'description',
@@ -178,42 +177,13 @@ const formFields: FormField[] = [
     name: 'province',
     label: '省份',
     type: 'input',
-    placeholder: '请输入省份'
+    placeholder: '选择地点后自动填写'
   },
   {
     name: 'city',
     label: '城市',
     type: 'input',
-    placeholder: '请输入城市'
-  },
-  {
-    name: 'longitude',
-    label: '经度',
-    type: 'input',
-    placeholder: '请输入经度'
-  },
-  {
-    name: 'latitude',
-    label: '纬度',
-    type: 'input',
-    placeholder: '请输入纬度'
-  },
-  {
-    name: 'zoom_level',
-    label: '缩放级别',
-    type: 'input',
-    placeholder: '请输入缩放级别'
-  },
-  {
-    name: 'sort_order',
-    label: '排序',
-    type: 'input',
-    placeholder: '请输入排序值'
-  },
-  {
-    name: 'status',
-    label: '状态',
-    type: 'switch'
+    placeholder: '选择地点后自动填写'
   }
 ]
 

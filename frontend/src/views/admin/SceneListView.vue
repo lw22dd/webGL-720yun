@@ -201,7 +201,13 @@
     >
       <t-form :data="formData" :rules="formRules" ref="formRef">
         <t-form-item label="场景标题" name="title">
-          <t-input v-model="formData.title" placeholder="请输入场景标题" />
+          <div style="display: flex; gap: 8px; width: 100%;">
+            <t-input v-model="formData.title" placeholder="请输入场景标题" style="flex: 1;" />
+            <t-button theme="primary" variant="text" size="small" @click="openLocationPicker">
+              <template #icon><t-icon name="location" /></template>
+              搜索地点
+            </t-button>
+          </div>
         </t-form-item>
         <t-form-item label="初始FOV">
           <t-input-number v-model="formData.initial_fov" :min="30" :max="150" />
@@ -232,6 +238,18 @@
       :scene="previewScene"
       @close="previewDialogVisible = false"
     />
+
+    <t-dialog
+      v-model:visible="locationPickerVisible"
+      header="选择地点"
+      width="680px"
+      :footer="false"
+    >
+      <LocationPicker
+        :initial-keyword="locationPickerKeyword"
+        @select="handleLocationSelect"
+      />
+    </t-dialog>
   </div>
 </template>
 
@@ -247,6 +265,7 @@ import type { SpaceListItem } from '@/models/space.model'
 import type { SceneListItem } from '@/models/scene.model'
 import type { CompleteData } from '@/models/upload.model'
 import ScenePreviewDialog from '@/components/admin/ScenePreviewDialog.vue'
+//import LocationPicker from '@/components/admin/LocationPicker.vue'
 
 interface SceneProgress {
   percentage: number
@@ -327,6 +346,9 @@ const uploadIdMap = ref<Map<string, string>>(new Map())
 
 const previewDialogVisible = ref(false)
 const previewScene = ref<SceneListItem | null>(null)
+
+const locationPickerVisible = ref(false)
+const locationPickerKeyword = ref('')
 
 const sceneProgressMap = ref<Map<string, SceneProgress>>(new Map())
 
@@ -814,6 +836,21 @@ const confirmDelete = async () => {
 const openPreviewDialog = (scene: SceneListItem) => {
   previewScene.value = scene
   previewDialogVisible.value = true
+}
+
+const openLocationPicker = () => {
+  locationPickerKeyword.value = formData.title || props.space?.name || ''
+  locationPickerVisible.value = true
+}
+
+const handleLocationSelect = (location: { name: string; lng: number; lat: number }) => {
+  formData.longitude = location.lng
+  formData.latitude = location.lat
+  if (!formData.title) {
+    formData.title = location.name
+  }
+  locationPickerVisible.value = false
+  MessagePlugin.success(`已选择地点：${location.name}`)
 }
 
 const handleViewPanorama = (scene: SceneListItem) => {
