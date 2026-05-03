@@ -30,15 +30,17 @@ const (
 
 // LODSpec 定义三级 LOD 规格
 type LODSpec struct {
-	TileCount int // 每面瓦片数量 (2, 4, 8)
-	MaxSize   int // 单张瓦片最大尺寸
+	TileCount  int // 每面瓦片数量 (1, 4, 8)
+	MaxSize    int // 单张瓦片最大尺寸
+	TargetSize int // 该层级整面的目标像素尺寸
 }
 
 // LODSpecs 三级 LOD 规格：Level 0 (低清), Level 1 (中等), Level 2 (高清)
+// Level 0 改为 1×1，单张 1024px，作为 baseUrl 底图
 var LODSpecs = map[int]LODSpec{
-	0: {TileCount: 2, MaxSize: 2048}, // 低清层：2×2 = 4 张瓦片
-	1: {TileCount: 4, MaxSize: 2048}, // 中等层：4×4 = 16 张瓦片
-	2: {TileCount: 8, MaxSize: 2048}, // 高清层：8×8 = 64 张瓦片
+	0: {TileCount: 1, MaxSize: 1024, TargetSize: 1024}, // 低清层：1×1 = 1 张瓦片，1024px
+	1: {TileCount: 4, MaxSize: 512, TargetSize: 2048},  // 中等层：4×4 = 16 张瓦片，每张 512px
+	2: {TileCount: 8, MaxSize: 512, TargetSize: 4096},  // 高清层：8×8 = 64 张瓦片，每张 512px
 }
 
 type SliceMetrics struct {
@@ -64,6 +66,7 @@ type SliceProcessor struct {
 	panoramaConv   *panorama.Converter
 	wsHub          *websocket.Hub
 	metricsChan    chan *SliceMetrics
+	queue          *SliceQueue
 }
 
 func NewSliceProcessor(
@@ -79,6 +82,10 @@ func NewSliceProcessor(
 		wsHub:          wsHub,
 		metricsChan:    make(chan *SliceMetrics, 100),
 	}
+}
+
+func (p *SliceProcessor) SetQueue(queue *SliceQueue) {
+	p.queue = queue
 }
 
 func (p *SliceProcessor) StartMetricsCollector() {
@@ -446,9 +453,9 @@ func (p *SliceProcessor) generateTiles(cubemapFiles map[string]string, outputDir
 				tileCount := spec.TileCount
 
 				// 计算该层级需要的图像尺寸
-				targetSize := tileCount * TileSize
-				if targetSize > spec.MaxSize {
-					targetSize = spec.MaxSize
+				targetSize := spec.TargetSize
+				if targetSize > spec.MaxSize*tileCount {
+					targetSize = spec.MaxSize * tileCount
 				}
 
 				// 缩放图像到目标尺寸
@@ -617,6 +624,7 @@ func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]m
 
 	var uploadTasks []uploadTask
 
+	// 只上传瓦片，不再上传 cubemap/*.jpg 6面大图
 	for faceName, levels := range tileFiles {
 		for level, files := range levels {
 			for _, file := range files {
@@ -628,14 +636,6 @@ func (p *SliceProcessor) uploadTiles(ctx context.Context, tileFiles map[string]m
 				})
 			}
 		}
-	}
-
-	for faceName, file := range cubemapFiles {
-		objectName := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s.jpg", spaceSlug, sceneCode, faceName)
-		uploadTasks = append(uploadTasks, uploadTask{
-			objectName: objectName,
-			filePath:   file,
-		})
 	}
 
 	maxConcurrent := 10
@@ -746,7 +746,23 @@ func (p *SliceProcessor) notifyProgress(task *SliceTask, progress int, stage str
 		return
 	}
 
-	data := NewSliceProgressData(task.TaskID, task.SceneID, task.SceneCode, progress, stage, message)
+	var data *SliceProgressData
+	if p.queue != nil {
+		queueStats, err := p.queue.GetQueueStats(task.UserID)
+		if err == nil {
+			data = NewSliceProgressDataWithQueue(
+				task.TaskID, task.SceneID, task.SceneCode,
+				progress, stage, message,
+				queueStats.QueueAheadCount,
+				queueStats.EstimatedWaitSec,
+				queueStats.ActiveUsers,
+			)
+		}
+	}
+
+	if data == nil {
+		data = NewSliceProgressData(task.TaskID, task.SceneID, task.SceneCode, progress, stage, message)
+	}
 
 	p.wsHub.Broadcast(&websocket.Message{
 		Type:   websocket.MessageTypeSliceProgress,
@@ -793,10 +809,6 @@ func ParseTilePath(path string) (spaceSlug, sceneCode, face string, level, row, 
 	_, err = fmt.Sscanf(path, "spaces/%s/tiles/%s/cubemap/%s/level_%d/tile_%d_%d.jpg",
 		&spaceSlug, &sceneCode, &face, &level, &row, &col)
 	return
-}
-
-func GetCubemapPath(spaceSlug, sceneCode string, face string) string {
-	return fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s.jpg", spaceSlug, sceneCode, face)
 }
 
 func GetPreviewPath(spaceSlug, sceneCode string) string {

@@ -32,7 +32,7 @@ type ServiceContext struct {
 	JWTService     *jwt.JWTService
 	WsHub          *websocket.Hub
 	SliceQueue     *slice.SliceQueue
-	WorkerPool     *slice.WorkerPool
+	Scheduler      *slice.SliceScheduler
 }
 
 func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
@@ -43,6 +43,7 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	uploadService := ctx.UploadService
 	authMiddleware := ctx.AuthMiddleware
 	wsHub := ctx.WsHub
+	sliceQueue := ctx.SliceQueue
 
 	api := r.Group("/api/v1")
 	{
@@ -124,29 +125,27 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 			uploadGroup.GET("/file/:file_id", upload.GetFileInfo(uploadService))
 		}
 
+		sliceGroup := api.Group("/slice")
+		sliceGroup.Use(authMiddleware.RequireAuth())
+		{
+			sliceGroup.GET("/queue/status/:task_id", slice.GetSliceQueueStatus(sliceQueue))
+			sliceGroup.GET("/queue/stats", slice.GetSliceQueueStats(sliceQueue))
+		}
+
 		wsGroup := api.Group("/ws")
 		wsGroup.Use(authMiddleware.RequireAuth())
 		{
 			wsGroup.GET("", websocket.HandleWebSocket(wsHub))
 		}
 
-		// 资源流式读取 —— 公开路由，无需鉴权
-		// 瓦片是高频请求（每个场景 500+ 张），不做 JWT 校验
 		resGroup := api.Group("/res")
 		{
-			// GET /api/v1/res/tiles/:sceneCode/:face/:level/:x/:y
 			resGroup.GET("/tiles/:sceneCode/:face/:level/:x/:y", handler.GetTile(sceneService))
 			resGroup.HEAD("/tiles/:sceneCode/:face/:level/:x/:y", handler.GetTile(sceneService))
-			// GET /api/v1/res/cubemap/:sceneCode/:face
-			resGroup.GET("/cubemap/:sceneCode/:face", handler.GetCubemapFace(sceneService))
-			resGroup.HEAD("/cubemap/:sceneCode/:face", handler.GetCubemapFace(sceneService))
-			// GET /api/v1/res/previews/:sceneCode
 			resGroup.GET("/previews/:sceneCode", handler.GetPreview(sceneService))
 			resGroup.HEAD("/previews/:sceneCode", handler.GetPreview(sceneService))
-			// GET /api/v1/res/sources/:sceneCode
 			resGroup.GET("/sources/:sceneCode", handler.GetSource(sceneService))
 			resGroup.HEAD("/sources/:sceneCode", handler.GetSource(sceneService))
-			// GET /api/v1/res/covers/:spaceName
 			resGroup.GET("/covers/:spaceName", handler.GetCover(sceneService))
 			resGroup.HEAD("/covers/:spaceName", handler.GetCover(sceneService))
 		}
@@ -169,6 +168,6 @@ func NewSliceQueue(redisService *redis.RedisService) *slice.SliceQueue {
 	return slice.NewSliceQueue(redisService)
 }
 
-func NewWorkerPool(queue *slice.SliceQueue, db *gorm.DB, minioClient *minio_client.MinIOClient, wsHub *websocket.Hub, workerCount int) *slice.WorkerPool {
-	return slice.NewWorkerPool(queue, db, minioClient, wsHub, workerCount)
+func NewSliceScheduler(queue *slice.SliceQueue, db *gorm.DB, minioClient *minio_client.MinIOClient, wsHub *websocket.Hub, workerCount int) *slice.SliceScheduler {
+	return slice.NewSliceScheduler(queue, db, minioClient, wsHub, workerCount)
 }

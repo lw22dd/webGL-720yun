@@ -116,7 +116,7 @@ import SceneApi from '@/services/api/scene.api'
 import HotspotApi from '@/services/api/hotspot.api'
 import SceneStrip from './SceneStrip.vue'
 import type { SceneDetailResponse } from '@/models/scene.model'
-import { TilePreloader, getCubemapUrls, getTileUrl } from '@/utils/tileLoader'
+import { TilePreloader, getBaseTileUrls, getTileUrl } from '@/utils/tileLoader'
 
 
 const baseApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'
@@ -211,7 +211,7 @@ const initViewer = async () => {
     let adapterConfig: any = null
 
     if (useCubemap) {
-      const cubemapUrls = getCubemapUrls(sceneCode)
+      const baseTileUrls = getBaseTileUrls(sceneCode)
       const faceMap: Record<string, string> = {
         left: 'nx',
         front: 'pz',
@@ -222,28 +222,29 @@ const initViewer = async () => {
       }
       const tileUrl = (face: string, col: number, row: number, level: number) => {
         const mappedFace = faceMap[face] || face
-        return getTileUrl(sceneCode, mappedFace, level, col, row)
+        // level 是 levels 数组的索引：0 -> API Level 1 (4x4), 1 -> API Level 2 (8x8)
+        const apiLevel = level + 1
+        return getTileUrl(sceneCode, mappedFace, apiLevel, col, row)
       }
 
       adapterConfig = CubemapTilesAdapter
       panoramaConfig = {
         baseUrl: {
-          left: cubemapUrls.left,
-          front: cubemapUrls.front,
-          right: cubemapUrls.right,
-          back: cubemapUrls.back,
-          top: cubemapUrls.top,
-          bottom: cubemapUrls.bottom,
+          left: baseTileUrls.left,
+          front: baseTileUrls.front,
+          right: baseTileUrls.right,
+          back: baseTileUrls.back,
+          top: baseTileUrls.top,
+          bottom: baseTileUrls.bottom,
         },
         flipTopBottom: true,
         levels: [
-          { faceSize: 1024, nbTiles: 2 },
-          { faceSize: 2048, nbTiles: 4 },
-          { faceSize: 2048, nbTiles: 8 },
+          { faceSize: 2048, nbTiles: 4 },  // Level 1: 4x4 瓦片
+          { faceSize: 4096, nbTiles: 8 },  // Level 2: 8x8 高清瓦片
         ],
         tileUrl,
       }
-      console.log('[Pano] 使用 CubemapTilesAdapter 瓦片渲染模式')
+      console.log('[Pano] 使用 CubemapTilesAdapter 多层级瓦片渲染模式 (Level 1 + Level 2)')
       tilePreloader = new TilePreloader(sceneCode)
     } else {
       const panoramaUrl = scene.tile_url || scene.source_url

@@ -80,8 +80,8 @@ func Run() {
 
 	uploadService := router.NewUploadService(db.GetDB(), minioClient, redisClient, wsHub)
 
-	workerPool := router.NewWorkerPool(sliceQueue, db.GetDB(), minioClient, wsHub, DefaultWorkerCount)
-	go workerPool.Start()
+	scheduler := router.NewSliceScheduler(sliceQueue, db.GetDB(), minioClient, wsHub, DefaultWorkerCount)
+	go scheduler.Start()
 
 	if err := setup.SeedTestData(db.GetDB()); err != nil {
 		logger.Fatal("种子数据初始化失败:", err)
@@ -113,7 +113,7 @@ func Run() {
 		JWTService:     jwtService,
 		WsHub:          wsHub,
 		SliceQueue:     sliceQueue,
-		WorkerPool:     workerPool,
+		Scheduler:      scheduler,
 	}
 
 	if config.Conf.App.Debug {
@@ -154,8 +154,8 @@ func Run() {
 		logger.Error("强制关闭服务", "error", err)
 	}
 
-	workerPool.Stop()
-	logger.Info("Worker Pool 已停止")
+	scheduler.Stop()
+	logger.Info("Scheduler 已停止")
 
 	if err := redisClient.Close(); err != nil {
 		logger.Error("关闭Redis连接失败", "error", err)

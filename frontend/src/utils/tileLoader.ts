@@ -23,28 +23,24 @@ export interface LODConfig {
 }
 
 export const LOD_LEVELS: Record<number, LODConfig> = {
-  0: { level: 0, tileCount: 2, tileSize: 512 },
+  0: { level: 0, tileCount: 1, tileSize: 1024 },
   1: { level: 1, tileCount: 4, tileSize: 512 },
   2: { level: 2, tileCount: 8, tileSize: 512 }
-}
-
-export function getCubemapFaceUrl(sceneCode: string, face: string): string {
-  return `${baseApiUrl}/api/v1/res/cubemap/${sceneCode}/${face}`
 }
 
 export function getTileUrl(sceneCode: string, face: string, level: number, x: number, y: number): string {
   return `${baseApiUrl}/api/v1/res/tiles/${sceneCode}/${face}/${level}/${x}/${y}`
 }
 
-export function getCubemapUrls(sceneCode: string): CubemapTiles {
-  return {
-    left: getCubemapFaceUrl(sceneCode, 'nx'),
-    front: getCubemapFaceUrl(sceneCode, 'pz'),
-    right: getCubemapFaceUrl(sceneCode, 'px'),
-    back: getCubemapFaceUrl(sceneCode, 'nz'),
-    top: getCubemapFaceUrl(sceneCode, 'py'),
-    bottom: getCubemapFaceUrl(sceneCode, 'ny')
-  }
+// 获取 Level 0 瓦片 URL（1×1，作为 baseUrl 使用）
+export function getBaseTileUrls(sceneCode: string): CubemapTiles {
+  const faces = ['nx', 'pz', 'px', 'nz', 'py', 'ny']
+  const faceNames = ['left', 'front', 'right', 'back', 'top', 'bottom']
+  const result = {} as CubemapTiles
+  faceNames.forEach((name, index) => {
+    (result as any)[name] = getTileUrl(sceneCode, faces[index], 0, 0, 0)
+  })
+  return result
 }
 
 export function getLevelTileCount(level: number): number {

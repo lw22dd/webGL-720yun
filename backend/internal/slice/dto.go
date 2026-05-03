@@ -3,14 +3,17 @@ package slice
 import "time"
 
 type SliceProgressData struct {
-	TaskID    string `json:"task_id"`
-	SceneID   uint   `json:"scene_id"`
-	SceneCode string `json:"scene_code"`
-	Status    string `json:"status"`
-	Progress  int    `json:"progress"`
-	Stage     string `json:"stage"`
-	Message   string `json:"message"`
-	Timestamp int64  `json:"timestamp"`
+	TaskID               string `json:"task_id"`
+	SceneID              uint   `json:"scene_id"`
+	SceneCode            string `json:"scene_code"`
+	Status               string `json:"status"`
+	Progress             int    `json:"progress"`
+	Stage                string `json:"stage"`
+	Message              string `json:"message"`
+	Timestamp            int64  `json:"timestamp"`
+	QueueAheadCount      int    `json:"queue_ahead_count"`
+	EstimatedWaitSeconds int    `json:"estimated_wait_seconds"`
+	ActiveUsers          int    `json:"active_users"`
 }
 
 type SliceCompleteData struct {
@@ -71,6 +74,22 @@ func NewSliceProgressData(taskID string, sceneID uint, sceneCode string, progres
 		Stage:     stage,
 		Message:   message,
 		Timestamp: time.Now().Unix(),
+	}
+}
+
+func NewSliceProgressDataWithQueue(taskID string, sceneID uint, sceneCode string, progress int, stage string, message string, queueAhead int, estWaitSec int, activeUsers int) *SliceProgressData {
+	return &SliceProgressData{
+		TaskID:               taskID,
+		SceneID:              sceneID,
+		SceneCode:            sceneCode,
+		Status:               StatusProcessing,
+		Progress:             progress,
+		Stage:                stage,
+		Message:              message,
+		Timestamp:            time.Now().Unix(),
+		QueueAheadCount:      queueAhead,
+		EstimatedWaitSeconds: estWaitSec,
+		ActiveUsers:          activeUsers,
 	}
 }
 

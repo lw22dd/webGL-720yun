@@ -10,32 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetCubemapFace 流式返回完整的 cubemap 面图片
-// GET /api/v1/res/cubemap/:sceneCode/:face
-func GetCubemapFace(svc *service.SceneService) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sceneCode := c.Param("sceneCode")
-		face := c.Param("face")
-
-		// 校验 face
-		if !service.IsValidFace(face) {
-			c.Status(http.StatusBadRequest)
-			return
-		}
-
-		// 流式获取完整的 cubemap 面
-		result, err := svc.GetCubemapFaceStream(c.Request.Context(), sceneCode, face)
-		if err != nil {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		defer result.Stream.Close()
-
-		// 设置响应头
-		streamResponse(c, result)
-	}
-}
-
 // GetTile 流式返回瓦片图片
 // GET /api/v1/res/tiles/:sceneCode/:face/:level/:x/:y
 func GetTile(svc *service.SceneService) gin.HandlerFunc {

@@ -118,13 +118,26 @@
       :default-data="defaultFormData"
       @submit="handleSubmit"
     />
+
+    <t-dialog
+      v-model:visible="locationPickerVisible"
+      header="选择地点"
+      width="680px"
+      :footer="false"
+    >
+      <LocationPicker
+        :initial-keyword="locationPickerKeyword"
+        @select="handleLocationSelect"
+      />
+    </t-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import FormDialog, { type FormField } from '@/components/admin/FormDialog.vue'
+import LocationPicker from '@/components/admin/LocationPicker.vue'
 import SpaceApi from '@/services/api/space.api'
 import type { SpaceListItem } from '@/models/space.model'
 import { geocode } from '@/utils/amap'

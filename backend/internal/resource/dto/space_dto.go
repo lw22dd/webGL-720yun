@@ -82,12 +82,14 @@ type SpaceDetailResponse struct {
 }
 
 type SceneSimple struct {
-	ID           uint   `json:"id"`
-	Title        string `json:"title"`
-	SceneCode    string `json:"scene_code"`
-	ThumbnailURL string `json:"thumbnail_url"`
-	ViewCount    int64  `json:"view_count"`
-	SortOrder    int    `json:"sort_order"`
+	ID           uint    `json:"id"`
+	Title        string  `json:"title"`
+	SceneCode    string  `json:"scene_code"`
+	ThumbnailURL string  `json:"thumbnail_url"`
+	ViewCount    int64   `json:"view_count"`
+	SortOrder    int     `json:"sort_order"`
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
 }
 
 func ToSpaceListItem(space *model.ResSpace) *SpaceListItem {
@@ -139,6 +141,8 @@ func ToSpaceDetailResponse(space *model.ResSpace) *SpaceDetailResponse {
 				ThumbnailURL: scene.ThumbnailURL,
 				ViewCount:    scene.ViewCount,
 				SortOrder:    scene.SortOrder,
+				Longitude:    scene.Longitude,
+				Latitude:     scene.Latitude,
 			}
 		}
 	}

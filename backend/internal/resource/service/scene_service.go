@@ -877,64 +877,6 @@ func (s *SceneService) GetCoverStream(ctx context.Context, spaceName string) (*R
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 
-// GetCubemapFaceStream 流式获取完整的 cubemap 面图片
-// 路径规则：spaces/{spaceName}/tiles/{sceneCode}/cubemap/{face}.jpg
-// 如果完整的面图片不存在，尝试从 level_0 瓦片拼接生成
-func (s *SceneService) GetCubemapFaceStream(ctx context.Context, sceneCode, face string) (*ResourceStreamResult, error) {
-	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
-	if err != nil {
-		return nil, fmt.Errorf("scene not found: %w", err)
-	}
-
-	spaceName := scene.Space.Slug
-	objectPath := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s.jpg", spaceName, sceneCode, face)
-
-	// 先尝试获取完整的面图片
-	result, err := s.getObjectStream(ctx, objectPath, "image/jpeg")
-	if err == nil {
-		return result, nil
-	}
-
-	// 如果完整的面图片不存在，尝试从 level_0 瓦片拼接
-	return s.stitchCubemapFaceFromTiles(ctx, spaceName, sceneCode, face)
-}
-
-// stitchCubemapFaceFromTiles 从 level_0 瓦片拼接生成完整的 cubemap 面
-func (s *SceneService) stitchCubemapFaceFromTiles(ctx context.Context, spaceName, sceneCode, face string) (*ResourceStreamResult, error) {
-	// level_0 是 2x2 的瓦片布局
-	// 瓦片命名使用 WebGL 坐标系（y=0 在底部），但拼接时需要按图像坐标系（y=0 在顶部）
-	// 所以顺序是：第1行（顶部）先，第0行（底部）后
-	tilePaths := []string{
-		// 第1行（y=1，图像顶部）
-		fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_0/tile_1_0.jpg", spaceName, sceneCode, face),
-		fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_0/tile_1_1.jpg", spaceName, sceneCode, face),
-		// 第0行（y=0，图像底部）
-		fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_0/tile_0_0.jpg", spaceName, sceneCode, face),
-		fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_0/tile_0_1.jpg", spaceName, sceneCode, face),
-	}
-
-	// 检查瓦片是否存在
-	for _, path := range tilePaths {
-		exists, err := s.minioClient.ObjectExists(path)
-		if err != nil || !exists {
-			return nil, fmt.Errorf("tiles not found for face %s", face)
-		}
-	}
-
-	// 读取并拼接瓦片
-	stream, err := s.minioClient.StitchTilesToStream(ctx, tilePaths, 2, 2)
-	if err != nil {
-		return nil, fmt.Errorf("stitch tiles failed: %w", err)
-	}
-
-	return &ResourceStreamResult{
-		Stream:      stream,
-		Size:        0,
-		ETag:        fmt.Sprintf("%s-%s-stitched", sceneCode, face),
-		ContentType: "image/jpeg",
-	}, nil
-}
-
 // getObjectStream 通用的 MinIO 对象流式获取
 func (s *SceneService) getObjectStream(ctx context.Context, objectPath, contentType string) (*ResourceStreamResult, error) {
 	obj, err := s.minioClient.GetObjectStream(ctx, objectPath)

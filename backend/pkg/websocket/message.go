@@ -11,9 +11,10 @@ const (
 	MessageTypeMergeStart    MessageType = "merge_start"
 	MessageTypeMergeProgress MessageType = "merge_progress"
 
-	MessageTypeSliceProgress MessageType = "slice_progress"
-	MessageTypeSliceComplete MessageType = "slice_complete"
-	MessageTypeSliceError    MessageType = "slice_error"
+	MessageTypeSliceProgress    MessageType = "slice_progress"
+	MessageTypeSliceComplete    MessageType = "slice_complete"
+	MessageTypeSliceError       MessageType = "slice_error"
+	MessageTypeSliceQueueStatus MessageType = "slice_queue_status"
 )
 
 type Message struct {
@@ -51,14 +52,17 @@ type ErrorData struct {
 }
 
 type SliceProgressData struct {
-	TaskID    string `json:"task_id"`
-	SceneID   uint   `json:"scene_id"`
-	SceneCode string `json:"scene_code"`
-	Status    string `json:"status"`
-	Progress  int    `json:"progress"`
-	Stage     string `json:"stage"`
-	Message   string `json:"message"`
-	Timestamp int64  `json:"timestamp"`
+	TaskID               string `json:"task_id"`
+	SceneID              uint   `json:"scene_id"`
+	SceneCode            string `json:"scene_code"`
+	Status               string `json:"status"`
+	Progress             int    `json:"progress"`
+	Stage                string `json:"stage"`
+	Message              string `json:"message"`
+	Timestamp            int64  `json:"timestamp"`
+	QueueAheadCount      int    `json:"queue_ahead_count"`
+	EstimatedWaitSeconds int    `json:"estimated_wait_seconds"`
+	ActiveUsers          int    `json:"active_users"`
 }
 
 type SliceCompleteData struct {
@@ -77,6 +81,16 @@ type SliceErrorData struct {
 	SceneCode string `json:"scene_code"`
 	Error     string `json:"error"`
 	Timestamp int64  `json:"timestamp"`
+}
+
+type SliceQueueStatusData struct {
+	TaskID               string `json:"task_id"`
+	UserQueuePosition    int    `json:"user_queue_position"`
+	GlobalQueuePosition  int    `json:"global_queue_position"`
+	QueueAheadCount      int    `json:"queue_ahead_count"`
+	EstimatedWaitSeconds int    `json:"estimated_wait_seconds"`
+	ActiveUsers          int    `json:"active_users"`
+	Found                bool   `json:"found"`
 }
 
 func NewMessage(msgType MessageType, uploadID string, userID uint, data interface{}) *Message {
@@ -132,6 +146,16 @@ func NewSliceCompleteMessage(taskID string, userID uint, data *SliceCompleteData
 func NewSliceErrorMessage(taskID string, userID uint, data *SliceErrorData) *Message {
 	return &Message{
 		Type:      MessageTypeSliceError,
+		UploadID:  taskID,
+		UserID:    userID,
+		Data:      data,
+		Timestamp: time.Now().Unix(),
+	}
+}
+
+func NewSliceQueueStatusMessage(taskID string, userID uint, data *SliceQueueStatusData) *Message {
+	return &Message{
+		Type:      MessageTypeSliceQueueStatus,
 		UploadID:  taskID,
 		UserID:    userID,
 		Data:      data,
