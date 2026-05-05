@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/internal/resource/dto"
@@ -20,39 +19,43 @@ func NewSpaceHandler(service *service.SpaceService) *SpaceHandler {
 	return &SpaceHandler{service: service}
 }
 
+type SpaceIDRequest struct {
+	ID uint `uri:"id" binding:"required"`
+}
+
 func GetSpaceList(svc *service.SpaceService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.SpaceListRequest
 		if err := c.ShouldBindQuery(&req); err != nil {
-			utils.BadRequest(c.Writer, "请求参数错误")
+			utils.BadRequest(c, "请求参数错误")
 			return
 		}
 
 		response, err := svc.GetSpaceList(&req)
 		if err != nil {
-			utils.InternalServerError(c.Writer, err.Error())
+			utils.InternalServerError(c, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, response)
+		utils.Success(c, response)
 	}
 }
 
 func GetSpaceDetail(svc *service.SpaceService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-		if err != nil {
-			utils.BadRequest(c.Writer, "ID格式错误")
+		var req SpaceIDRequest
+		if err := c.ShouldBindUri(&req); err != nil {
+			utils.BadRequest(c, "参数错误")
 			return
 		}
 
-		response, err := svc.GetSpaceDetail(uint(id))
+		response, err := svc.GetSpaceDetail(req.ID)
 		if err != nil {
-			utils.NotFound(c.Writer, err.Error())
+			utils.NotFound(c, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, response)
+		utils.Success(c, response)
 	}
 }
 
@@ -62,7 +65,7 @@ func CreateSpace(svc *service.SpaceService) gin.HandlerFunc {
 
 		var req dto.CreateSpaceRequest
 		if err := c.ShouldBind(&req); err != nil {
-			utils.BadRequest(c.Writer, "请求参数错误: "+err.Error())
+			utils.BadRequest(c, "请求参数错误: "+err.Error())
 			return
 		}
 
@@ -70,11 +73,11 @@ func CreateSpace(svc *service.SpaceService) gin.HandlerFunc {
 
 		space, err := svc.CreateSpace(&req, userID, coverFile)
 		if err != nil {
-			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, space)
+		utils.Success(c, space)
 	}
 }
 
@@ -84,27 +87,27 @@ func UpdateSpace(svc *service.SpaceService) gin.HandlerFunc {
 		isSuperAdmin, _ := c.Get("is_super_admin")
 		isAdmin := isSuperAdmin.(bool)
 
-		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-		if err != nil {
-			utils.BadRequest(c.Writer, "ID格式错误")
+		var req SpaceIDRequest
+		if err := c.ShouldBindUri(&req); err != nil {
+			utils.BadRequest(c, "参数错误")
 			return
 		}
 
-		var req dto.UpdateSpaceRequest
-		if err := c.ShouldBind(&req); err != nil {
-			utils.BadRequest(c.Writer, "请求参数错误: "+err.Error())
+		var updateReq dto.UpdateSpaceRequest
+		if err := c.ShouldBind(&updateReq); err != nil {
+			utils.BadRequest(c, "请求参数错误: "+err.Error())
 			return
 		}
 
 		coverFile, _ := c.FormFile("cover")
 
-		space, err := svc.UpdateSpace(uint(id), &req, userID, isAdmin, coverFile)
+		space, err := svc.UpdateSpace(req.ID, &updateReq, userID, isAdmin, coverFile)
 		if err != nil {
-			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, space)
+		utils.Success(c, space)
 	}
 }
 
@@ -114,18 +117,18 @@ func DeleteSpace(svc *service.SpaceService) gin.HandlerFunc {
 		isSuperAdmin, _ := c.Get("is_super_admin")
 		isAdmin := isSuperAdmin.(bool)
 
-		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-		if err != nil {
-			utils.BadRequest(c.Writer, "ID格式错误")
+		var req SpaceIDRequest
+		if err := c.ShouldBindUri(&req); err != nil {
+			utils.BadRequest(c, "参数错误")
 			return
 		}
 
-		if err := svc.DeleteSpace(uint(id), userID, isAdmin); err != nil {
-			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+		if err := svc.DeleteSpace(req.ID, userID, isAdmin); err != nil {
+			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, gin.H{"message": "删除成功"})
+		utils.Success(c, gin.H{"message": "删除成功"})
 	}
 }
 
@@ -141,15 +144,15 @@ func DeleteSpaceBatch(svc *service.SpaceService) gin.HandlerFunc {
 
 		var req DeleteSpaceBatchRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.BadRequest(c.Writer, "请求参数错误: ids不能为空")
+			utils.BadRequest(c, "请求参数错误: ids不能为空")
 			return
 		}
 
 		if err := svc.DeleteSpaceBatch(req.IDs, userID, isAdmin); err != nil {
-			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, gin.H{"message": "批量删除成功"})
+		utils.Success(c, gin.H{"message": "批量删除成功"})
 	}
 }

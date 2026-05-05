@@ -18,7 +18,9 @@ import (
 	"github.com/schollz/progressbar/v3"
 	"gorm.io/gorm"
 
+	"webGL-720yun/internal/model"
 	"webGL-720yun/internal/resource/repository"
+	sliceservice "webGL-720yun/internal/slice/service"
 	"webGL-720yun/pkg/image"
 	"webGL-720yun/pkg/minio_client"
 	"webGL-720yun/pkg/websocket"
@@ -41,6 +43,7 @@ type UploadService struct {
 	minioClient    *minio_client.MinIOClient
 	imageProcessor *image.Processor
 	wsHub          *websocket.Hub
+	sliceQueue     *sliceservice.SliceQueue
 	progressBars   map[string]*progressbar.ProgressBar
 	progressMu     sync.RWMutex
 }
@@ -50,6 +53,7 @@ func NewUploadService(
 	db *gorm.DB,
 	minioClient *minio_client.MinIOClient,
 	wsHub *websocket.Hub,
+	sliceQueue *sliceservice.SliceQueue,
 ) *UploadService {
 	return &UploadService{
 		uploadRepo:     uploadRepo,
@@ -57,8 +61,13 @@ func NewUploadService(
 		minioClient:    minioClient,
 		imageProcessor: image.NewProcessor(),
 		wsHub:          wsHub,
+		sliceQueue:     sliceQueue,
 		progressBars:   make(map[string]*progressbar.ProgressBar),
 	}
+}
+
+func (s *UploadService) SetSliceQueue(sliceQueue *sliceservice.SliceQueue) {
+	s.sliceQueue = sliceQueue
 }
 
 func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUploadResponse, error) {
@@ -322,7 +331,7 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 	}
 
 	s.notifyMergeProgress(req.UploadID, userID, "uploading", 50, "上传源文件...")
-	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", task.SpaceSlug, resolvedFileID)
+	sourceObjectName := model.GetSceneSourcePath(task.SpaceSlug, resolvedFileID)
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, mergedFile, "image/jpeg")
 	if err != nil {
 		return nil, fmt.Errorf("上传源文件失败: %w", err)
@@ -366,6 +375,25 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 	s.progressMu.Unlock()
 
 	fmt.Printf("[上传] 文件上传完成: %s\n", task.FileName)
+
+	// 异步触发切片任务
+	if s.sliceQueue != nil {
+		sliceTask := &sliceservice.SliceTask{
+			SceneID:   0, // 将在后续通过FileID关联
+			SceneCode: resolvedFileID,
+			FileID:    resolvedFileID,
+			SpaceName: task.SpaceName,
+			SpaceSlug: task.SpaceSlug,
+			UserID:    userID,
+		}
+		if err := s.sliceQueue.PushTask(sliceTask); err != nil {
+			fmt.Printf("[上传] 警告: 推送切片任务失败: %v\n", err)
+		} else {
+			fmt.Printf("[上传] 切片任务已加入队列: %s\n", resolvedFileID)
+		}
+	} else {
+		fmt.Printf("[上传] 警告: SliceQueue 未初始化，跳过切片任务推送\n")
+	}
 
 	return &CompleteUploadResponse{
 		FileID:    resolvedFileID,

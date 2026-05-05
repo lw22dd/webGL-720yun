@@ -283,6 +283,36 @@ func (p *Processor) ResizeImage(srcPath, dstPath string, width, height int) erro
 	return nil
 }
 
+func (p *Processor) GeneratePreview(srcPath, dstPath string, width, height int) error {
+	img, err := imaging.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("打开源图片失败: %w", err)
+	}
+
+	preview := imaging.Resize(img, width, height, imaging.Lanczos)
+
+	dstDir := filepath.Dir(dstPath)
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return fmt.Errorf("创建目录失败: %w", err)
+	}
+
+	ext := strings.ToLower(filepath.Ext(dstPath))
+	switch ext {
+	case ".jpg", ".jpeg":
+		err = imaging.Save(preview, dstPath, imaging.JPEGQuality(85))
+	case ".png":
+		err = imaging.Save(preview, dstPath)
+	default:
+		err = imaging.Save(preview, dstPath, imaging.JPEGQuality(85))
+	}
+
+	if err != nil {
+		return fmt.Errorf("保存预览图失败: %w", err)
+	}
+
+	return nil
+}
+
 func (p *Processor) CropImage(srcPath, dstPath string, width, height int) error {
 	img, err := imaging.Open(srcPath)
 	if err != nil {

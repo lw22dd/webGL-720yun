@@ -81,7 +81,7 @@ func (m *MinIOClient) UploadFile(objectName, localFilePath, contentType string) 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	info, err := m.client.PutObject(ctx, m.config.Bucket, objectName, file, fileSize, minio.PutObjectOptions{
+	_, err = m.client.PutObject(ctx, m.config.Bucket, objectName, file, fileSize, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 
@@ -90,7 +90,8 @@ func (m *MinIOClient) UploadFile(objectName, localFilePath, contentType string) 
 	}
 
 	url := m.GetObjectURL(objectName)
-	logger.Infof("☁️  上传成功: %s (%d bytes)", objectName, info.Size)
+	// 减少日志输出，避免打断进度条
+	// logger.Infof("☁️  上传成功: %s (%d bytes)", objectName, info.Size)
 	return url, nil
 }
 
@@ -119,7 +120,8 @@ func (m *MinIOClient) DownloadFile(objectName, localFilePath string) error {
 		return fmt.Errorf("写入本地文件失败: %w", err)
 	}
 
-	logger.Infof("📥 下载成功: %s → %s", objectName, localFilePath)
+	// 减少日志输出，避免打断进度条
+	// logger.Infof("📥 下载成功: %s → %s", objectName, localFilePath)
 	return nil
 }
 

@@ -19,7 +19,7 @@ import (
 	"webGL-720yun/internal/model"
 	"webGL-720yun/internal/resource/dto"
 	"webGL-720yun/internal/resource/repository"
-	"webGL-720yun/internal/slice"
+	sliceService "webGL-720yun/internal/slice/service"
 	"webGL-720yun/pkg/image"
 	"webGL-720yun/pkg/logger"
 	"webGL-720yun/pkg/minio_client"
@@ -32,7 +32,7 @@ type SceneService struct {
 	spaceRepo      *repository.SpaceRepository
 	minioClient    *minio_client.MinIOClient
 	imageProcessor *image.Processor
-	sliceQueue     *slice.SliceQueue
+	sliceQueue     *sliceService.SliceQueue
 	redisService   *redis.RedisService
 }
 
@@ -45,7 +45,7 @@ func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient) *SceneS
 	}
 }
 
-func NewSceneServiceWithSliceQueue(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQueue *slice.SliceQueue, redisService *redis.RedisService) *SceneService {
+func NewSceneServiceWithSliceQueue(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQueue *sliceService.SliceQueue, redisService *redis.RedisService) *SceneService {
 	return &SceneService{
 		repo:           repository.NewSceneRepository(db),
 		spaceRepo:      repository.NewSpaceRepository(db),
@@ -203,7 +203,7 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		scene.TaskID = taskID
 
 		if s.sliceQueue != nil {
-			task := &slice.SliceTask{
+			task := &sliceService.SliceTask{
 				TaskID:    taskID,
 				SceneID:   scene.ID,
 				SceneCode: scene.SceneCode,
@@ -396,7 +396,7 @@ func (s *SceneService) UpdateScene(id uint, req *dto.UpdateSceneRequest, userID 
 			scene.TaskID = taskID
 			s.repo.Update(scene)
 
-			task := &slice.SliceTask{
+			task := &sliceService.SliceTask{
 				TaskID:    taskID,
 				SceneID:   scene.ID,
 				SceneCode: scene.SceneCode,
@@ -412,7 +412,8 @@ func (s *SceneService) UpdateScene(id uint, req *dto.UpdateSceneRequest, userID 
 			} else {
 				scene.SliceStatus = model.SliceStatusSlicing
 				s.repo.Update(scene)
-				logger.Infof("🚀 已为场景 [%s] 推送切片任务: %s", scene.Title, taskID)
+				// 减少日志输出，避免打断进度条
+				// logger.Infof("🚀 已为场景 [%s] 推送切片任务: %s", scene.Title, taskID)
 			}
 		}
 	}

@@ -61,7 +61,8 @@ func (h *Hub) SendToUser(userID uint, message *Message) {
 	clients, ok := h.clients[userID]
 	if !ok {
 		h.mu.RUnlock()
-		log.Printf("[WebSocket] User %d not connected, message type: %s", userID, message.Type)
+		// 只在调试模式下输出
+		// log.Printf("[WebSocket] User %d not connected, message type: %s", userID, message.Type)
 		return
 	}
 
@@ -72,7 +73,10 @@ func (h *Hub) SendToUser(userID uint, message *Message) {
 		return
 	}
 
-	log.Printf("[WebSocket] Sending message to user %d, type: %s", userID, message.Type)
+	// 减少日志输出，只在关键消息时打印
+	if message.Type == MessageTypeSliceComplete || message.Type == MessageTypeSliceError {
+		log.Printf("[WebSocket] Sending message to user %d, type: %s", userID, message.Type)
+	}
 
 	for client := range clients {
 		select {

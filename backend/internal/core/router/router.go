@@ -9,10 +9,13 @@ import (
 
 	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/internal/resource/handler"
-	"webGL-720yun/internal/resource/service"
+	resService "webGL-720yun/internal/resource/service"
 	"webGL-720yun/internal/resource/upload"
 	"webGL-720yun/internal/slice"
-	"webGL-720yun/internal/user"
+	sliceHandler "webGL-720yun/internal/slice/handler"
+	sliceService "webGL-720yun/internal/slice/service"
+	userHandler "webGL-720yun/internal/user/handler"
+	userService "webGL-720yun/internal/user/service"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/minio_client"
 	"webGL-720yun/pkg/redis"
@@ -20,10 +23,10 @@ import (
 )
 
 type ServiceContext struct {
-	UserService    *user.UserService
-	SpaceService   *service.SpaceService
-	SceneService   *service.SceneService
-	HotspotService *service.HotspotService
+	UserService    *userService.UserService
+	SpaceService   *resService.SpaceService
+	SceneService   *resService.SceneService
+	HotspotService *resService.HotspotService
 	UploadService  *upload.UploadService
 	AuthMiddleware *middleware.AuthMiddleware
 	RBACMiddleware *middleware.RBACMiddleware
@@ -31,7 +34,7 @@ type ServiceContext struct {
 	RedisService   *redis.RedisService
 	JWTService     *jwt.JWTService
 	WsHub          *websocket.Hub
-	SliceQueue     *slice.SliceQueue
+	SliceQueue     *sliceService.SliceQueue
 	Scheduler      *slice.SliceScheduler
 }
 
@@ -49,31 +52,31 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	{
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", user.Login(userService))
-			auth.POST("/refresh", user.RefreshToken(userService))
+			auth.POST("/login", userHandler.Login(userService))
+			auth.POST("/refresh", userHandler.RefreshToken(userService))
 		}
 
 		userGroup := api.Group("/user")
 		{
-			userGroup.POST("/register", user.Register(userService))
+			userGroup.POST("/register", userHandler.Register(userService))
 
 			userGroup.Use(authMiddleware.RequireAuth())
 			{
-				userGroup.GET("/profile", user.GetProfile(userService))
-				userGroup.PUT("/profile", user.UpdateProfile(userService))
-				userGroup.POST("/change-password", user.ChangePassword(userService))
-				userGroup.POST("/logout", user.Logout(userService))
+				userGroup.GET("/profile", userHandler.GetProfile(userService))
+				userGroup.PUT("/profile", userHandler.UpdateProfile(userService))
+				userGroup.POST("/change-password", userHandler.ChangePassword(userService))
+				userGroup.POST("/logout", userHandler.Logout(userService))
 
 				admin := userGroup.Group("/admin")
 				admin.Use(authMiddleware.RequireAdmin())
 				{
-					admin.GET("/list", user.GetUserList(userService))
-					admin.GET("/:id", user.GetUserByID(userService))
-					admin.POST("/create", user.Register(userService))
-					admin.PUT("/:id", user.UpdateUser(userService))
-					admin.DELETE("/:id", user.DeleteUser(userService))
-					admin.DELETE("/batch", user.DeleteUserBatch(userService))
-					admin.POST("/batch-register", user.BatchRegister(userService))
+					admin.GET("/list", userHandler.GetUserList(userService))
+					admin.GET("/:id", userHandler.GetUserByID(userService))
+					admin.POST("/create", userHandler.Register(userService))
+					admin.PUT("/:id", userHandler.UpdateUser(userService))
+					admin.DELETE("/:id", userHandler.DeleteUser(userService))
+					admin.DELETE("/batch", userHandler.DeleteUserBatch(userService))
+					admin.POST("/batch-register", userHandler.BatchRegister(userService))
 				}
 			}
 		}
@@ -128,8 +131,8 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 		sliceGroup := api.Group("/slice")
 		sliceGroup.Use(authMiddleware.RequireAuth())
 		{
-			sliceGroup.GET("/queue/status/:task_id", slice.GetSliceQueueStatus(sliceQueue))
-			sliceGroup.GET("/queue/stats", slice.GetSliceQueueStats(sliceQueue))
+			sliceGroup.GET("/queue/status/:task_id", sliceHandler.GetSliceQueueStatus(sliceQueue))
+			sliceGroup.GET("/queue/stats", sliceHandler.GetSliceQueueStats(sliceQueue))
 		}
 
 		wsGroup := api.Group("/ws")
@@ -159,15 +162,16 @@ func RegisterRoutes(r *gin.Engine, ctx *ServiceContext) {
 	})
 }
 
-func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService, wsHub *websocket.Hub) *upload.UploadService {
+func NewUploadService(db *gorm.DB, minioClient *minio_client.MinIOClient, redisService *redis.RedisService, wsHub *websocket.Hub, sliceQueue *sliceService.SliceQueue) *upload.UploadService {
 	uploadRepo := upload.NewUploadRepository(redisService, db)
-	return upload.NewUploadService(uploadRepo, db, minioClient, wsHub)
+	return upload.NewUploadService(uploadRepo, db, minioClient, wsHub, sliceQueue)
 }
 
-func NewSliceQueue(redisService *redis.RedisService) *slice.SliceQueue {
-	return slice.NewSliceQueue(redisService)
+func NewSliceQueue(redisService *redis.RedisService) *sliceService.SliceQueue {
+	return sliceService.NewSliceQueue(redisService)
 }
 
-func NewSliceScheduler(queue *slice.SliceQueue, db *gorm.DB, minioClient *minio_client.MinIOClient, wsHub *websocket.Hub, workerCount int) *slice.SliceScheduler {
-	return slice.NewSliceScheduler(queue, db, minioClient, wsHub, workerCount)
+func NewSliceScheduler(queue *sliceService.SliceQueue, db *gorm.DB, minioClient *minio_client.MinIOClient, wsHub *websocket.Hub, workerCount int) *slice.SliceScheduler {
+	processor := slice.NewSliceProcessor(db, minioClient, wsHub)
+	return slice.NewSliceScheduler(queue, processor, workerCount)
 }

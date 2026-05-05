@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Response 统一响应结构
@@ -22,10 +23,8 @@ type PageInfo struct {
 }
 
 // Success 成功响应
-func Success(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(Response{
+func Success(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusOK, Response{
 		Code: http.StatusOK,
 		Msg:  "success",
 		Data: data,
@@ -33,36 +32,34 @@ func Success(w http.ResponseWriter, data interface{}) {
 }
 
 // Error 错误响应
-func Error(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(Response{
+func Error(c *gin.Context, code int, message string) {
+	c.JSON(code, Response{
 		Code: code,
 		Msg:  message,
 	})
 }
 
 // BadRequest 400错误
-func BadRequest(w http.ResponseWriter, message string) {
-	Error(w, http.StatusBadRequest, message)
+func BadRequest(c *gin.Context, message string) {
+	Error(c, http.StatusBadRequest, message)
 }
 
 // Unauthorized 401错误
-func Unauthorized(w http.ResponseWriter, message string) {
-	Error(w, http.StatusUnauthorized, message)
+func Unauthorized(c *gin.Context, message string) {
+	Error(c, http.StatusUnauthorized, message)
 }
 
 // Forbidden 403错误
-func Forbidden(w http.ResponseWriter, message string) {
-	Error(w, http.StatusForbidden, message)
+func Forbidden(c *gin.Context, message string) {
+	Error(c, http.StatusForbidden, message)
 }
 
 // NotFound 404错误
-func NotFound(w http.ResponseWriter, message string) {
-	Error(w, http.StatusNotFound, message)
+func NotFound(c *gin.Context, message string) {
+	Error(c, http.StatusNotFound, message)
 }
 
 // InternalServerError 500错误
-func InternalServerError(w http.ResponseWriter, message string) {
-	Error(w, http.StatusInternalServerError, message)
+func InternalServerError(c *gin.Context, message string) {
+	Error(c, http.StatusInternalServerError, message)
 }

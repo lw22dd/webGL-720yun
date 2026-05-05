@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/internal/resource/dto"
@@ -20,39 +19,43 @@ func NewHotspotHandler(service *service.HotspotService) *HotspotHandler {
 	return &HotspotHandler{service: service}
 }
 
+type HotspotIDParamRequest struct {
+	ID uint `uri:"id" binding:"required"`
+}
+
 func GetHotspotList(svc *service.HotspotService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.HotspotListRequest
 		if err := c.ShouldBindQuery(&req); err != nil {
-			utils.BadRequest(c.Writer, "请求参数错误")
+			utils.BadRequest(c, "请求参数错误")
 			return
 		}
 
 		response, err := svc.GetHotspotList(&req)
 		if err != nil {
-			utils.InternalServerError(c.Writer, err.Error())
+			utils.InternalServerError(c, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, response)
+		utils.Success(c, response)
 	}
 }
 
 func GetHotspotDetail(svc *service.HotspotService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-		if err != nil {
-			utils.BadRequest(c.Writer, "ID格式错误")
+		var req HotspotIDParamRequest
+		if err := c.ShouldBindUri(&req); err != nil {
+			utils.BadRequest(c, "参数错误")
 			return
 		}
 
-		response, err := svc.GetHotspotDetail(uint(id))
+		response, err := svc.GetHotspotDetail(req.ID)
 		if err != nil {
-			utils.NotFound(c.Writer, err.Error())
+			utils.NotFound(c, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, response)
+		utils.Success(c, response)
 	}
 }
 
@@ -64,17 +67,17 @@ func CreateHotspot(svc *service.HotspotService) gin.HandlerFunc {
 
 		var req dto.CreateHotspotRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.BadRequest(c.Writer, "请求参数错误: "+err.Error())
+			utils.BadRequest(c, "请求参数错误: "+err.Error())
 			return
 		}
 
 		hotspot, err := svc.CreateHotspot(&req, userID, isAdmin)
 		if err != nil {
-			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, hotspot)
+		utils.Success(c, hotspot)
 	}
 }
 
@@ -84,25 +87,25 @@ func UpdateHotspot(svc *service.HotspotService) gin.HandlerFunc {
 		isSuperAdmin, _ := c.Get("is_super_admin")
 		isAdmin := isSuperAdmin.(bool)
 
-		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		var req HotspotIDParamRequest
+		if err := c.ShouldBindUri(&req); err != nil {
+			utils.BadRequest(c, "参数错误")
+			return
+		}
+
+		var updateReq dto.UpdateHotspotRequest
+		if err := c.ShouldBindJSON(&updateReq); err != nil {
+			utils.BadRequest(c, "请求参数错误: "+err.Error())
+			return
+		}
+
+		hotspot, err := svc.UpdateHotspot(req.ID, &updateReq, userID, isAdmin)
 		if err != nil {
-			utils.BadRequest(c.Writer, "ID格式错误")
+			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		var req dto.UpdateHotspotRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.BadRequest(c.Writer, "请求参数错误: "+err.Error())
-			return
-		}
-
-		hotspot, err := svc.UpdateHotspot(uint(id), &req, userID, isAdmin)
-		if err != nil {
-			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
-			return
-		}
-
-		utils.Success(c.Writer, hotspot)
+		utils.Success(c, hotspot)
 	}
 }
 
@@ -112,17 +115,17 @@ func DeleteHotspot(svc *service.HotspotService) gin.HandlerFunc {
 		isSuperAdmin, _ := c.Get("is_super_admin")
 		isAdmin := isSuperAdmin.(bool)
 
-		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-		if err != nil {
-			utils.BadRequest(c.Writer, "ID格式错误")
+		var req HotspotIDParamRequest
+		if err := c.ShouldBindUri(&req); err != nil {
+			utils.BadRequest(c, "参数错误")
 			return
 		}
 
-		if err := svc.DeleteHotspot(uint(id), userID, isAdmin); err != nil {
-			utils.Error(c.Writer, http.StatusBadRequest, err.Error())
+		if err := svc.DeleteHotspot(req.ID, userID, isAdmin); err != nil {
+			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		utils.Success(c.Writer, gin.H{"message": "删除成功"})
+		utils.Success(c, gin.H{"message": "删除成功"})
 	}
 }

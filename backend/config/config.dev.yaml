@@ -3,6 +3,7 @@ app:
   version: 1.0.0
   debug: true
   environment: development
+  init_data: true
 
 server:
   port: 7000

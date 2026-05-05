@@ -26,14 +26,14 @@ func (m *RBACMiddleware) RequirePermission() gin.HandlerFunc {
 
 		val, exists := c.Get("role_id")
 		if !exists {
-			utils.Forbidden(c.Writer, "未发现角色信息")
+			utils.Forbidden(c, "未发现角色信息")
 			c.Abort()
 			return
 		}
 
 		roleID, ok := val.(uint)
 		if !ok {
-			utils.Forbidden(c.Writer, "角色 ID 格式错误")
+			utils.Forbidden(c, "角色 ID 格式错误")
 			c.Abort()
 			return
 		}
@@ -48,13 +48,13 @@ func (m *RBACMiddleware) RequirePermission() gin.HandlerFunc {
 			Count(&count).Error
 
 		if err != nil {
-			utils.InternalServerError(c.Writer, "权限检查失败")
+			utils.InternalServerError(c, "权限检查失败")
 			c.Abort()
 			return
 		}
 
 		if count == 0 {
-			utils.Forbidden(c.Writer, "权限不足：无权访问当前资源")
+			utils.Forbidden(c, "权限不足：无权访问当前资源")
 			c.Abort()
 			return
 		}
@@ -74,7 +74,7 @@ func (m *RBACMiddleware) RequireRolePermission(permissionName string) gin.Handle
 
 		val, exists := c.Get("role_id")
 		if !exists {
-			utils.Forbidden(c.Writer, "未发现角色信息")
+			utils.Forbidden(c, "未发现角色信息")
 			c.Abort()
 			return
 		}
@@ -88,7 +88,7 @@ func (m *RBACMiddleware) RequireRolePermission(permissionName string) gin.Handle
 			Count(&count).Error
 
 		if err != nil || count == 0 {
-			utils.Forbidden(c.Writer, "权限不足：缺少 "+permissionName+" 权限")
+			utils.Forbidden(c, "权限不足：缺少 "+permissionName+" 权限")
 			c.Abort()
 			return
 		}

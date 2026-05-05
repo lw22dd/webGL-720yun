@@ -1,26 +1,27 @@
-package user
+package repository
 
 import (
 	"errors"
 
 	"webGL-720yun/internal/model"
+	"webGL-720yun/internal/user/dto"
 
 	"gorm.io/gorm"
 )
 
-type Repository struct {
+type UserRepository struct {
 	db *gorm.DB
 }
 
-func NewRepository(db *gorm.DB) *Repository {
-	return &Repository{db: db}
+func NewUserRepository(db *gorm.DB) *UserRepository {
+	return &UserRepository{db: db}
 }
 
-func (r *Repository) CreateUser(user *model.User) error {
+func (r *UserRepository) CreateUser(user *model.User) error {
 	return r.db.Create(user).Error
 }
 
-func (r *Repository) FindUserByID(userID uint) (*model.User, error) {
+func (r *UserRepository) FindUserByID(userID uint) (*model.User, error) {
 	var user model.User
 	if err := r.db.Preload("Role").First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -31,7 +32,7 @@ func (r *Repository) FindUserByID(userID uint) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *Repository) FindUserByUsername(username string) (*model.User, error) {
+func (r *UserRepository) FindUserByUsername(username string) (*model.User, error) {
 	var user model.User
 	if err := r.db.Preload("Role").Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -42,7 +43,7 @@ func (r *Repository) FindUserByUsername(username string) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *Repository) FindUserByUsernameOrEmail(username string) (*model.User, error) {
+func (r *UserRepository) FindUserByUsernameOrEmail(username string) (*model.User, error) {
 	var user model.User
 	if err := r.db.Preload("Role").Where("username = ? OR email = ?", username, username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -53,7 +54,7 @@ func (r *Repository) FindUserByUsernameOrEmail(username string) (*model.User, er
 	return &user, nil
 }
 
-func (r *Repository) FindUserByEmail(email string) (*model.User, error) {
+func (r *UserRepository) FindUserByEmail(email string) (*model.User, error) {
 	var user model.User
 	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -64,7 +65,7 @@ func (r *Repository) FindUserByEmail(email string) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *Repository) FindUserByPhone(phone string) (*model.User, error) {
+func (r *UserRepository) FindUserByPhone(phone string) (*model.User, error) {
 	var user model.User
 	if err := r.db.Where("phone = ?", phone).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -75,15 +76,28 @@ func (r *Repository) FindUserByPhone(phone string) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *Repository) UpdateUser(user *model.User) error {
+// CheckFieldExists 通用字段存在性检查，excludeID 用于排除自身（更新场景）
+func (r *UserRepository) CheckFieldExists(field string, value interface{}, excludeID uint) (bool, error) {
+	var count int64
+	query := r.db.Model(&model.User{}).Where(field+" = ?", value)
+	if excludeID > 0 {
+		query = query.Where("id != ?", excludeID)
+	}
+	if err := query.Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *UserRepository) UpdateUser(user *model.User) error {
 	return r.db.Save(user).Error
 }
 
-func (r *Repository) DeleteUser(userID uint) error {
+func (r *UserRepository) DeleteUser(userID uint) error {
 	return r.db.Delete(&model.User{}, userID).Error
 }
 
-func (r *Repository) GetUserList(req *UserListRequest) ([]*model.User, int64, error) {
+func (r *UserRepository) GetUserList(req *dto.UserListRequest) ([]*model.User, int64, error) {
 	var users []*model.User
 	var total int64
 
@@ -118,7 +132,7 @@ func (r *Repository) GetUserList(req *UserListRequest) ([]*model.User, int64, er
 	return users, total, nil
 }
 
-func (r *Repository) FindRoleByID(roleID uint) (*model.Role, error) {
+func (r *UserRepository) FindRoleByID(roleID uint) (*model.Role, error) {
 	var role model.Role
 	if err := r.db.First(&role, roleID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -129,7 +143,7 @@ func (r *Repository) FindRoleByID(roleID uint) (*model.Role, error) {
 	return &role, nil
 }
 
-func (r *Repository) FindStudentByID(userID uint) (*model.Student, error) {
+func (r *UserRepository) FindStudentByID(userID uint) (*model.Student, error) {
 	var student model.Student
 	if err := r.db.First(&student, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -140,7 +154,7 @@ func (r *Repository) FindStudentByID(userID uint) (*model.Student, error) {
 	return &student, nil
 }
 
-func (r *Repository) FindStudentByStudentID(studentID string) (*model.Student, error) {
+func (r *UserRepository) FindStudentByStudentID(studentID string) (*model.Student, error) {
 	var student model.Student
 	if err := r.db.Where("student_id = ?", studentID).First(&student).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -151,23 +165,23 @@ func (r *Repository) FindStudentByStudentID(studentID string) (*model.Student, e
 	return &student, nil
 }
 
-func (r *Repository) CreateStudent(student *model.Student) error {
+func (r *UserRepository) CreateStudent(student *model.Student) error {
 	return r.db.Create(student).Error
 }
 
-func (r *Repository) UpdateStudent(student *model.Student) error {
+func (r *UserRepository) UpdateStudent(student *model.Student) error {
 	return r.db.Save(student).Error
 }
 
-func (r *Repository) CreateStudentTeacher(studentTeacher *model.StudentTeacher) error {
+func (r *UserRepository) CreateStudentTeacher(studentTeacher *model.StudentTeacher) error {
 	return r.db.Create(studentTeacher).Error
 }
 
-func (r *Repository) DeleteStudentTeachers(studentID uint) error {
+func (r *UserRepository) DeleteStudentTeachers(studentID uint) error {
 	return r.db.Where("student_id = ?", studentID).Delete(&model.StudentTeacher{}).Error
 }
 
-func (r *Repository) FindClassByName(name string) (*model.Class, error) {
+func (r *UserRepository) FindClassByName(name string) (*model.Class, error) {
 	var class model.Class
 	if err := r.db.Where("name = ?", name).First(&class).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -178,14 +192,14 @@ func (r *Repository) FindClassByName(name string) (*model.Class, error) {
 	return &class, nil
 }
 
-func (r *Repository) DeleteUserSessions(userID uint) error {
+func (r *UserRepository) DeleteUserSessions(userID uint) error {
 	return r.db.Where("user_id = ?", userID).Delete(&model.UserSession{}).Error
 }
 
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
+func (r *UserRepository) Transaction(fn func(tx *gorm.DB) error) error {
 	return r.db.Transaction(fn)
 }
 
-func (r *Repository) Begin() *gorm.DB {
+func (r *UserRepository) Begin() *gorm.DB {
 	return r.db.Begin()
 }

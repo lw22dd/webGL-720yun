@@ -49,20 +49,20 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		}
 
 		if tokenString == "" {
-			utils.Unauthorized(c.Writer, "缺少认证令牌")
+			utils.Unauthorized(c, "缺少认证令牌")
 			c.Abort()
 			return
 		}
 
 		if m.redisService.IsInBlacklist(tokenString) {
-			utils.Unauthorized(c.Writer, "令牌已失效")
+			utils.Unauthorized(c, "令牌已失效")
 			c.Abort()
 			return
 		}
 
 		claims, err := m.jwtService.ParseToken(tokenString)
 		if err != nil {
-			utils.Unauthorized(c.Writer, "无效的认证令牌")
+			utils.Unauthorized(c, "无效的认证令牌")
 			c.Abort()
 			return
 		}
@@ -82,14 +82,14 @@ func (m *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRole, exists := c.Get("role")
 		if !exists {
-			utils.Forbidden(c.Writer, "无法获取用户角色")
+			utils.Forbidden(c, "无法获取用户角色")
 			c.Abort()
 			return
 		}
 
 		roleStr, ok := userRole.(string)
 		if !ok {
-			utils.Forbidden(c.Writer, "用户角色格式错误")
+			utils.Forbidden(c, "用户角色格式错误")
 			c.Abort()
 			return
 		}
@@ -103,7 +103,7 @@ func (m *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 		}
 
 		if !hasPermission {
-			utils.Forbidden(c.Writer, "权限不足")
+			utils.Forbidden(c, "权限不足")
 			c.Abort()
 			return
 		}
@@ -141,7 +141,7 @@ func (m *AuthMiddleware) RequireAdminOrSelf() gin.HandlerFunc {
 			}
 		}
 
-		utils.Forbidden(c.Writer, "权限不足")
+		utils.Forbidden(c, "权限不足")
 		c.Abort()
 	}
 }

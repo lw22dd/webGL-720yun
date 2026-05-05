@@ -24,11 +24,11 @@ func init() {
 	go processLogEntries()
 }
 
+// processLogEntries 已废弃，改为直接输出避免双重日志
+// 保留函数兼容性，但不再通过 channel 处理
 func processLogEntries() {
-	for entry := range logChan {
-		logMutex.RLock()
-		entry.Info()
-		logMutex.RUnlock()
+	// 清空 channel 避免阻塞
+	for range logChan {
 	}
 }
 
@@ -40,6 +40,12 @@ func GinZapLogger() gin.HandlerFunc {
 		query := c.Request.URL.RawQuery
 		method := c.Request.Method
 		contentType := c.GetHeader("Content-Type")
+
+		// 跳过瓦片请求和静态资源的日志
+		if shouldSkipLogging(path) {
+			c.Next()
+			return
+		}
 
 		isUpload := strings.HasPrefix(path, "/api/v1/upload/chunk") || contentType == "multipart/form-data"
 
@@ -79,9 +85,30 @@ func GinZapLogger() gin.HandlerFunc {
 		} else {
 			entry.Info()
 		}
-
-		logChan <- entry
+		// 不再发送到 channel，避免双重输出
+		// logChan <- entry
 	}
+}
+
+// shouldSkipLogging 判断是否应该跳过日志记录
+func shouldSkipLogging(path string) bool {
+	// 跳过瓦片请求
+	if strings.Contains(path, "/tiles/") {
+		return true
+	}
+	// 跳过预览图请求
+	if strings.Contains(path, "/previews/") {
+		return true
+	}
+	// 跳过上传分片请求（有单独的上传进度条）
+	if strings.Contains(path, "/upload/chunk") {
+		return true
+	}
+	// 跳过静态资源
+	if strings.HasPrefix(path, "/static/") {
+		return true
+	}
+	return false
 }
 
 // Setup 初始化日志系统

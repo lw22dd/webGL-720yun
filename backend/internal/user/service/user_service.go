@@ -1,4 +1,4 @@
-package user
+package service
 
 import (
 	"encoding/csv"
@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"webGL-720yun/internal/model"
+	"webGL-720yun/internal/user/dto"
+	"webGL-720yun/internal/user/repository"
 	"webGL-720yun/pkg/jwt"
 	"webGL-720yun/pkg/redis"
 	"webGL-720yun/pkg/utils"
@@ -19,46 +21,22 @@ import (
 )
 
 type UserService struct {
-	repo         *Repository
+	repo         *repository.UserRepository
 	jwtService   *jwt.JWTService
 	redisService *redis.RedisService
 }
 
 func NewUserService(db *gorm.DB, jwtService *jwt.JWTService, redisService *redis.RedisService) *UserService {
 	return &UserService{
-		repo:         NewRepository(db),
+		repo:         repository.NewUserRepository(db),
 		jwtService:   jwtService,
 		redisService: redisService,
 	}
 }
 
-func (s *UserService) Register(req *RegisterRequest) (*model.User, error) {
-	existingUser, err := s.repo.FindUserByUsername(req.Username)
-	if err != nil {
+func (s *UserService) Register(req *dto.RegisterRequest) (*model.User, error) {
+	if err := s.checkUserExists(req.Username, req.Email, req.Phone, 0); err != nil {
 		return nil, err
-	}
-	if existingUser != nil {
-		return nil, errors.New("用户名已存在")
-	}
-
-	if req.Email != "" {
-		existingUser, err = s.repo.FindUserByEmail(req.Email)
-		if err != nil {
-			return nil, err
-		}
-		if existingUser != nil {
-			return nil, errors.New("邮箱已存在")
-		}
-	}
-
-	if req.Phone != "" {
-		existingUser, err = s.repo.FindUserByPhone(req.Phone)
-		if err != nil {
-			return nil, err
-		}
-		if existingUser != nil {
-			return nil, errors.New("手机号已存在")
-		}
 	}
 
 	hashedPassword, err := utils.HashPassword(req.Password)
@@ -128,7 +106,7 @@ func (s *UserService) Register(req *RegisterRequest) (*model.User, error) {
 	return user, nil
 }
 
-func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
+func (s *UserService) Login(req *dto.LoginRequest) (*dto.LoginResponse, error) {
 	user, err := s.repo.FindUserByUsernameOrEmail(req.Username)
 	if err != nil {
 		return nil, errors.New("用户名或密码错误")
@@ -166,7 +144,7 @@ func (s *UserService) Login(req *LoginRequest) (*LoginResponse, error) {
 		return nil, fmt.Errorf("缓存用户信息失败: %v", err)
 	}
 
-	return &LoginResponse{
+	return &dto.LoginResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
@@ -194,7 +172,7 @@ func (s *UserService) Logout(userID uint, accessToken string) error {
 	return nil
 }
 
-func (s *UserService) RefreshToken(refreshToken string) (*RefreshTokenResponse, error) {
+func (s *UserService) RefreshToken(refreshToken string) (*dto.RefreshTokenResponse, error) {
 	claims, err := s.jwtService.ParseToken(refreshToken)
 	if err != nil {
 		return nil, errors.New("无效的刷新令牌")
@@ -229,7 +207,7 @@ func (s *UserService) RefreshToken(refreshToken string) (*RefreshTokenResponse, 
 		return nil, fmt.Errorf("更新会话失败: %v", err)
 	}
 
-	return &RefreshTokenResponse{
+	return &dto.RefreshTokenResponse{
 		AccessToken: newAccessToken,
 		TokenType:   "Bearer",
 	}, nil
@@ -291,7 +269,11 @@ func (s *UserService) GetUserByID(userID uint) (*model.User, error) {
 	return s.repo.FindUserByID(userID)
 }
 
-func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*model.User, error) {
+func (s *UserService) UpdateUser(userID uint, req *dto.UpdateUserRequest) (*model.User, error) {
+	if err := s.checkUserExists("", req.Email, req.Phone, userID); err != nil {
+		return nil, err
+	}
+
 	var user *model.User
 
 	err := s.repo.Transaction(func(tx *gorm.DB) error {
@@ -302,24 +284,10 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*model.Us
 		}
 
 		if req.Email != "" {
-			existingUser, err := s.repo.FindUserByEmail(req.Email)
-			if err != nil {
-				return err
-			}
-			if existingUser != nil && existingUser.ID != userID {
-				return errors.New("邮箱已被使用")
-			}
 			user.Email = req.Email
 		}
 
 		if req.Phone != "" {
-			existingUser, err := s.repo.FindUserByPhone(req.Phone)
-			if err != nil {
-				return err
-			}
-			if existingUser != nil && existingUser.ID != userID {
-				return errors.New("手机号已被使用")
-			}
 			user.Phone = req.Phone
 		}
 
@@ -387,7 +355,7 @@ func (s *UserService) UpdateUser(userID uint, req *UpdateUserRequest) (*model.Us
 	return user, nil
 }
 
-func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) error {
+func (s *UserService) ChangePassword(userID uint, req *dto.ChangePasswordRequest) error {
 	err := s.repo.Transaction(func(tx *gorm.DB) error {
 		user, err := s.repo.FindUserByID(userID)
 		if err != nil {
@@ -413,13 +381,13 @@ func (s *UserService) ChangePassword(userID uint, req *ChangePasswordRequest) er
 	return nil
 }
 
-func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, error) {
+func (s *UserService) GetUserList(req *dto.UserListRequest) (*dto.UserListResponse, error) {
 	users, total, err := s.repo.GetUserList(req)
 	if err != nil {
 		return nil, err
 	}
 
-	return &UserListResponse{
+	return &dto.UserListResponse{
 		PageInfo: utils.PageInfo{
 			Page:     req.Page,
 			PageSize: req.PageSize,
@@ -430,7 +398,7 @@ func (s *UserService) GetUserList(req *UserListRequest) (*UserListResponse, erro
 	}, nil
 }
 
-func (s *UserService) ResetPassword(req *ResetPasswordRequest) (string, error) {
+func (s *UserService) ResetPassword(req *dto.ResetPasswordRequest) (string, error) {
 	var tempPassword string
 
 	err := s.repo.Transaction(func(tx *gorm.DB) error {
@@ -491,15 +459,15 @@ func (s *UserService) DeleteUser(userID uint) error {
 	return nil
 }
 
-func (s *UserService) ParseExcel(file multipart.File) ([]StudentExcelData, error) {
+func (s *UserService) ParseExcel(file multipart.File) ([]dto.StudentExcelData, error) {
 	return s.parseExcelFile(file)
 }
 
-func (s *UserService) ParseCSV(file multipart.File) ([]StudentExcelData, error) {
+func (s *UserService) ParseCSV(file multipart.File) ([]dto.StudentExcelData, error) {
 	return s.parseCSVFile(file)
 }
 
-func (s *UserService) ParseFile(file multipart.File, filename string) ([]StudentExcelData, error) {
+func (s *UserService) ParseFile(file multipart.File, filename string) ([]dto.StudentExcelData, error) {
 	if strings.HasSuffix(strings.ToLower(filename), ".xlsx") || strings.HasSuffix(strings.ToLower(filename), ".xls") {
 		return s.parseExcelFile(file)
 	} else if strings.HasSuffix(strings.ToLower(filename), ".csv") {
@@ -508,7 +476,7 @@ func (s *UserService) ParseFile(file multipart.File, filename string) ([]Student
 	return nil, errors.New("不支持的文件格式，仅支持.xlsx, .xls和.csv文件")
 }
 
-func (s *UserService) parseExcelFile(file multipart.File) ([]StudentExcelData, error) {
+func (s *UserService) parseExcelFile(file multipart.File) ([]dto.StudentExcelData, error) {
 	f, err := excelize.OpenReader(file)
 	if err != nil {
 		return nil, fmt.Errorf("打开Excel文件失败: %v", err)
@@ -525,113 +493,10 @@ func (s *UserService) parseExcelFile(file multipart.File) ([]StudentExcelData, e
 		return nil, fmt.Errorf("读取Excel行失败: %v", err)
 	}
 
-	if len(rows) < 2 {
-		return nil, errors.New("Excel文件中至少需要包含表头和一行数据")
-	}
-
-	head := rows[0]
-	nameIndex := -1
-	studentIDIndex := -1
-	emailIndex := -1
-	phoneIndex := -1
-	classNameIndex := -1
-
-	for i, field := range head {
-		field = strings.TrimSpace(field)
-		fieldLower := strings.ToLower(field)
-
-		if nameIndex == -1 && (strings.Contains(fieldLower, "姓名") || strings.Contains(fieldLower, "name")) {
-			nameIndex = i
-		}
-
-		if studentIDIndex == -1 && (strings.Contains(fieldLower, "学号") || strings.Contains(fieldLower, "student") || strings.Contains(fieldLower, "id")) {
-			studentIDIndex = i
-		}
-
-		if emailIndex == -1 && (strings.Contains(fieldLower, "邮箱") || strings.Contains(fieldLower, "email")) {
-			emailIndex = i
-		}
-
-		if phoneIndex == -1 && (strings.Contains(fieldLower, "手机") || strings.Contains(fieldLower, "phone")) {
-			phoneIndex = i
-		}
-
-		if classNameIndex == -1 && (strings.Contains(fieldLower, "班级") || strings.Contains(fieldLower, "class")) {
-			classNameIndex = i
-		}
-	}
-
-	if nameIndex == -1 {
-		return nil, errors.New("无法识别姓名字段")
-	}
-	if studentIDIndex == -1 {
-		return nil, errors.New("无法识别学号字段")
-	}
-	if emailIndex == -1 {
-		return nil, errors.New("无法识别邮箱字段")
-	}
-
-	var students []StudentExcelData
-	for i, row := range rows[1:] {
-		if len(row) == 0 || (len(row) > nameIndex && strings.TrimSpace(row[nameIndex]) == "") {
-			continue
-		}
-
-		name := ""
-		if len(row) > nameIndex {
-			name = strings.TrimSpace(row[nameIndex])
-		}
-
-		studentID := ""
-		if len(row) > studentIDIndex {
-			studentID = strings.TrimSpace(row[studentIDIndex])
-		}
-
-		email := ""
-		if len(row) > emailIndex {
-			email = strings.TrimSpace(row[emailIndex])
-		}
-
-		phone := ""
-		if len(row) > phoneIndex && phoneIndex != -1 {
-			phone = strings.TrimSpace(row[phoneIndex])
-		}
-
-		className := ""
-		if len(row) > classNameIndex && classNameIndex != -1 {
-			className = strings.TrimSpace(row[classNameIndex])
-		}
-
-		if name == "" || studentID == "" || email == "" {
-			continue
-		}
-
-		var classID uint = 0
-		if className != "" {
-			class, _ := s.repo.FindClassByName(className)
-			if class != nil {
-				classID = class.ID
-			}
-		}
-
-		student := StudentExcelData{
-			Index:      i + 2,
-			Name:       name,
-			StudentID:  studentID,
-			Email:      email,
-			Phone:      phone,
-			ClassName:  className,
-			ClassID:    classID,
-			TeacherIDs: []uint{},
-		}
-
-		students = append(students, student)
-	}
-
-	return students, nil
+	return s.parseStudentRows(rows, "Excel")
 }
 
-func (s *UserService) parseCSVFile(file multipart.File) ([]StudentExcelData, error) {
+func (s *UserService) parseCSVFile(file multipart.File) ([]dto.StudentExcelData, error) {
 	reader := csv.NewReader(file)
 	reader.FieldsPerRecord = -1
 
@@ -640,121 +505,147 @@ func (s *UserService) parseCSVFile(file multipart.File) ([]StudentExcelData, err
 		return nil, fmt.Errorf("读取CSV文件失败: %v", err)
 	}
 
+	return s.parseStudentRows(rows, "CSV")
+}
+
+func (s *UserService) parseStudentRows(rows [][]string, sourceType string) ([]dto.StudentExcelData, error) {
 	if len(rows) < 2 {
-		return nil, errors.New("CSV文件中至少需要包含表头和一行数据")
+		return nil, fmt.Errorf("%s文件中至少需要包含表头和一行数据", sourceType)
 	}
 
 	head := rows[0]
-	nameIndex := -1
-	studentIDIndex := -1
-	emailIndex := -1
-	phoneIndex := -1
-	classNameIndex := -1
+	indices := s.resolveColumnIndices(head)
 
-	for i, field := range head {
-		field = strings.TrimSpace(field)
-		fieldLower := strings.ToLower(field)
-
-		if nameIndex == -1 && (strings.Contains(fieldLower, "姓名") || strings.Contains(fieldLower, "name")) {
-			nameIndex = i
-		}
-
-		if studentIDIndex == -1 && (strings.Contains(fieldLower, "学号") || strings.Contains(fieldLower, "student") || strings.Contains(fieldLower, "id")) {
-			studentIDIndex = i
-		}
-
-		if emailIndex == -1 && (strings.Contains(fieldLower, "邮箱") || strings.Contains(fieldLower, "email")) {
-			emailIndex = i
-		}
-
-		if phoneIndex == -1 && (strings.Contains(fieldLower, "手机") || strings.Contains(fieldLower, "phone")) {
-			phoneIndex = i
-		}
-
-		if classNameIndex == -1 && (strings.Contains(fieldLower, "班级") || strings.Contains(fieldLower, "class")) {
-			classNameIndex = i
-		}
-	}
-
-	if nameIndex == -1 {
+	if indices.Name == -1 {
 		return nil, errors.New("无法识别姓名字段")
 	}
-	if studentIDIndex == -1 {
+	if indices.StudentID == -1 {
 		return nil, errors.New("无法识别学号字段")
 	}
-	if emailIndex == -1 {
+	if indices.Email == -1 {
 		return nil, errors.New("无法识别邮箱字段")
 	}
 
-	var students []StudentExcelData
+	var students []dto.StudentExcelData
 	for i, row := range rows[1:] {
-		if len(row) == 0 || (len(row) > nameIndex && strings.TrimSpace(row[nameIndex]) == "") {
+		if len(row) == 0 || (len(row) > indices.Name && strings.TrimSpace(row[indices.Name]) == "") {
 			continue
 		}
 
-		name := ""
-		if len(row) > nameIndex {
-			name = strings.TrimSpace(row[nameIndex])
-		}
-
-		studentID := ""
-		if len(row) > studentIDIndex {
-			studentID = strings.TrimSpace(row[studentIDIndex])
-		}
-
-		email := ""
-		if len(row) > emailIndex {
-			email = strings.TrimSpace(row[emailIndex])
-		}
-
-		phone := ""
-		if len(row) > phoneIndex && phoneIndex != -1 {
-			phone = strings.TrimSpace(row[phoneIndex])
-		}
-
-		className := ""
-		if len(row) > classNameIndex && classNameIndex != -1 {
-			className = strings.TrimSpace(row[classNameIndex])
-		}
-
-		if name == "" || studentID == "" || email == "" {
+		student := s.extractStudentData(row, indices, i+2)
+		if student == nil {
 			continue
 		}
 
-		var classID uint = 0
-		if className != "" {
-			class, _ := s.repo.FindClassByName(className)
-			if class != nil {
-				classID = class.ID
-			}
-		}
-
-		student := StudentExcelData{
-			Index:      i + 2,
-			Name:       name,
-			StudentID:  studentID,
-			Email:      email,
-			Phone:      phone,
-			ClassName:  className,
-			ClassID:    classID,
-			TeacherIDs: []uint{},
-		}
-
-		students = append(students, student)
+		students = append(students, *student)
 	}
 
 	return students, nil
 }
 
-func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegisterResponse, error) {
+type ColumnIndices struct {
+	Name      int
+	StudentID int
+	Email     int
+	Phone     int
+	ClassName int
+}
+
+func (s *UserService) resolveColumnIndices(headers []string) ColumnIndices {
+	var indices ColumnIndices
+	indices.Name = -1
+	indices.StudentID = -1
+	indices.Email = -1
+	indices.Phone = -1
+	indices.ClassName = -1
+
+	for i, field := range headers {
+		field = strings.TrimSpace(field)
+		fieldLower := strings.ToLower(field)
+
+		if indices.Name == -1 && (strings.Contains(fieldLower, "姓名") || strings.Contains(fieldLower, "name")) {
+			indices.Name = i
+		}
+
+		if indices.StudentID == -1 && (strings.Contains(fieldLower, "学号") || strings.Contains(fieldLower, "student") || strings.Contains(fieldLower, "id")) {
+			indices.StudentID = i
+		}
+
+		if indices.Email == -1 && (strings.Contains(fieldLower, "邮箱") || strings.Contains(fieldLower, "email")) {
+			indices.Email = i
+		}
+
+		if indices.Phone == -1 && (strings.Contains(fieldLower, "手机") || strings.Contains(fieldLower, "phone")) {
+			indices.Phone = i
+		}
+
+		if indices.ClassName == -1 && (strings.Contains(fieldLower, "班级") || strings.Contains(fieldLower, "class")) {
+			indices.ClassName = i
+		}
+	}
+
+	return indices
+}
+
+func (s *UserService) extractStudentData(row []string, indices ColumnIndices, rowIndex int) *dto.StudentExcelData {
+	name := ""
+	if len(row) > indices.Name {
+		name = strings.TrimSpace(row[indices.Name])
+	}
+
+	studentID := ""
+	if len(row) > indices.StudentID {
+		studentID = strings.TrimSpace(row[indices.StudentID])
+	}
+
+	email := ""
+	if len(row) > indices.Email {
+		email = strings.TrimSpace(row[indices.Email])
+	}
+
+	phone := ""
+	if len(row) > indices.Phone && indices.Phone != -1 {
+		phone = strings.TrimSpace(row[indices.Phone])
+	}
+
+	className := ""
+	if len(row) > indices.ClassName && indices.ClassName != -1 {
+		className = strings.TrimSpace(row[indices.ClassName])
+	}
+
+	if name == "" || studentID == "" || email == "" {
+		return nil
+	}
+
+	var classID uint = 0
+	if className != "" {
+		class, _ := s.repo.FindClassByName(className)
+		if class != nil {
+			classID = class.ID
+		}
+	}
+
+	return &dto.StudentExcelData{
+		Index:      rowIndex,
+		Name:       name,
+		StudentID:  studentID,
+		Email:      email,
+		Phone:      phone,
+		ClassName:  className,
+		ClassID:    classID,
+		TeacherIDs: []uint{},
+	}
+}
+
+func (s *UserService) BatchRegister(students []dto.StudentExcelData) (*dto.BatchRegisterResponse, error) {
 	var successCount int
 	var failedCount int
-	var results []BatchRegisterResult
+	var results []dto.BatchRegisterResult
 	var errs []map[string]interface{}
 
 	for _, student := range students {
 		// 批量注册学生 - 使用学号作为用户名
-		req := &RegisterRequest{
+		req := &dto.RegisterRequest{
 			Username:   student.StudentID,
 			Password:   "123456",
 			Email:      student.Email,
@@ -766,7 +657,7 @@ func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegister
 		}
 
 		_, err := s.Register(req)
-		var result BatchRegisterResult
+		var result dto.BatchRegisterResult
 		result.Index = student.Index
 		result.Username = student.StudentID
 		result.StudentID = student.StudentID
@@ -789,7 +680,7 @@ func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegister
 		results = append(results, result)
 	}
 
-	response := &BatchRegisterResponse{
+	response := &dto.BatchRegisterResponse{
 		SuccessCount: successCount,
 		FailedCount:  failedCount,
 		Results:      results,
@@ -797,4 +688,39 @@ func (s *UserService) BatchRegister(students []StudentExcelData) (*BatchRegister
 	}
 
 	return response, nil
+}
+
+// checkUserExists 通用用户存在性检查
+func (s *UserService) checkUserExists(username, email, phone string, excludeID uint) error {
+	if username != "" {
+		exists, err := s.repo.CheckFieldExists("username", username, excludeID)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return errors.New("用户名已存在")
+		}
+	}
+
+	if email != "" {
+		exists, err := s.repo.CheckFieldExists("email", email, excludeID)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return errors.New("邮箱已存在")
+		}
+	}
+
+	if phone != "" {
+		exists, err := s.repo.CheckFieldExists("phone", phone, excludeID)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return errors.New("手机号已存在")
+		}
+	}
+
+	return nil
 }

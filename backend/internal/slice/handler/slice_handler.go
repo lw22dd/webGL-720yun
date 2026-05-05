@@ -1,9 +1,11 @@
-package slice
+package handler
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"webGL-720yun/internal/slice/service"
 )
 
 type QueueStatusResponse struct {
@@ -16,7 +18,7 @@ type QueueStatusResponse struct {
 	Found                bool   `json:"found"`
 }
 
-func GetSliceQueueStatus(queue *SliceQueue) gin.HandlerFunc {
+func GetSliceQueueStatus(queue *service.SliceQueue) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskID := c.Param("task_id")
 		if taskID == "" {
@@ -54,7 +56,7 @@ func GetSliceQueueStatus(queue *SliceQueue) gin.HandlerFunc {
 	}
 }
 
-func GetSliceQueueStats(queue *SliceQueue) gin.HandlerFunc {
+func GetSliceQueueStats(queue *service.SliceQueue) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {

@@ -1,7 +1,8 @@
-package user
+package dto
 
 import (
 	"time"
+
 	"webGL-720yun/internal/model"
 	"webGL-720yun/pkg/utils"
 )
