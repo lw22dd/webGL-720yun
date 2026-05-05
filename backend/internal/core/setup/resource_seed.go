@@ -148,7 +148,7 @@ func seedScene(db *gorm.DB, minioClient *minio_client.MinIOClient, seedBasePath 
 		return nil, fmt.Errorf("获取文件信息失败: %w", err)
 	}
 
-	// 直接上传源文件到 MinIO（简化：不检查MinIO中是否已存在）
+	// 直接上传源文件到 MinIO
 	minIOObjectPath := model.GetSceneSourcePath(spaceName, scene.SceneCode)
 	panoramaURL, uploadErr := minioClient.UploadFile(
 		minIOObjectPath,
@@ -201,7 +201,7 @@ func uploadCover(minioClient *minio_client.MinIOClient, spaceSlug, coverLocalPat
 		return "", fmt.Errorf("获取封面文件信息失败: %w", err)
 	}
 
-	coverMinIOPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", spaceSlug)
+	coverMinIOPath := model.GetSpaceCoverPath(spaceSlug)
 
 	coverURL, uploadErr := minioClient.UploadFile(
 		coverMinIOPath,

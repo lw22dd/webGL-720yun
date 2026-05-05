@@ -40,9 +40,10 @@ func (m *MinIOClient) UploadSceneTiles(ctx context.Context, spaceSlug, sceneCode
 		for level, files := range levels {
 			for _, file := range files {
 				fileName := filepath.Base(file)
-				// 从文件名解析 x, y 坐标 (tile_y_x.jpg)
+				// 从文件名解析 x, y 坐标 (tile_x_y.jpg)
+				// 注意：tiler.go 生成的是 tile_x_y.jpg，这里必须对应
 				var x, y int
-				fmt.Sscanf(fileName, "tile_%d_%d.jpg", &y, &x)
+				fmt.Sscanf(fileName, "tile_%d_%d.jpg", &x, &y)
 
 				objectName := model.GetSceneTilePath(spaceSlug, sceneCode, faceName, level, x, y)
 				tasks = append(tasks, task{objectName: objectName, filePath: file})

@@ -181,7 +181,7 @@ func (s *SpaceService) DeleteSpace(id uint, userID uint, isAdmin bool) error {
 
 	// 删除 MinIO 中的所有相关文件（源图、瓦片、预览图、封面等）
 	// 同时尝试删除基于 slug 和基于 ID 的目录（兼容旧数据）
-	slugPrefix := fmt.Sprintf("spaces/%s/", space.Slug)
+	slugPrefix := fmt.Sprintf(model.SpacePrefix+"/", space.Slug)
 	idPrefix := fmt.Sprintf("spaces/%d/", space.ID)
 
 	_ = s.minioClient.DeleteObjectsWithPrefix(slugPrefix)
@@ -262,7 +262,7 @@ func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, slug string)
 	defer src.Close()
 
 	ext := ".jpg"
-	objectName := fmt.Sprintf("spaces/%s/covers/cover%s", slug, ext)
+	objectName := model.GetSpaceCoverPath(slug)
 
 	tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("upload_%d%s", time.Now().UnixNano(), ext))
 	dst, err := os.Create(tempFile)

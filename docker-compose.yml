@@ -6,6 +6,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: "123456"
       MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: "720db"
       TZ: Asia/Shanghai
     ports:
       - "3306:3306"

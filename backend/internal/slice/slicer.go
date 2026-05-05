@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7"
-	"github.com/schollz/progressbar/v3"
 	"gorm.io/gorm"
 
 	"webGL-720yun/internal/model"
@@ -18,6 +17,7 @@ import (
 	imgprocessor "webGL-720yun/pkg/image"
 	"webGL-720yun/pkg/minio_client"
 	"webGL-720yun/pkg/panorama"
+	"webGL-720yun/pkg/progress"
 	"webGL-720yun/pkg/websocket"
 )
 
@@ -129,23 +129,10 @@ func (p *SliceProcessor) Process(ctx context.Context, task *sliceservice.SliceTa
 		}
 	}()
 
-	fmt.Printf("[切片] 开始处理场景: %s (TaskID: %s)\n", task.SceneCode, task.TaskID)
+	progress.PrintStart("切片", task.SceneCode, fmt.Sprintf("(TaskID: %s)", task.TaskID))
 
-	bar := progressbar.NewOptions(100,
-		progressbar.OptionSetWriter(os.Stdout),
-		progressbar.OptionSetWidth(40),
-		progressbar.OptionSetTheme(progressbar.Theme{
-			Saucer:        "█",
-			SaucerHead:    "█",
-			SaucerPadding: "░",
-			BarStart:      "[",
-			BarEnd:        "]",
-		}),
-		progressbar.OptionOnCompletion(func() {
-			fmt.Printf("\n")
-		}),
-	)
-	defer bar.Close()
+	bar := progress.GlobalManager.CreateBar(task.TaskID, 100, "切片处理中", false)
+	defer progress.GlobalManager.RemoveBar(task.TaskID)
 
 	bar.Set(5)
 
@@ -294,6 +281,7 @@ func (p *SliceProcessor) Process(ctx context.Context, task *sliceservice.SliceTa
 
 	metrics.Success = true
 	p.notifyComplete(task, tileURL, previewURL)
+	progress.PrintComplete("切片", task.SceneCode)
 
 	return nil
 }

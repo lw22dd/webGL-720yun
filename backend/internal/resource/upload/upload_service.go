@@ -10,12 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
-	"github.com/schollz/progressbar/v3"
 	"gorm.io/gorm"
 
 	"webGL-720yun/internal/model"
@@ -23,6 +21,7 @@ import (
 	sliceservice "webGL-720yun/internal/slice/service"
 	"webGL-720yun/pkg/image"
 	"webGL-720yun/pkg/minio_client"
+	"webGL-720yun/pkg/progress"
 	"webGL-720yun/pkg/websocket"
 )
 
@@ -44,8 +43,7 @@ type UploadService struct {
 	imageProcessor *image.Processor
 	wsHub          *websocket.Hub
 	sliceQueue     *sliceservice.SliceQueue
-	progressBars   map[string]*progressbar.ProgressBar
-	progressMu     sync.RWMutex
+	progressMgr    *progress.Manager
 }
 
 func NewUploadService(
@@ -62,7 +60,7 @@ func NewUploadService(
 		imageProcessor: image.NewProcessor(),
 		wsHub:          wsHub,
 		sliceQueue:     sliceQueue,
-		progressBars:   make(map[string]*progressbar.ProgressBar),
+		progressMgr:    progress.NewManager(),
 	}
 }
 
@@ -135,25 +133,8 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		return nil, fmt.Errorf("更新用户上传计数失败: %w", err)
 	}
 
-	bar := progressbar.NewOptions64(req.FileSize,
-		progressbar.OptionSetWriter(os.Stdout),
-		progressbar.OptionSetWidth(40),
-		progressbar.OptionShowBytes(true),
-		progressbar.OptionSetTheme(progressbar.Theme{
-			Saucer:        "█",
-			SaucerHead:    "█",
-			SaucerPadding: "░",
-			BarStart:      "[",
-			BarEnd:        "]",
-		}),
-		progressbar.OptionShowCount(),
-	)
-	s.progressMu.Lock()
-	s.progressBars[uploadID] = bar
-	s.progressMu.Unlock()
-
-	fmt.Printf("[上传] 开始上传: %s (%.2f MB, %d 个切片)\n",
-		req.FileName, float64(req.FileSize)/(1024*1024), totalChunks)
+	s.progressMgr.CreateBar(uploadID, req.FileSize, "上传中", true)
+	progress.PrintStart("上传", req.FileName, fmt.Sprintf("(%.2f MB, %d 个分片)", float64(req.FileSize)/(1024*1024), totalChunks))
 
 	return &InitUploadResponse{
 		UploadID:       uploadID,
@@ -227,10 +208,7 @@ func (s *UploadService) UploadChunk(uploadID string, chunkIndex int, chunkData *
 
 	s.notifyProgress(uploadID, userID, len(uploadedChunks), task.TotalChunks, task.FileSize)
 
-	s.progressMu.RLock()
-	bar := s.progressBars[uploadID]
-	s.progressMu.RUnlock()
-	if bar != nil {
+	if bar := s.progressMgr.GetBar(uploadID); bar != nil {
 		bar.Set(int(uploadedBytes))
 	}
 
@@ -370,11 +348,9 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 	s.notifyMergeProgress(req.UploadID, userID, "completed", 100, "上传完成！")
 	s.notifyComplete(req.UploadID, userID, resolvedFileID, sourceURL, "")
 
-	s.progressMu.Lock()
-	delete(s.progressBars, req.UploadID)
-	s.progressMu.Unlock()
-
-	fmt.Printf("[上传] 文件上传完成: %s\n", task.FileName)
+	// 清理进度条
+	s.progressMgr.RemoveBar(req.UploadID)
+	progress.PrintComplete("上传", task.FileName)
 
 	// 异步触发切片任务
 	if s.sliceQueue != nil {
@@ -387,12 +363,12 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 			UserID:    userID,
 		}
 		if err := s.sliceQueue.PushTask(sliceTask); err != nil {
-			fmt.Printf("[上传] 警告: 推送切片任务失败: %v\n", err)
+			progress.PrintInfo("上传", fmt.Sprintf("警告: 推送切片任务失败: %v", err))
 		} else {
-			fmt.Printf("[上传] 切片任务已加入队列: %s\n", resolvedFileID)
+			progress.PrintInfo("上传", fmt.Sprintf("切片任务已加入队列: %s", resolvedFileID))
 		}
 	} else {
-		fmt.Printf("[上传] 警告: SliceQueue 未初始化，跳过切片任务推送\n")
+		progress.PrintInfo("上传", "警告: SliceQueue 未初始化，跳过切片任务推送")
 	}
 
 	return &CompleteUploadResponse{
@@ -456,11 +432,8 @@ func (s *UploadService) CancelUpload(uploadID string, userID uint) error {
 	s.uploadRepo.DeleteTask(uploadID)
 	s.uploadRepo.DecrementUserUploadCount(userID)
 
-	s.progressMu.Lock()
-	delete(s.progressBars, uploadID)
-	s.progressMu.Unlock()
-
-	fmt.Printf("[上传] 已取消上传任务: %s\n", uploadID)
+	s.progressMgr.RemoveBar(uploadID)
+	progress.PrintInfo("上传", fmt.Sprintf("已取消上传任务: %s", uploadID))
 
 	return nil
 }

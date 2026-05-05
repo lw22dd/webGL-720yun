@@ -288,7 +288,7 @@ func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipar
 		return nil
 	}
 
-	sourceObjectName := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceSlug, scene.SceneCode)
+	sourceObjectName := model.GetSceneSourcePath(spaceSlug, scene.SceneCode)
 	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, tempFile, "image/jpeg")
 	if err != nil {
 		return fmt.Errorf("上传源文件失败: %w", err)
@@ -301,7 +301,7 @@ func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipar
 		return fmt.Errorf("生成缩略图失败: %w", err)
 	}
 
-	thumbObjectName := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceSlug, scene.SceneCode)
+	thumbObjectName := model.GetScenePreviewPath(spaceSlug, scene.SceneCode)
 	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
 	if err != nil {
 		return fmt.Errorf("上传缩略图失败: %w", err)
@@ -826,7 +826,6 @@ type ResourceStreamResult struct {
 }
 
 // GetTileStream 流式获取瓦片图片
-// 路径规则：spaces/{spaceName}/tiles/{sceneCode}/cubemap/{face}/level_{level}/tile_{y}_{x}.jpg
 func (s *SceneService) GetTileStream(ctx context.Context, sceneCode, face string, level, x, y int) (*ResourceStreamResult, error) {
 	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
 	if err != nil {
@@ -835,8 +834,8 @@ func (s *SceneService) GetTileStream(ctx context.Context, sceneCode, face string
 
 	spaceName := scene.Space.Slug
 
-	objectPath := fmt.Sprintf("spaces/%s/tiles/%s/cubemap/%s/level_%d/tile_%d_%d.jpg",
-		spaceName, sceneCode, face, level, y, x)
+	// 使用统一的路径生成函数，保持 x, y 顺序一致
+	objectPath := model.GetSceneTilePath(spaceName, sceneCode, face, level, x, y)
 
 	logger.Infof("🔍 GetTileStream: sceneCode=%s, face=%s, level=%d, x=%d, y=%d, objectPath=%s", sceneCode, face, level, x, y, objectPath)
 
@@ -844,7 +843,6 @@ func (s *SceneService) GetTileStream(ctx context.Context, sceneCode, face string
 }
 
 // GetPreviewStream 流式获取预览图
-// 路径规则：spaces/{spaceName}/previews/{sceneCode}/preview.jpg
 func (s *SceneService) GetPreviewStream(ctx context.Context, sceneCode string) (*ResourceStreamResult, error) {
 	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
 	if err != nil {
@@ -852,13 +850,12 @@ func (s *SceneService) GetPreviewStream(ctx context.Context, sceneCode string) (
 	}
 
 	spaceName := scene.Space.Slug
-	objectPath := fmt.Sprintf("spaces/%s/previews/%s/preview.jpg", spaceName, sceneCode)
+	objectPath := model.GetScenePreviewPath(spaceName, sceneCode)
 
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 
 // GetSourceStream 流式获取场景原始全景图
-// 路径规则：spaces/{spaceName}/sources/{sceneCode}/source.jpg
 func (s *SceneService) GetSourceStream(ctx context.Context, sceneCode string) (*ResourceStreamResult, error) {
 	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
 	if err != nil {
@@ -866,15 +863,14 @@ func (s *SceneService) GetSourceStream(ctx context.Context, sceneCode string) (*
 	}
 
 	spaceName := scene.Space.Slug
-	objectPath := fmt.Sprintf("spaces/%s/sources/%s/source.jpg", spaceName, sceneCode)
+	objectPath := model.GetSceneSourcePath(spaceName, sceneCode)
 
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 
 // GetCoverStream 流式获取空间封面
-// 路径规则：spaces/{spaceName}/covers/cover.jpg
 func (s *SceneService) GetCoverStream(ctx context.Context, spaceName string) (*ResourceStreamResult, error) {
-	objectPath := fmt.Sprintf("spaces/%s/covers/cover.jpg", spaceName)
+	objectPath := model.GetSpaceCoverPath(spaceName)
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 
