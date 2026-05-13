@@ -407,10 +407,24 @@ const getSceneProgressColor = (sceneCode: string) => {
 
 const columns = [
   {
-    colKey: 'id',
-    title: 'ID',
-    width: 80,
-    align: 'center'
+    colKey: 'created_at',
+    title: '创建时间',
+    width: 140,
+    align: 'center',
+    cell: (h: any, { row }: { row: SceneListItem }) => {
+      const date = new Date(row.created_at)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      return h('div', {
+        style: 'font-size: 12px; line-height: 1.5;'
+      }, [
+        h('div', `${year}-${month}-${day}`),
+        h('div', { style: 'color: #86909c;' }, `${hours}:${minutes}`)
+      ])
+    }
   },
   {
     colKey: 'thumbnail_url',

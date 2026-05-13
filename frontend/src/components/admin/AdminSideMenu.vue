@@ -1,13 +1,9 @@
 <template>
   <div class="admin-side-menu">
-    <div class="menu-header">
-      <t-icon name="user-circle" size="24" />
-      <span class="menu-title">管理中心</span>
-    </div>
-
     <t-menu
-      v-model:defaultValue="activePath"
+      v-model:value="activePath"
       theme="light"
+      class="custom-side-menu"
       @change="handleMenuChange"
     >
       <t-menu-item value="/admin/users">
@@ -31,8 +27,6 @@
         <span>空间管理</span>
       </t-menu-item>
 
-
-
       <t-menu-item value="/admin/settings">
         <template #icon>
           <t-icon name="setting" />
@@ -47,6 +41,10 @@
         <span>日志管理</span>
       </t-menu-item>
     </t-menu>
+    
+    <div class="menu-footer">
+      <div class="version-tag">v1.0.0 Stable</div>
+    </div>
   </div>
 </template>
 
@@ -76,62 +74,63 @@ const handleMenuChange = (value: string) => {
   flex-direction: column;
   height: 100%;
   background-color: #fff;
+  padding: 12px 0;
 }
 
-.menu-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 20px 20px;
-  border-bottom: 1px solid #e5e6eb;
-  color: #0052d9;
-}
-
-.menu-title {
-  font-size: 18px;
-  font-weight: 700;
-  white-space: nowrap;
-  letter-spacing: -0.02em;
+.custom-side-menu {
+  flex: 1;
+  border-right: none;
 }
 
 :deep(.t-menu) {
-  border-right: none;
-  padding: 8px;
+  width: 100% !important;
 }
 
 :deep(.t-menu__item) {
-  border-radius: 8px;
-  margin: 2px 0;
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 14px;
-  font-weight: 500;
+  height: 48px;
+  line-height: 48px;
+  margin: 4px 12px;
+  border-radius: 10px;
+  width: auto !important;
+  transition: all 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
   color: #4e5969;
 }
 
-:deep(.t-menu__item .t-icon) {
-  font-size: 18px;
-}
-
-:deep(.t-menu__item--hover) {
+:deep(.t-menu__item:hover) {
   background-color: #f2f3f5;
   color: #1d2129;
 }
 
-:deep(.t-menu__item--active) {
-  background-color: #e6f0ff;
+:deep(.t-menu__item.t-is-active) {
+  background: linear-gradient(135deg, rgba(0, 82, 217, 0.1), rgba(0, 82, 217, 0.05));
   color: #0052d9;
+  font-weight: 600;
 }
 
-:deep(.t-menu__item--active::before) {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 24px;
-  background-color: #0052d9;
-  border-radius: 0 4px 4px 0;
+:deep(.t-menu__item.t-is-active::after) {
+  display: none;
+}
+
+:deep(.t-menu__item .t-icon) {
+  font-size: 18px;
+  margin-right: 8px;
+  transition: transform 0.3s;
+}
+
+:deep(.t-menu__item:hover .t-icon) {
+  transform: scale(1.1);
+}
+
+.menu-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #f2f3f5;
+  display: flex;
+  justify-content: center;
+}
+
+.version-tag {
+  font-size: 12px;
+  color: #c9cdd4;
+  font-family: 'JetBrains Mono', monospace;
 }
 </style>
