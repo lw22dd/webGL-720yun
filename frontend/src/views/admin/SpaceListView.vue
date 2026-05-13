@@ -112,22 +112,127 @@
       <p>确定要删除该空间吗？此操作不可撤销。</p>
     </t-dialog>
 
-    <FormDialog
-      ref="formDialogRef"
-      :form-fields="formFields"
-      :default-data="defaultFormData"
-      @submit="handleSubmit"
-    />
+    <FormDialog ref="formDialogRef">
+      <template #default="{ formData, submitLoading, closeDialog, isEdit }">
+        <t-form
+          ref="formRef"
+          :data="formData"
+          :rules="formRules"
+          label-width="100px"
+          @submit="handleSubmit"
+        >
+          <t-form-item label="空间名称" name="name">
+            <div class="name-field-wrapper">
+              <t-input
+                v-model="formData.name"
+                placeholder="请输入空间名称，输入时自动搜索地点"
+                @input="handleNameInput"
+                @focus="handleNameFocus"
+                @blur="handleNameBlur"
+              >
+                <template #suffix-icon>
+                  <t-icon name="search" style="cursor: pointer" @click="handleSearchClick" />
+                </template>
+              </t-input>
+
+              <div
+                v-if="showSuggestions"
+                class="suggestion-dropdown"
+              >
+                <div v-if="searchLoading" class="suggestion-loading">
+                  <t-loading size="small" text="正在搜索地点..." />
+                </div>
+                <template v-else-if="searchResults.length > 0">
+                  <div
+                    v-for="(item, index) in searchResults"
+                    :key="index"
+                    class="suggestion-item"
+                    @mousedown.prevent="selectLocation(item, formData)"
+                  >
+                    <div class="suggestion-icon">
+                      <t-icon name="location" size="14" />
+                    </div>
+                    <div class="suggestion-content">
+                      <div class="suggestion-name" v-html="highlightKeyword(item.name)"></div>
+                      <div class="suggestion-address">{{ item.district }} {{ item.address }}</div>
+                    </div>
+                  </div>
+                </template>
+                <div v-else-if="formData.name" class="suggestion-empty">
+                  未找到相关地点
+                </div>
+              </div>
+            </div>
+          </t-form-item>
+
+          <t-form-item label="经度" name="longitude">
+            <t-input
+              v-model="formData.longitude"
+              placeholder="选择地点后自动填写"
+              disabled
+            >
+              <template #suffix>
+                <span class="coord-unit">°E</span>
+              </template>
+            </t-input>
+          </t-form-item>
+
+          <t-form-item label="纬度" name="latitude">
+            <t-input
+              v-model="formData.latitude"
+              placeholder="选择地点后自动填写"
+              disabled
+            >
+              <template #suffix>
+                <span class="coord-unit">°N</span>
+              </template>
+            </t-input>
+          </t-form-item>
+
+          <t-form-item label="省份" name="province">
+            <t-input v-model="formData.province" placeholder="选择地点后自动填写" disabled />
+          </t-form-item>
+
+          <t-form-item label="城市" name="city">
+            <t-input v-model="formData.city" placeholder="选择地点后自动填写" disabled />
+          </t-form-item>
+
+          <t-form-item label="描述" name="description">
+            <t-textarea v-model="formData.description" placeholder="请输入空间描述" :rows="3" />
+          </t-form-item>
+
+          <t-form-item style="margin-top: 32px">
+            <t-space>
+              <t-button type="submit" theme="primary" size="large" :loading="submitLoading">
+                提交保存
+              </t-button>
+              <t-button variant="outline" size="large" @click="closeDialog">取消</t-button>
+            </t-space>
+          </t-form-item>
+        </t-form>
+      </template>
+    </FormDialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
-import FormDialog, { type FormField } from '@/components/admin/FormDialog.vue'
+import type { FormRule } from 'tdesign-vue-next'
+import FormDialog from '@/components/admin/FormDialog.vue'
 import SpaceApi from '@/apis/space.api'
 import type { SpaceListItem } from '@/models/space.model'
-import { geocode } from '@/utils/amap'
+import { geocode, autoComplete } from '@/utils/amap'
+
+interface LocationResult {
+  name: string
+  address: string
+  district: string
+  province: string
+  city: string
+  lng: number
+  lat: number
+}
 
 const emit = defineEmits<{
   (e: 'spaceClick', space: SpaceListItem): void
@@ -144,51 +249,19 @@ const pagination = reactive({
 })
 
 const formDialogRef = ref()
+const formRef = ref()
 const deleteDialogVisible = ref(false)
 const deletingId = ref<number | null>(null)
 
-const formFields: FormField[] = [
-  {
-    name: 'name',
-    label: '空间名称',
-    type: 'input',
-    required: true,
-    placeholder: '请输入空间名称，输入时自动搜索地点'
-  },
-  {
-    name: 'longitude',
-    label: '经度',
-    type: 'input',
-    placeholder: '选择地点后自动填写'
-  },
-  {
-    name: 'latitude',
-    label: '纬度',
-    type: 'input',
-    placeholder: '选择地点后自动填写'
-  },
-  {
-    name: 'description',
-    label: '描述',
-    type: 'textarea',
-    placeholder: '请输入空间描述'
-  },
-  {
-    name: 'province',
-    label: '省份',
-    type: 'input',
-    placeholder: '选择地点后自动填写'
-  },
-  {
-    name: 'city',
-    label: '城市',
-    type: 'input',
-    placeholder: '选择地点后自动填写'
-  }
-]
+const showSuggestions = ref(false)
+const searchLoading = ref(false)
+const searchResults = ref<LocationResult[]>([])
+const searchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
-const defaultFormData = {
-  status: 1
+const formRules: Record<string, FormRule[]> = {
+  name: [
+    { required: true, message: '请输入空间名称', trigger: 'blur' }
+  ]
 }
 
 const getCoverUrl = (slug: string) => {
@@ -229,7 +302,7 @@ const loadSpaceList = async () => {
 }
 
 const handleAddSpace = () => {
-  formDialogRef.value?.openAddDialog()
+  formDialogRef.value?.openAddDialog('新增空间')
 }
 
 const handleEditSpace = (space: SpaceListItem) => {
@@ -245,11 +318,18 @@ const handleEditSpace = (space: SpaceListItem) => {
       sort_order: space.sort_order,
       status: space.status
     },
-    space.id
+    space.id,
+    '编辑空间'
   )
 }
 
-const handleSubmit = async (data: Record<string, any>) => {
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  const valid = await formRef.value.validate()
+  if (!valid) return
+
+  const data = formDialogRef.value?.formData || {}
+  formDialogRef.value?.setSubmitLoading(true)
   try {
     let longitude = data.longitude ? Number(data.longitude) : null
     let latitude = data.latitude ? Number(data.latitude) : null
@@ -291,7 +371,129 @@ const handleSubmit = async (data: Record<string, any>) => {
     console.error('提交失败:', error)
     const errorMessage = error?.message || error?.msg || '操作失败'
     MessagePlugin.error(`操作失败: ${errorMessage}`)
+  } finally {
+    formDialogRef.value?.setSubmitLoading(false)
   }
+}
+
+// 地点搜索逻辑
+const handleSearchClick = () => {
+  const name = formDialogRef.value?.formData?.name
+  if (name) {
+    showSuggestions.value = true
+    doSearch(name)
+  }
+}
+
+const handleNameInput = () => {
+  if (searchTimer.value) clearTimeout(searchTimer.value)
+  const data = formDialogRef.value?.formData || {}
+  const keyword = data.name?.trim()
+  if (!keyword) {
+    searchResults.value = []
+    showSuggestions.value = false
+    searchLoading.value = false
+    return
+  }
+
+  showSuggestions.value = true
+  searchLoading.value = true
+
+  searchTimer.value = setTimeout(() => { doSearch(keyword) }, 300)
+}
+
+const handleNameFocus = () => {
+  const data = formDialogRef.value?.formData || {}
+  if (data.name) {
+    showSuggestions.value = true
+    if (searchResults.value.length === 0 && !searchLoading.value) {
+      doSearch(data.name)
+    }
+  }
+}
+
+const handleNameBlur = () => {
+  setTimeout(() => { showSuggestions.value = false }, 250)
+}
+
+const doSearch = async (keyword: string) => {
+  searchLoading.value = true
+  try {
+    const tips = await autoComplete(keyword)
+    if (tips && tips.length > 0) {
+      searchResults.value = tips
+        .filter((tip: any) => tip.location && (tip.location.lng || tip.location.getLng))
+        .map((tip: any) => {
+          const loc = tip.location
+          return {
+            name: tip.name,
+            address: tip.address || '',
+            district: tip.district || '',
+            province: tip.district ? extractProvince(tip.district) : '',
+            city: tip.district ? extractCity(tip.district) : '',
+            lng: typeof loc.getLng === 'function' ? loc.getLng() : parseFloat(loc.lng),
+            lat: typeof loc.getLat === 'function' ? loc.getLat() : parseFloat(loc.lat)
+          }
+        })
+        .slice(0, 8)
+    } else {
+      searchResults.value = []
+    }
+  } catch (error) {
+    searchResults.value = []
+  } finally {
+    searchLoading.value = false
+    showSuggestions.value = searchResults.value.length > 0 || (formDialogRef.value?.formData?.name || '') !== ''
+  }
+}
+
+const selectLocation = (item: LocationResult, formData: Record<string, any>) => {
+  if (item.lng) formData.longitude = String(item.lng.toFixed(6))
+  if (item.lat) formData.latitude = String(item.lat.toFixed(6))
+  if (item.name) formData.name = item.name
+  if (item.province) formData.province = item.province
+  if (item.city) formData.city = item.city
+  searchResults.value = []
+  showSuggestions.value = false
+}
+
+const extractProvince = (district: string): string => {
+  if (!district) return ''
+  const parts = district.split(/省|自治区|直辖市|特别行政区/)
+  if (parts.length > 1) {
+    const prefix = parts[0]
+    if (district.includes('省')) return prefix + '省'
+    if (district.includes('自治区')) return prefix + '自治区'
+    if (district.includes('直辖市')) return prefix + '直辖市'
+    if (district.includes('特别行政区')) return prefix + '特别行政区'
+  }
+  const match = district.match(/^(.+?)(省|市|自治区)/)
+  return match ? match[0] : district.split(/市/)[0] + '省'
+}
+
+const extractCity = (district: string): string => {
+  if (!district) return ''
+  const parts = district.split(/省|自治区/)
+  if (parts.length > 1) {
+    const afterProvince = parts[1]
+    const cityMatch = afterProvince.match(/^(.+?市)/)
+    return cityMatch ? cityMatch[1] : afterProvince.split(/地区|州|盟/)[0]
+  }
+  const match = district.match(/市(.+?区|.+?县|.+?市)/)
+  if (match) {
+    const cityPart = district.substring(0, district.indexOf(match[1]) + match[1].length)
+    const cityMatch2 = cityPart.match(/(.+?市)/)
+    return cityMatch2 ? cityMatch2[1] : ''
+  }
+  return ''
+}
+
+const highlightKeyword = (text: string) => {
+  const data = formDialogRef.value?.formData || {}
+  const keyword = data.name?.trim()
+  if (!keyword) return text
+  const regex = new RegExp(`(${keyword})`, 'gi')
+  return text.replace(regex, '<span class="highlight">$1</span>')
 }
 
 const openDeleteDialog = (id: number) => {
@@ -349,20 +551,19 @@ defineExpose({
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 16px;
 }
 
 .header-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  padding: 20px 0 16px;
 }
 
 .page-title {
   font-size: 20px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
+  font-weight: 700;
+  color: #1d2129;
 }
 
 .header-right {
@@ -377,35 +578,39 @@ defineExpose({
 
 .space-list-container {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding-bottom: 20px;
 }
 
 .space-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding-bottom: 20px;
 }
 
 .space-card {
-  background: var(--td-bg-color-container);
+  background: #fff;
   border-radius: 12px;
-  border: 1px solid var(--td-component-border);
+  border: 1px solid #f0f1f2;
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
 }
 
 .space-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  transform: translateY(-4px);
-  border-color: var(--td-brand-color);
+  border-color: #0052d9;
+  box-shadow: 0 8px 24px rgba(0, 82, 217, 0.08);
+  transform: translateY(-2px);
 }
 
 .card-cover {
   position: relative;
+  width: 100%;
   height: 160px;
-  background: linear-gradient(135deg, #1E3A5F 0%, #0F1826 100%);
+  background: linear-gradient(135deg, #f2f3f5, #e8eaf0);
   overflow: hidden;
 }
 
@@ -415,53 +620,57 @@ defineExpose({
   object-fit: cover;
 }
 
-.card-cover .no-cover {
+.no-cover {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.3);
+  color: #c9cdd4;
 }
 
 .card-status {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 12px;
+  right: 12px;
   padding: 2px 10px;
-  border-radius: 10px;
+  border-radius: 20px;
   font-size: 11px;
-  font-weight: 500;
-  background: rgba(245, 63, 63, 0.9);
-  color: #fff;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
+  color: #86909c;
+  border: 1px solid #e5e6eb;
 }
 
 .card-status.active {
-  background: rgba(0, 168, 112, 0.9);
+  background: rgba(0, 210, 110, 0.1);
+  color: #00a870;
+  border-color: rgba(0, 210, 110, 0.3);
 }
 
 .card-body {
-  padding: 16px;
+  padding: 14px 16px 8px;
+  flex: 1;
 }
 
 .card-main {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .card-title {
+  margin: 0 0 4px;
   font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 8px;
+  font-weight: 700;
+  color: #1d2129;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .card-description {
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
   margin: 0;
+  font-size: 12px;
+  color: #86909c;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -469,31 +678,23 @@ defineExpose({
 
 .card-info {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--td-component-border);
+  gap: 12px;
 }
 
 .info-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.info-item :deep(.t-icon) {
-  color: var(--td-brand-color);
+  color: #86909c;
 }
 
 .card-actions {
+  padding: 8px 16px 12px;
   display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 16px;
-  background: var(--td-bg-color-container-hover);
-  border-top: 1px solid var(--td-component-border);
+  gap: 8px;
+  border-top: 1px solid #f2f3f5;
+  margin-top: 4px;
 }
 
 .empty-state {
@@ -502,19 +703,104 @@ defineExpose({
   align-items: center;
   justify-content: center;
   padding: 80px 20px;
-  color: var(--td-text-color-secondary);
-  gap: 16px;
+  color: #86909c;
+}
+
+.empty-state .t-icon {
+  margin-bottom: 16px;
+  color: #c9cdd4;
 }
 
 .empty-state p {
-  margin: 0;
-  font-size: 16px;
+  font-size: 14px;
+  margin-bottom: 20px;
 }
 
 .pagination-wrapper {
-  margin-top: auto;
-  padding-top: 16px;
+  padding: 16px 0;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 表单搜索下拉 */
+.name-field-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.suggestion-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.suggestion-loading {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #86909c;
+}
+
+.suggestion-empty {
+  padding: 16px;
+  text-align: center;
+  color: #86909c;
+  font-size: 13px;
+}
+
+.suggestion-item {
+  display: flex;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 1px solid #f2f3f5;
+}
+
+.suggestion-item:hover { background: #f2f3f5; }
+.suggestion-item:last-child { border-bottom: none; }
+
+.suggestion-icon {
+  margin-right: 10px;
+  color: #0052d9;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.suggestion-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.suggestion-name {
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-address {
+  font-size: 12px;
+  color: #86909c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coord-unit {
+  color: #86909c;
+  font-size: 12px;
+  font-weight: 500;
 }
 </style>

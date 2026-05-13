@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
+
+	"webGL-720yun/internal/model"
 
 	"github.com/minio/minio-go/v7"
-	"webGL-720yun/internal/model"
+	"golang.org/x/sync/errgroup"
 )
 
 // DownloadSceneSource 下载场景的源文件
@@ -40,8 +41,6 @@ func (m *MinIOClient) UploadSceneTiles(ctx context.Context, spaceSlug, sceneCode
 		for level, files := range levels {
 			for _, file := range files {
 				fileName := filepath.Base(file)
-				// 从文件名解析 x, y 坐标 (tile_x_y.jpg)
-				// 注意：tiler.go 生成的是 tile_x_y.jpg，这里必须对应
 				var x, y int
 				fmt.Sscanf(fileName, "tile_%d_%d.jpg", &x, &y)
 
@@ -51,37 +50,25 @@ func (m *MinIOClient) UploadSceneTiles(ctx context.Context, spaceSlug, sceneCode
 		}
 	}
 
-	const maxConcurrent = 10
+	g, ctx := errgroup.WithContext(ctx)
+	const maxConcurrent = 15 // 稍微放宽并发限制
 	sem := make(chan struct{}, maxConcurrent)
-	var wg sync.WaitGroup
-	errChan := make(chan error, len(tasks))
 
 	for _, t := range tasks {
-		wg.Add(1)
-		go func(t task) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			if err := m.uploadFile(ctx, t.objectName, t.filePath); err != nil {
-				select {
-				case errChan <- err:
-				default:
-				}
+		t := t // 闭包安全
+		g.Go(func() error {
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return ctx.Err()
 			}
-		}(t)
+
+			return m.uploadFile(ctx, t.objectName, t.filePath)
+		})
 	}
 
-	wg.Wait()
-	close(errChan)
-
-	for err := range errChan {
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return g.Wait()
 }
 
 // CheckSceneAssetsExist 检查场景资源是否已存在

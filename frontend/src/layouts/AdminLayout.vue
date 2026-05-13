@@ -289,37 +289,48 @@ onMounted(() => {
   margin-top: 64px;
   height: calc(100vh - 64px);
   width: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
 .admin-sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 240px;
   height: 100%;
   background-color: #ffffff;
   border-right: 1px solid #f2f3f5;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   z-index: 1000;
+  overflow: hidden;
 }
 
 .admin-sidebar.sidebar-hidden {
-  width: 0;
   transform: translateX(-100%);
-  opacity: 0;
-  pointer-events: none;
 }
 
 .admin-main {
   flex: 1;
+  width: 100%;
   height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   position: relative;
+  margin-left: 240px;
+  transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-body:has(.admin-sidebar.sidebar-hidden) .admin-main {
+  margin-left: 0;
 }
 
 .admin-content-wrapper {
   flex: 1;
   padding: 24px 32px;
+  overflow: hidden;
 }
 
 .admin-footer {

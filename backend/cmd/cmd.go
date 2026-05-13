@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -30,6 +31,10 @@ import (
 const DefaultWorkerCount = 3
 
 func Run() {
+	// 设置 Go 运行时内存上限为 4GiB (Go 1.19+)
+	// 这会使 GC 在接近此限制时变得更积极，任务完成后也能更快回落
+	debug.SetMemoryLimit(4 * 1024 * 1024 * 1024)
+
 	// 1. 初始化配置 (Internal) - 加载应用所有配置项
 	if err := config.Init(); err != nil {
 		fmt.Printf("配置加载失败: %v\n", err)

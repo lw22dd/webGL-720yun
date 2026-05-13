@@ -23,6 +23,8 @@ type ResSpace struct {
 	CreatedBy   uint           `gorm:"index;column:created_by;comment:创建者ID" json:"created_by"`
 
 	Scenes []ResScene `gorm:"foreignKey:SpaceID" json:"scenes,omitempty"`
+
+	SceneCount int `gorm:"-" json:"scene_count"` // 非数据库字段，用于存储场景数量统计
 }
 
 func (ResSpace) TableName() string {

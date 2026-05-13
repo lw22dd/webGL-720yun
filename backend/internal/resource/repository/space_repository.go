@@ -99,6 +99,13 @@ func (r *SpaceRepository) GetList(query *SpaceListQuery) ([]*model.ResSpace, int
 		return nil, 0, err
 	}
 
+	// 查询每个空间的场景数量
+	for _, space := range spaces {
+		var count int64
+		r.db.Model(&model.ResScene{}).Where("space_id = ?", space.ID).Count(&count)
+		space.SceneCount = int(count)
+	}
+
 	return spaces, total, nil
 }
 

@@ -93,6 +93,11 @@ type SceneSimple struct {
 }
 
 func ToSpaceListItem(space *model.ResSpace) *SpaceListItem {
+	// 优先使用已统计的 SceneCount，否则计算 Scenes 切片长度
+	sceneCount := space.SceneCount
+	if sceneCount == 0 && len(space.Scenes) > 0 {
+		sceneCount = len(space.Scenes)
+	}
 	return &SpaceListItem{
 		ID:          space.ID,
 		Name:        space.Name,
@@ -106,7 +111,7 @@ func ToSpaceListItem(space *model.ResSpace) *SpaceListItem {
 		ZoomLevel:   space.ZoomLevel,
 		SortOrder:   space.SortOrder,
 		Status:      space.Status,
-		SceneCount:  len(space.Scenes),
+		SceneCount:  sceneCount,
 		CreatedAt:   space.CreatedAt,
 		UpdatedAt:   space.UpdatedAt,
 	}

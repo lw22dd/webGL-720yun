@@ -52,7 +52,39 @@ const (
 	KeyPrefixUploadUser     = "upload:user:"
 	KeyPrefixFileMD5        = "file:md5:"
 	KeyPrefixFileInfo       = "file:info:"
+	KeyPrefixSceneMeta      = "scene:meta:"
 )
+
+func (s *RedisService) CacheSceneMeta(sceneCode string, meta interface{}, expiresIn time.Duration) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixSceneMeta, sceneCode)
+	data, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	return s.client.Set(key, data, expiresIn).Err()
+}
+
+func (s *RedisService) GetCachedSceneMeta(sceneCode string) (map[string]interface{}, error) {
+	key := fmt.Sprintf("%s%s", KeyPrefixSceneMeta, sceneCode)
+	data, err := s.client.Get(key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var meta map[string]interface{}
+	if err := json.Unmarshal([]byte(data), &meta); err != nil {
+		return nil, err
+	}
+	return meta, nil
+}
+
+func (s *RedisService) DeleteCachedSceneMeta(sceneCode string) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixSceneMeta, sceneCode)
+	return s.client.Del(key).Err()
+}
 
 func (s *RedisService) SaveUserSession(userID uint, accessToken, refreshToken string, expiresIn time.Duration) error {
 	sessionData := map[string]interface{}{

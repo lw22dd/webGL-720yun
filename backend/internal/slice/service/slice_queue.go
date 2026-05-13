@@ -20,6 +20,7 @@ const (
 
 	UserStreamPrefix  = "slice:user:"
 	ActiveUsersKey    = "slice:active_users"
+	BusyUsersKey      = "slice:busy_users"
 	GlobalCounterKey  = "slice:global_counter"
 	AvgProcessTimeSec = 30
 )
@@ -60,6 +61,18 @@ func (q *SliceQueue) getUserStreamKey(userID uint) string {
 
 func (q *SliceQueue) getUserGroupName(userID uint) string {
 	return fmt.Sprintf("user_%d_group", userID)
+}
+
+func (q *SliceQueue) SetUserBusy(userID uint) error {
+	return q.redis.GetClient().SAdd(BusyUsersKey, userID).Err()
+}
+
+func (q *SliceQueue) ClearUserBusy(userID uint) error {
+	return q.redis.GetClient().SRem(BusyUsersKey, userID).Err()
+}
+
+func (q *SliceQueue) ClearAllBusyUsers() error {
+	return q.redis.GetClient().Del(BusyUsersKey).Err()
 }
 
 func (q *SliceQueue) PushTask(task *SliceTask) error {
@@ -122,60 +135,78 @@ func (q *SliceQueue) PopTask() (*SliceTask, string, error) {
 	}
 
 	for _, userIDStr := range userIDs {
-		userID, err := strconv.ParseUint(userIDStr, 10, 64)
-		if err != nil {
-			continue
+		userID, _ := strconv.ParseUint(userIDStr, 10, 64)
+		uID := uint(userID)
+
+		// 检查用户是否已经有正在处理的任务 (忙碌检查)
+		isBusy, err := client.SIsMember(BusyUsersKey, uID).Result()
+		if err == nil && isBusy {
+			continue // 该用户已忙，跳过，保证公平性（一户一岗）
 		}
 
-		userStreamKey := q.getUserStreamKey(uint(userID))
-		groupName := q.getUserGroupName(uint(userID))
+		userStreamKey := q.getUserStreamKey(uID)
+		groupName := q.getUserGroupName(uID)
 
 		err = client.XGroupCreateMkStream(userStreamKey, groupName, "0").Err()
 		if err != nil {
 		}
 
-		streams, err := client.XReadGroup(&redis.XReadGroupArgs{
-			Group:    groupName,
-			Consumer: SliceConsumer,
-			Streams:  []string{userStreamKey, ">"},
-			Count:    1,
-			Block:    100 * time.Millisecond,
-		}).Result()
-		if err != nil {
-			if err == redis.Nil {
-				q.checkAndRemoveEmptyUser(uint(userID), userStreamKey)
-				continue
-			}
-			continue
+		// 优先尝试读取已经分配但未确认的任务 (PEL 恢复)
+		// ID="0" 表示读取分配给当前消费者但还未 ACK 的消息
+		task, msgID, err := q.readFromStream(userStreamKey, groupName, "0")
+		if err == nil && task != nil {
+			q.SetUserBusy(uID) // 标记为忙碌
+			return task, msgID, nil
 		}
 
-		if len(streams) == 0 || len(streams[0].Messages) == 0 {
-			q.checkAndRemoveEmptyUser(uint(userID), userStreamKey)
-			continue
+		// 尝试读取新任务 (">" 表示未分配给任何消费者的消息)
+		task, msgID, err = q.readFromStream(userStreamKey, groupName, ">")
+		if err == nil && task != nil {
+			q.SetUserBusy(uID) // 标记为忙碌
+			return task, msgID, nil
 		}
-
-		msg := streams[0].Messages[0]
-		messageID := msg.ID
-
-		dataStr, ok := msg.Values["data"].(string)
-		if !ok {
-			client.XDel(userStreamKey, messageID)
-			return nil, "", fmt.Errorf("任务数据格式错误")
-		}
-
-		var task SliceTask
-		if err := json.Unmarshal([]byte(dataStr), &task); err != nil {
-			client.XDel(userStreamKey, messageID)
-			return nil, "", fmt.Errorf("解析任务数据失败: %w", err)
-		}
-
-		q.updateUserActiveTime(task.UserID)
-
-		return &task, messageID, nil
 	}
 
 	return nil, "", nil
 }
+
+func (q *SliceQueue) readFromStream(streamKey, groupName, id string) (*SliceTask, string, error) {
+	client := q.redis.GetClient()
+	streams, err := client.XReadGroup(&redis.XReadGroupArgs{
+		Group:    groupName,
+		Consumer: SliceConsumer,
+		Streams:  []string{streamKey, id},
+		Count:    1,
+		Block:    10 * time.Millisecond,
+	}).Result()
+
+	if err != nil {
+		return nil, "", err
+	}
+
+	if len(streams) == 0 || len(streams[0].Messages) == 0 {
+		return nil, "", nil
+	}
+
+	msg := streams[0].Messages[0]
+	messageID := msg.ID
+
+	dataStr, ok := msg.Values["data"].(string)
+	if !ok {
+		client.XDel(streamKey, messageID)
+		return nil, "", fmt.Errorf("任务数据格式错误")
+	}
+
+	var task SliceTask
+	if err := json.Unmarshal([]byte(dataStr), &task); err != nil {
+		client.XDel(streamKey, messageID)
+		return nil, "", fmt.Errorf("解析任务数据失败: %w", err)
+	}
+
+	q.updateUserActiveTime(task.UserID)
+	return &task, messageID, nil
+}
+
 
 func (q *SliceQueue) checkAndRemoveEmptyUser(userID uint, userStreamKey string) {
 	client := q.redis.GetClient()

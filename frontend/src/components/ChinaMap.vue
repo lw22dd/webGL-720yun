@@ -40,12 +40,7 @@
         </div>
       </div>
 
-      <div class="hot-tags" v-if="!showSearchResults">
-        <span class="hot-tag-label">热门：</span>
-        <span v-for="tag in hotTags" :key="tag" class="hot-tag" @click="onHotTagClick(tag)">
-          {{ tag }}
-        </span>
-      </div>
+
 
       <div class="view-toggle">
         <t-button :variant="viewMode === 'map' ? 'base' : 'outline'" size="small"
@@ -86,7 +81,6 @@ const loading = ref(true)
 const spaceList = ref<SpaceListItem[]>([])
 
 const searchHistory = ref<string[]>([])
-const hotTags = ['故宫', '西湖', '兵马俑', '都江堰', '敦煌']
 
 let chartInstance: echarts.ECharts | null = null
 let resizeObserver: ResizeObserver | null = null
@@ -204,7 +198,7 @@ const initMap = async () => {
           type: 'effectScatter',
           coordinateSystem: 'geo',
           data: [],
-          symbolSize: (val: number[]) => Math.max(14, val[2] * 2.8),
+          symbolSize: 16,
           showEffectOn: 'render',
           rippleEffect: { brushType: 'stroke', scale: 3.5, period: 4 },
           label: {
@@ -345,11 +339,6 @@ const handleResultClick = async (result: any) => {
 const onHistoryTagClick = (term: string) => {
   searchKeyword.value = term
   handleSearchChange(term)
-}
-
-const onHotTagClick = (tag: string) => {
-  searchKeyword.value = tag
-  handleSearchChange(tag)
 }
 
 watch(() => props.viewMode, () => {
@@ -515,46 +504,6 @@ defineExpose({
   display: block;
   color: rgba(255, 255, 255, 0.4);
   font-size: 12px;
-}
-
-.hot-tags {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 12px;
-  padding: 12px 16px;
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.hot-tag-label {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.hot-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  background: rgba(14, 165, 233, 0.15);
-  border-radius: 12px;
-  font-size: 12px;
-  color: #0EA5E9;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.hot-tag:hover {
-  background: rgba(14, 165, 233, 0.3);
-  color: #fff;
-  transform: translateY(-1px);
 }
 
 .view-toggle {

@@ -46,28 +46,44 @@ func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQu
 	}
 }
 
-func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isAdmin bool) (*dto.CreateSceneResponse, error) {
-	space, err := s.spaceRepo.FindByID(req.SpaceID)
+func (s *SceneService) checkSpacePermission(spaceID uint, userID uint, isAdmin bool) (*model.ResSpace, error) {
+	space, err := s.spaceRepo.FindByID(spaceID)
 	if err != nil {
 		return nil, fmt.Errorf("空间不存在: %w", err)
 	}
 
 	if !isAdmin && space.CreatedBy != userID {
-		return nil, errors.New("无权限在此空间创建场景")
+		return nil, errors.New("无权限在此空间操作")
+	}
+	return space, nil
+}
+
+func (s *SceneService) validateAndPrepareSceneCode(sceneCode, title string, excludeID uint) (string, error) {
+	code, err := s.generateSceneCode(sceneCode, title)
+	if err != nil {
+		return "", err
 	}
 
-	// 自动生成或清理 SceneCode
-	sceneCode, err := s.generateSceneCode(req.SceneCode, req.Title)
+	exists, err := s.repo.CheckSceneCodeExists(code, excludeID)
+	if err != nil {
+		return "", fmt.Errorf("检查场景编码失败: %w", err)
+	}
+	if exists {
+		return "", errors.New("场景编码已存在")
+	}
+
+	return code, nil
+}
+
+func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isAdmin bool) (*dto.CreateSceneResponse, error) {
+	space, err := s.checkSpacePermission(req.SpaceID, userID, isAdmin)
 	if err != nil {
 		return nil, err
 	}
 
-	exists, err := s.repo.CheckSceneCodeExists(sceneCode, 0)
+	sceneCode, err := s.validateAndPrepareSceneCode(req.SceneCode, req.Title, 0)
 	if err != nil {
-		return nil, fmt.Errorf("检查场景编码失败: %w", err)
-	}
-	if exists {
-		return nil, errors.New("场景编码已存在")
+		return nil, err
 	}
 
 	scene := &model.ResScene{
@@ -151,7 +167,7 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 				return nil, fmt.Errorf("推送切片任务失败: %w", err)
 			}
 
-			scene.SliceStatus = model.SliceStatusSlicing
+			// 保持为 Pending 状态，直到 Worker 开始领任务并更新为 Slicing
 			if err := s.repo.Update(scene); err != nil {
 				return nil, fmt.Errorf("更新场景状态失败: %w", err)
 			}
@@ -238,6 +254,9 @@ func (s *SceneService) UpdateScene(id uint, req *dto.UpdateSceneRequest, userID 
 		return nil, fmt.Errorf("更新场景失败: %w", err)
 	}
 
+	// 清理元数据缓存，确保瓦片请求能获取到最新路径
+	s.redisService.DeleteCachedSceneMeta(scene.SceneCode)
+
 	if shouldTriggerSlice && s.sliceQueue != nil {
 		if scene.SourceURL == "" {
 			logger.Warnf("⚠️  场景 [%s] 的 SourceURL 为空，跳过切片任务", scene.SceneCode)
@@ -260,10 +279,8 @@ func (s *SceneService) UpdateScene(id uint, req *dto.UpdateSceneRequest, userID 
 			if err := s.sliceQueue.PushTask(task); err != nil {
 				logger.Warnf("推送切片任务失败: %v", err)
 			} else {
-				scene.SliceStatus = model.SliceStatusSlicing
+				scene.SliceStatus = model.SliceStatusPending
 				s.repo.Update(scene)
-				// 减少日志输出，避免打断进度条
-				// logger.Infof("🚀 已为场景 [%s] 推送切片任务: %s", scene.Title, taskID)
 			}
 		}
 	}
@@ -296,6 +313,9 @@ func (s *SceneService) DeleteScene(id uint, userID uint, isAdmin bool) error {
 	if err != nil {
 		return err
 	}
+
+	// 清理元数据缓存
+	s.redisService.DeleteCachedSceneMeta(scene.SceneCode)
 
 	if scene.SourceURL != "" {
 		sourceObjectName := s.extractObjectName(scene.SourceURL)
@@ -374,13 +394,9 @@ func (s *SceneService) GetSceneDetail(id uint) (*dto.SceneDetailResponse, error)
 }
 
 func (s *SceneService) BatchImport(spaceID uint, file *multipart.FileHeader, userID uint, isAdmin bool) (*dto.BatchImportResponse, error) {
-	space, err := s.spaceRepo.FindByID(spaceID)
+	_, err := s.checkSpacePermission(spaceID, userID, isAdmin)
 	if err != nil {
-		return nil, fmt.Errorf("空间不存在: %w", err)
-	}
-
-	if !isAdmin && space.CreatedBy != userID {
-		return nil, errors.New("无权限在此空间导入场景")
+		return nil, err
 	}
 
 	var items []dto.BatchImportItem
@@ -403,8 +419,8 @@ func (s *SceneService) BatchImport(spaceID uint, file *multipart.FileHeader, use
 	}
 
 	for i, item := range items {
-		// 自动生成或清理 SceneCode
-		sceneCode, err := s.generateSceneCode(item.SceneCode, item.Title)
+		// 使用统一的验证和准备逻辑
+		sceneCode, err := s.validateAndPrepareSceneCode(item.SceneCode, item.Title, 0)
 		if err != nil {
 			response.Results[i] = dto.BatchImportResult{
 				Index:     i + 1,
@@ -428,40 +444,28 @@ func (s *SceneService) BatchImport(spaceID uint, file *multipart.FileHeader, use
 			Title:     item.Title,
 		}
 
-		exists, _ := s.repo.CheckSceneCodeExists(sceneCode, 0)
-		if exists {
+		scene := &model.ResScene{
+			SpaceID:   spaceID,
+			Title:     item.Title,
+			SceneCode: sceneCode,
+			Longitude: item.Longitude,
+			Latitude:  item.Latitude,
+			Status:    1,
+		}
+
+		if err := s.repo.Create(scene); err != nil {
 			result.Status = "failed"
-			result.Message = "场景编码已存在"
+			result.Message = "创建失败"
 			response.FailedCount++
 			response.Errors = append(response.Errors, dto.BatchImportError{
 				Index:     i + 1,
 				SceneCode: sceneCode,
-				Error:     "场景编码已存在",
+				Error:     err.Error(),
 			})
 		} else {
-			scene := &model.ResScene{
-				SpaceID:   spaceID,
-				Title:     item.Title,
-				SceneCode: sceneCode,
-				Longitude: item.Longitude,
-				Latitude:  item.Latitude,
-				Status:    1,
-			}
-
-			if err := s.repo.Create(scene); err != nil {
-				result.Status = "failed"
-				result.Message = "创建失败"
-				response.FailedCount++
-				response.Errors = append(response.Errors, dto.BatchImportError{
-					Index:     i + 1,
-					SceneCode: sceneCode,
-					Error:     err.Error(),
-				})
-			} else {
-				result.Status = "success"
-				result.Message = "创建成功"
-				response.SuccessCount++
-			}
+			result.Status = "success"
+			result.Message = "创建成功"
+			response.SuccessCount++
 		}
 
 		response.Results[i] = result
@@ -675,46 +679,65 @@ type ResourceStreamResult struct {
 	ContentType string
 }
 
-// GetTileStream 流式获取瓦片图片
-func (s *SceneService) GetTileStream(ctx context.Context, sceneCode, face string, level, x, y int) (*ResourceStreamResult, error) {
-	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
-	if err != nil {
-		return nil, fmt.Errorf("scene not found: %w", err)
+// getSpaceSlug 通过 sceneCode 获取 SpaceSlug，优先从缓存读取
+func (s *SceneService) getSpaceSlug(sceneCode string) (string, error) {
+	// 1. 尝试从 Redis 缓存读取
+	meta, err := s.redisService.GetCachedSceneMeta(sceneCode)
+	if err == nil && meta != nil {
+		if slug, ok := meta["space_slug"].(string); ok {
+			return slug, nil
+		}
 	}
 
-	spaceName := scene.Space.Slug
+	// 2. 缓存未命中，从 MySQL 读取
+	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	if err != nil {
+		return "", fmt.Errorf("scene not found: %w", err)
+	}
+
+	spaceSlug := scene.Space.Slug
+
+	// 3. 异步写入缓存 (过期时间 1 小时)
+	go func() {
+		s.redisService.CacheSceneMeta(sceneCode, map[string]string{
+			"space_slug": spaceSlug,
+		}, 1*time.Hour)
+	}()
+
+	return spaceSlug, nil
+}
+
+// GetTileStream 流式获取瓦片图片
+func (s *SceneService) GetTileStream(ctx context.Context, sceneCode, face string, level, x, y int) (*ResourceStreamResult, error) {
+	spaceName, err := s.getSpaceSlug(sceneCode)
+	if err != nil {
+		return nil, err
+	}
 
 	// 使用统一的路径生成函数，保持 x, y 顺序一致
 	objectPath := model.GetSceneTilePath(spaceName, sceneCode, face, level, x, y)
-
-	logger.Infof("🔍 GetTileStream: sceneCode=%s, face=%s, level=%d, x=%d, y=%d, objectPath=%s", sceneCode, face, level, x, y, objectPath)
-
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 
 // GetPreviewStream 流式获取预览图
 func (s *SceneService) GetPreviewStream(ctx context.Context, sceneCode string) (*ResourceStreamResult, error) {
-	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	spaceName, err := s.getSpaceSlug(sceneCode)
 	if err != nil {
-		return nil, fmt.Errorf("scene not found: %w", err)
+		return nil, err
 	}
 
-	spaceName := scene.Space.Slug
 	objectPath := model.GetScenePreviewPath(spaceName, sceneCode)
-
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 
 // GetSourceStream 流式获取场景原始全景图
 func (s *SceneService) GetSourceStream(ctx context.Context, sceneCode string) (*ResourceStreamResult, error) {
-	scene, err := s.repo.FindBySceneCodeWithSpace(sceneCode)
+	spaceName, err := s.getSpaceSlug(sceneCode)
 	if err != nil {
-		return nil, fmt.Errorf("scene not found: %w", err)
+		return nil, err
 	}
 
-	spaceName := scene.Space.Slug
 	objectPath := model.GetSceneSourcePath(spaceName, sceneCode)
-
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 

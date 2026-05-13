@@ -134,6 +134,11 @@ func (p *SliceProcessor) Process(ctx context.Context, task *sliceservice.SliceTa
 	bar := progress.GlobalManager.CreateBar(task.TaskID, 100, "切片处理中", false)
 	defer progress.GlobalManager.RemoveBar(task.TaskID)
 
+	// 更新状态为正在处理
+	if err := p.db.Model(&model.ResScene{}).Where("id = ?", task.SceneID).Update("slice_status", model.SliceStatusSlicing).Error; err != nil {
+		log.Printf("⚠️  更新场景状态为 Slicing 失败: %v", err)
+	}
+
 	bar.Set(5)
 
 	// 检查是否已经存在处理好的资源，避免重复切片
