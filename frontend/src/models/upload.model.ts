@@ -62,10 +62,10 @@ export type UploadTask = {
 }
 
 export type WebSocketMessage = {
-  type: 'progress' | 'complete' | 'error' | 'merge_start' | 'merge_progress' | 'slice_progress' | 'slice_complete' | 'slice_error'
+  type: 'progress' | 'complete' | 'error' | 'merge_start' | 'merge_progress' | 'slice_progress' | 'slice_complete' | 'slice_error' | 'slice_queue_status'
   upload_id?: string
   user_id: number
-  data: ProgressData | CompleteData | ErrorData | MergeProgressData | SliceProgressData | SliceCompleteData | SliceErrorData
+  data: ProgressData | CompleteData | ErrorData | MergeProgressData | SliceProgressData | SliceCompleteData | SliceErrorData | SliceQueueStatusData
   timestamp: number
 }
 
@@ -122,6 +122,17 @@ export type SliceErrorData = {
   scene_code: string
   error: string
   timestamp: number
+}
+
+export type SliceQueueStatusData = {
+  task_id: string
+  scene_code: string
+  user_queue_position: number
+  global_queue_position: number
+  queue_ahead_count: number
+  estimated_wait_seconds: number
+  active_users: number
+  found: boolean
 }
 
 export type UploadOptions = {

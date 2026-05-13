@@ -197,21 +197,6 @@ const copyShareLink = () => {
   })
 }
 
-const submitQuiz = () => {
-  if (selectedQuizOption.value === null || !currentHotspot.value) return
-
-  const answer = currentHotspot.value.answer
-  const options = currentHotspot.value.options ? JSON.parse(currentHotspot.value.options) : []
-
-  if (options[selectedQuizOption.value] === answer) {
-    MessagePlugin.success('回答正确！')
-  } else {
-    MessagePlugin.warning('回答错误，正确答案是：' + answer)
-  }
-
-  quizDialogVisible.value = false
-}
-
 const goBack = () => {
   if (window.history.state && window.history.length > 2) {
     router.back()

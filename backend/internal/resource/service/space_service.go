@@ -13,6 +13,7 @@ import (
 	"webGL-720yun/internal/model"
 	"webGL-720yun/internal/resource/dto"
 	"webGL-720yun/internal/resource/repository"
+	"webGL-720yun/pkg/logger"
 	"webGL-720yun/pkg/minio_client"
 	"webGL-720yun/pkg/utils"
 
@@ -264,6 +265,8 @@ func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, slug string)
 	ext := ".jpg"
 	objectName := model.GetSpaceCoverPath(slug)
 
+	logger.Infof("☁️  uploadCoverImage: slug=%s, objectName=%s, fileSize=%d", slug, objectName, file.Size)
+
 	tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("upload_%d%s", time.Now().UnixNano(), ext))
 	dst, err := os.Create(tempFile)
 	if err != nil {
@@ -281,6 +284,7 @@ func (s *SpaceService) uploadCoverImage(file *multipart.FileHeader, slug string)
 		return "", fmt.Errorf("上传到MinIO失败: %w", err)
 	}
 
+	logger.Infof("☁️  uploadCoverImage 成功: url=%s", url)
 	return url, nil
 }
 

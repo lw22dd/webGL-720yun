@@ -1,7 +1,7 @@
 import AMapLoader from '@amap/amap-jsapi-loader'
 
-const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || '38e34e74351ae3554aee1a94fdee9c62'
-const AMAP_SECURITY_KEY = import.meta.env.VITE_AMAP_SECURITY_KEY || '7c140de5a9222a71cc6894bb50300d13'
+const AMAP_KEY = import.meta.env.VITE_AMAP_KEY 
+const AMAP_SECURITY_KEY = import.meta.env.VITE_AMAP_SECURITY_KEY 
 
 let amapInstance: any = null
 let amapLoaderPromise: Promise<any> | null = null

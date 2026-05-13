@@ -10,7 +10,7 @@
   >
     <div class="dialog-layout-container" :class="{ 'with-map': showMapPanel }">
       <div class="form-panel">
-        <slot :formData="formData" :submitLoading="submitLoading" :closeDialog="closeDialog" :isEdit="isEdit" />
+        <slot :formData="formData" :submitLoading="submitLoading" :closeDialog="closeDialog" :isEdit="isEdit" :editingId="editingId" />
       </div>
 
       <div v-if="showMapPanel" class="map-panel">
@@ -92,6 +92,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const submitLoading = ref(false)
 const isEdit = ref(false)
+const editingId = ref<string | number | null>(null)
 
 const formData = reactive<Record<string, any>>({
   name: '',
@@ -244,6 +245,7 @@ const extractCity = (district: string): string => {
 
 const openAddDialog = (title: string = '新增') => {
   isEdit.value = false
+  editingId.value = null
   dialogTitle.value = title
   Object.keys(formData).forEach(key => {
     formData[key] = ''
@@ -253,8 +255,12 @@ const openAddDialog = (title: string = '新增') => {
 
 const openEditDialog = (data: Record<string, any>, id: string | number, title: string = '编辑') => {
   isEdit.value = true
+  editingId.value = id
   dialogTitle.value = title
-  Object.assign(formData, data)
+  Object.keys(formData).forEach(key => {
+    delete formData[key]
+  })
+  Object.assign(formData, { id, ...data })
   dialogVisible.value = true
 }
 

@@ -24,6 +24,7 @@ import (
 	"webGL-720yun/pkg/minio_client"
 	"webGL-720yun/pkg/redis"
 	"webGL-720yun/pkg/utils"
+	"webGL-720yun/pkg/websocket"
 )
 
 type SceneService struct {
@@ -33,9 +34,10 @@ type SceneService struct {
 	imageProcessor *image.Processor
 	sliceQueue     *sliceService.SliceQueue
 	redisService   *redis.RedisService
+	wsHub          *websocket.Hub
 }
 
-func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQueue *sliceService.SliceQueue, redisService *redis.RedisService) *SceneService {
+func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQueue *sliceService.SliceQueue, redisService *redis.RedisService, wsHub *websocket.Hub) *SceneService {
 	return &SceneService{
 		repo:           repository.NewSceneRepository(db),
 		spaceRepo:      repository.NewSpaceRepository(db),
@@ -43,6 +45,7 @@ func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQu
 		imageProcessor: image.NewProcessor(),
 		sliceQueue:     sliceQueue,
 		redisService:   redisService,
+		wsHub:          wsHub,
 	}
 }
 
@@ -167,6 +170,9 @@ func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isA
 				return nil, fmt.Errorf("推送切片任务失败: %w", err)
 			}
 
+			// 通知前端队列状态
+			s.sendQueueStatusWS(taskID, userID, scene.SceneCode)
+
 			// 保持为 Pending 状态，直到 Worker 开始领任务并更新为 Slicing
 			if err := s.repo.Update(scene); err != nil {
 				return nil, fmt.Errorf("更新场景状态失败: %w", err)
@@ -281,6 +287,7 @@ func (s *SceneService) UpdateScene(id uint, req *dto.UpdateSceneRequest, userID 
 			} else {
 				scene.SliceStatus = model.SliceStatusPending
 				s.repo.Update(scene)
+				s.sendQueueStatusWS(taskID, userID, scene.SceneCode)
 			}
 		}
 	}
@@ -655,6 +662,34 @@ func (s *SceneService) generateSceneCode(sceneCode, title string) (string, error
 
 	// 生成拼音-UUID 格式
 	return utils.GenerateSceneCode(title), nil
+}
+
+// sendQueueStatusWS 发送队列位置信息到 WebSocket
+func (s *SceneService) sendQueueStatusWS(taskID string, userID uint, sceneCode string) {
+	if s.wsHub == nil || s.sliceQueue == nil {
+		return
+	}
+
+	stats, err := s.sliceQueue.GetQueueStats(userID)
+	if err != nil || stats == nil {
+		return
+	}
+
+	data := &websocket.SliceQueueStatusData{
+		TaskID:               taskID,
+		SceneCode:            sceneCode,
+		UserQueuePosition:    stats.QueueAheadCount + 1,
+		GlobalQueuePosition:  stats.QueueAheadCount + 1,
+		QueueAheadCount:      stats.QueueAheadCount,
+		EstimatedWaitSeconds: stats.EstimatedWaitSec,
+		ActiveUsers:          stats.ActiveUsers,
+		Found:                true,
+	}
+
+	msg := websocket.NewSliceQueueStatusMessage(taskID, userID, data)
+	if msg != nil {
+		s.wsHub.SendToUser(userID, msg)
+	}
 }
 
 // ==================== 资源流式读取 ====================

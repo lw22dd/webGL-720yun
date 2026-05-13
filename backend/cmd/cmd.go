@@ -87,11 +87,14 @@ func Run() {
 		}
 	}
 
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+
 	// 4. 初始化服务层
 	userSvc := userService.NewUserService(db.DB, jwtService, redisClient)
 	spaceService := resService.NewSpaceService(db.DB, minioClient)
 	sliceQueue := router.NewSliceQueue(redisClient)
-	sceneService := resService.NewSceneService(db.DB, minioClient, sliceQueue, redisClient)
+	sceneService := resService.NewSceneService(db.DB, minioClient, sliceQueue, redisClient, wsHub)
 	hotspotService := resService.NewHotspotService(db.DB)
 
 	// 5. 为需要切片的场景创建切片任务
@@ -137,9 +140,6 @@ func Run() {
 			}
 		}
 	}
-
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
 
 	uploadService := router.NewUploadService(db.DB, minioClient, redisClient, wsHub, sliceQueue)
 

@@ -6,6 +6,7 @@ import (
 	"webGL-720yun/internal/core/middleware"
 	"webGL-720yun/internal/resource/dto"
 	"webGL-720yun/internal/resource/service"
+	"webGL-720yun/pkg/logger"
 	"webGL-720yun/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -70,13 +71,16 @@ func CreateSpace(svc *service.SpaceService) gin.HandlerFunc {
 		}
 
 		coverFile, _ := c.FormFile("cover")
+		logger.Infof("📷 CreateSpace: name=%s, coverFile=%v", req.Name, coverFile != nil)
 
 		space, err := svc.CreateSpace(&req, userID, coverFile)
 		if err != nil {
+			logger.Errorf("❌ CreateSpace 失败: %v", err)
 			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
+		logger.Infof("✅ CreateSpace 成功: id=%d, slug=%s, cover_url=%s", space.ID, space.Slug, space.CoverURL)
 		utils.Success(c, space)
 	}
 }
@@ -99,13 +103,16 @@ func UpdateSpace(svc *service.SpaceService) gin.HandlerFunc {
 		}
 
 		coverFile, _ := c.FormFile("cover")
+		logger.Infof("📷 UpdateSpace: id=%d, name=%s, coverFile=%v", req.ID, updateReq.Name, coverFile != nil)
 
 		space, err := svc.UpdateSpace(req.ID, &updateReq, userID, isAdmin, coverFile)
 		if err != nil {
+			logger.Errorf("❌ UpdateSpace 失败: %v", err)
 			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
+		logger.Infof("✅ UpdateSpace 成功: id=%d, cover_url=%s", space.ID, space.CoverURL)
 		utils.Success(c, space)
 	}
 }

@@ -57,9 +57,9 @@ export function isValidTileCoord(level: number, x: number, y: number): boolean {
 }
 
 export function calculateVisibleTiles(
-  yaw: number,
-  pitch: number,
-  fov: number,
+  _yaw: number,
+  _pitch: number,
+  _fov: number,
   level: number
 ): Map<string, TileRange> {
   const tileCount = getLevelTileCount(level)

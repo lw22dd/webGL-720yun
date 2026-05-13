@@ -29,7 +29,6 @@ const router = useRouter()
 const spaceListRef = ref<InstanceType<typeof SpaceListView> | null>(null)
 const sceneListRef = ref<InstanceType<typeof SceneListView> | null>(null)
 const currentSpace = ref<SpaceListItem | null>(null)
-const loading = ref(false)
 const initializing = ref(false)
 
 const handleSpaceClick = (space: SpaceListItem) => {
@@ -47,7 +46,7 @@ const loadSpaceDetail = async (spaceId: number) => {
     initializing.value = true
     const result = await SpaceApi.getSpaceDetail(spaceId)
     if (result.code === 200 && result.data) {
-      currentSpace.value = result.data as SpaceListItem
+      currentSpace.value = result.data as unknown as SpaceListItem
     } else {
       MessagePlugin.error(result.msg || '获取空间详情失败')
     }

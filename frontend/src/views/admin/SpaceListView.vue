@@ -113,13 +113,13 @@
     </t-dialog>
 
     <FormDialog ref="formDialogRef">
-      <template #default="{ formData, submitLoading, closeDialog, isEdit }">
+      <template #default="{ formData, submitLoading, closeDialog, editingId }">
         <t-form
           ref="formRef"
           :data="formData"
           :rules="formRules"
           label-width="100px"
-          @submit="handleSubmit"
+          @submit="handleSubmit(editingId)"
         >
           <t-form-item label="空间名称" name="name">
             <div class="name-field-wrapper">
@@ -197,6 +197,53 @@
             <t-input v-model="formData.city" placeholder="选择地点后自动填写" disabled />
           </t-form-item>
 
+          <t-form-item label="封面图" name="cover">
+            <div class="cover-upload-wrapper">
+              <t-tag
+                v-if="coverStatus === 'idle'"
+                theme="warning"
+                variant="light"
+                size="small"
+              >未上传</t-tag>
+              <t-tag
+                v-else-if="coverStatus === 'done'"
+                theme="success"
+                variant="light"
+                size="small"
+              >已上传</t-tag>
+
+              <t-button
+                v-if="coverStatus !== 'uploading'"
+                variant="outline"
+                size="medium"
+                @click="triggerCoverInput"
+              >
+                <template #icon>
+                  <t-icon name="upload" />
+                </template>
+                {{ coverStatus === 'done' ? '更换封面' : '上传封面图' }}
+              </t-button>
+              <t-loading v-else size="small" text="封面上传中..." />
+              <input
+                ref="coverInputRef"
+                type="file"
+                accept="image/jpeg,image/png"
+                class="cover-input-hidden"
+                @change="handleCoverChange"
+              />
+              <t-button
+                v-if="coverStatus === 'done'"
+                variant="text"
+                theme="danger"
+                size="small"
+                @click="removeCover"
+              >
+                移除
+              </t-button>
+              <span v-if="coverFileName" class="cover-name">{{ coverFileName }}</span>
+            </div>
+          </t-form-item>
+
           <t-form-item label="描述" name="description">
             <t-textarea v-model="formData.description" placeholder="请输入空间描述" :rows="3" />
           </t-form-item>
@@ -258,10 +305,48 @@ const searchLoading = ref(false)
 const searchResults = ref<LocationResult[]>([])
 const searchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
+const coverFile = ref<File | null>(null)
+const coverFileName = ref('')
+const coverStatus = ref<'idle' | 'uploading' | 'done' | null>(null)
+const coverInputRef = ref<HTMLInputElement>()
+
 const formRules: Record<string, FormRule[]> = {
   name: [
     { required: true, message: '请输入空间名称', trigger: 'blur' }
   ]
+}
+
+const triggerCoverInput = () => {
+  coverInputRef.value?.click()
+}
+
+const handleCoverChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!['image/jpeg', 'image/png'].includes(file.type)) {
+    MessagePlugin.warning('仅支持 JPG / PNG 格式的图片')
+    return
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    MessagePlugin.warning('封面图片不能超过 10MB')
+    return
+  }
+
+  coverFile.value = file
+  coverFileName.value = file.name
+  coverStatus.value = 'idle'
+}
+
+const removeCover = () => {
+  coverFile.value = null
+  coverFileName.value = ''
+  coverStatus.value = null
+  if (coverInputRef.value) {
+    coverInputRef.value.value = ''
+  }
 }
 
 const getCoverUrl = (slug: string) => {
@@ -302,10 +387,27 @@ const loadSpaceList = async () => {
 }
 
 const handleAddSpace = () => {
+  coverFile.value = null
+  coverFileName.value = ''
+  coverStatus.value = null
+  if (coverInputRef.value) {
+    coverInputRef.value.value = ''
+  }
   formDialogRef.value?.openAddDialog('新增空间')
 }
 
 const handleEditSpace = (space: SpaceListItem) => {
+  coverFile.value = null
+  coverFileName.value = ''
+  if (coverInputRef.value) {
+    coverInputRef.value.value = ''
+  }
+  if (space.cover_url) {
+    coverStatus.value = 'done'
+    coverFileName.value = 'cover.jpg'
+  } else {
+    coverStatus.value = 'idle'
+  }
   formDialogRef.value?.openEditDialog(
     {
       name: space.name,
@@ -323,7 +425,7 @@ const handleEditSpace = (space: SpaceListItem) => {
   )
 }
 
-const handleSubmit = async () => {
+const handleSubmit = async (editingId: string | number | null) => {
   if (!formRef.value) return
   const valid = await formRef.value.validate()
   if (!valid) return
@@ -334,7 +436,7 @@ const handleSubmit = async () => {
     let longitude = data.longitude ? Number(data.longitude) : null
     let latitude = data.latitude ? Number(data.latitude) : null
 
-    if (!data.id && (longitude === null || latitude === null)) {
+    if (!editingId && (longitude === null || latitude === null)) {
       const address = [data.province, data.city].filter(Boolean).join(' ')
       if (address) {
         const coords = await geocode(address)
@@ -354,18 +456,33 @@ const handleSubmit = async () => {
     }
 
     let result
-    if (data.id) {
-      result = await SpaceApi.updateSpace(Number(data.id), submitData as any)
+    if (coverFile.value) {
+      coverStatus.value = 'uploading'
+    }
+    if (editingId) {
+      result = await SpaceApi.updateSpace(Number(editingId), submitData as any, coverFile.value || undefined)
     } else {
-      result = await SpaceApi.createSpace(submitData as any)
+      result = await SpaceApi.createSpace(submitData as any, coverFile.value || undefined)
     }
 
     if (result.code === 200) {
-      MessagePlugin.success(data.id ? '编辑空间成功' : '新增空间成功')
-      formDialogRef.value?.closeDialog()
+      MessagePlugin.success(editingId ? '编辑空间成功' : '新增空间成功')
+      if (coverFile.value) {
+        coverStatus.value = 'done'
+      } else {
+        coverStatus.value = 'idle'
+      }
       loadSpaceList()
+      // 延迟关闭弹窗，让用户看到上传状态
+      setTimeout(() => {
+        coverFile.value = null
+        coverFileName.value = ''
+        coverStatus.value = null
+        formDialogRef.value?.closeDialog()
+      }, 1500)
     } else {
       MessagePlugin.error(result.msg || '操作失败')
+      coverStatus.value = 'idle'
     }
   } catch (error: any) {
     console.error('提交失败:', error)
@@ -802,5 +919,26 @@ defineExpose({
   color: #86909c;
   font-size: 12px;
   font-weight: 500;
+}
+
+/* 封面上传 */
+.cover-upload-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cover-name {
+  font-size: 13px;
+  color: #4e5969;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cover-input-hidden {
+  display: none;
 }
 </style>

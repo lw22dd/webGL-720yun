@@ -85,6 +85,7 @@ type SliceErrorData struct {
 
 type SliceQueueStatusData struct {
 	TaskID               string `json:"task_id"`
+	SceneCode            string `json:"scene_code"`
 	UserQueuePosition    int    `json:"user_queue_position"`
 	GlobalQueuePosition  int    `json:"global_queue_position"`
 	QueueAheadCount      int    `json:"queue_ahead_count"`

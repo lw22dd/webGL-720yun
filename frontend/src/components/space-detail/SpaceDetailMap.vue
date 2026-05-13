@@ -88,7 +88,6 @@ let aMapInstance: any = null
 let markerList: Marker[] = []
 let satelliteLayer: any = null
 let normalLayer: any = null
-let normalLayerCreated = false
 
 const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || ''
 const AMAP_SECURITY_KEY = import.meta.env.VITE_AMAP_SECURITY_KEY || ''

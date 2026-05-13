@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { UploadTask, ProgressData, CompleteData, ErrorData, SliceProgressData, SliceCompleteData, SliceErrorData } from '@/models/upload.model'
+import type { UploadTask, ProgressData, CompleteData, ErrorData, SliceProgressData, SliceCompleteData, SliceErrorData, SliceQueueStatusData } from '@/models/upload.model'
 import wsClient from '@/services/websocket.service'
 import { useUserStore } from '@/stores/user.store'
 
@@ -8,12 +8,14 @@ export interface SliceTaskInfo {
   taskId: string
   sceneId: number
   sceneCode: string
-  status: 'pending' | 'slicing' | 'completed' | 'failed'
+  status: 'queued' | 'slicing' | 'completed' | 'failed'
   progress: number
   stage: string
   message: string
   tileUrl?: string
   previewUrl?: string
+  queuePosition?: number
+  estimatedWaitSeconds?: number
 }
 
 function createUploadTasksMap(): Map<string, UploadTask> {
@@ -80,6 +82,7 @@ export const useSceneStore = defineStore('scene', () => {
     wsClient.on('slice_progress', handleSliceProgress)
     wsClient.on('slice_complete', handleSliceComplete)
     wsClient.on('slice_error', handleSliceError)
+    wsClient.on('slice_queue_status', handleSliceQueueStatus)
     wsClient.on('disconnected', handleDisconnected)
     wsClient.on('error', handleWsError)
 
@@ -183,6 +186,22 @@ export const useSceneStore = defineStore('scene', () => {
       sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
     } else {
       console.log('[Store] Task not found for error:', data.task_id)
+    }
+  }
+
+  function handleSliceQueueStatus(data: SliceQueueStatusData) {
+    console.log('[Store] Queue status:', data)
+    const task = sliceTasks.value.get(data.task_id)
+    if (task) {
+      const updatedTask = {
+        ...task,
+        status: 'queued' as const,
+        stage: 'queued',
+        message: `排队中，前方还有 ${data.queue_ahead_count} 人`,
+        queuePosition: data.queue_ahead_count,
+        estimatedWaitSeconds: data.estimated_wait_seconds
+      }
+      sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
     }
   }
 

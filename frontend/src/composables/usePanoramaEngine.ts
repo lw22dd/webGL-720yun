@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { Viewer } from '@photo-sphere-viewer/core'
 import { CubemapTilesAdapter } from '@photo-sphere-viewer/cubemap-tiles-adapter'
-import { MarkersPlugin, type SelectMarkerEvent } from '@photo-sphere-viewer/markers-plugin'
+import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
 import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
 import type { SceneDetailResponse } from '@/models/scene.model'
@@ -98,7 +98,7 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       }
 
       viewer = new Viewer(viewerConfig)
-      markersPlugin = viewer.getPlugin(MarkersPlugin)
+      markersPlugin = viewer.getPlugin(MarkersPlugin) as unknown as MarkersPlugin
 
       viewer.addEventListener('ready', () => {
         loading.value = false
@@ -123,12 +123,12 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       })
 
       if (markersPlugin) {
-        markersPlugin.addEventListener('select-marker', (e: SelectMarkerEvent) => {
+        markersPlugin.addEventListener('select-marker', (e: any) => {
           const hotspotId = parseInt(e.marker.config.id.replace('hotspot-', ''))
           if (scene.hotspots) {
-            const hotspot = scene.hotspots.find((h: HotspotForViewer) => h.id === hotspotId)
+            const hotspot = scene.hotspots.find((h) => h.id === hotspotId)
             if (hotspot && onHotspotClickCallback) {
-              onHotspotClickCallback(hotspot)
+              onHotspotClickCallback(hotspot as HotspotForViewer)
             }
           }
         })
@@ -168,7 +168,7 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       }
 
       viewer = new Viewer(viewerConfig)
-      markersPlugin = viewer.getPlugin(MarkersPlugin)
+      markersPlugin = viewer.getPlugin(MarkersPlugin) as unknown as MarkersPlugin
 
       viewer.addEventListener('ready', () => {
         loading.value = false
@@ -185,12 +185,12 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       })
 
       if (markersPlugin) {
-        markersPlugin.addEventListener('select-marker', (e: SelectMarkerEvent) => {
+        markersPlugin.addEventListener('select-marker', (e: any) => {
           const hotspotId = parseInt(e.marker.config.id.replace('hotspot-', ''))
           if (scene.hotspots) {
-            const hotspot = scene.hotspots.find((h: HotspotForViewer) => h.id === hotspotId)
+            const hotspot = scene.hotspots.find((h) => h.id === hotspotId)
             if (hotspot && onHotspotClickCallback) {
-              onHotspotClickCallback(hotspot)
+              onHotspotClickCallback(hotspot as HotspotForViewer)
             }
           }
         })

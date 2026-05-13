@@ -313,22 +313,23 @@ const emit = defineEmits<{
 }>()
 
 const sceneStore = useSceneStore()
-// ... (uploadingTasks and sliceTasksMap remain the same)
-const uploadingTasks = computed(() => sceneStore.uploadingTasks)
 
 const sliceTasksMap = computed(() => {
   const map = new Map<string, SceneProgress>()
   sceneStore.sliceTasks.forEach((task) => {
     const statusMap: Record<string, 'active' | 'success' | 'error' | 'warning'> = {
-      'pending': 'warning',
+      'queued': 'warning',
       'slicing': 'warning',
       'completed': 'success',
       'failed': 'error'
     }
-    const label = `${task.progress}%`
-    const message = task.message || '处理中...'
+    const label = task.status === 'queued' ? '-' : `${task.progress}%`
+    const message = task.status === 'queued'
+      ? (task.queuePosition && task.queuePosition > 0 ? `排队中，前方还有 ${task.queuePosition} 人` : '排队中...')
+      : (task.message || '处理中...')
+    const progressValue = task.status === 'queued' ? (task.queuePosition ? Math.min(task.queuePosition * 10, 50) : 0) : task.progress
     map.set(task.sceneCode, {
-      percentage: task.progress,
+      percentage: progressValue,
       status: statusMap[task.status] || 'warning',
       label: label,
       message: message,
@@ -600,7 +601,7 @@ const openUploadDialog = (scene: SceneListItem) => {
       setSceneProgress(scene.scene_code, { percentage: 100, status: 'success', label: '完成', message: '关联场景...', type: 'upload' })
       const updateResult = await SceneApi.updateScene(scene.id, { file_id: uploadResult.file_id })
       if (updateResult.code === 200 && updateResult.data?.task_id) {
-        sceneStore.addSliceTask({ taskId: updateResult.data.task_id, sceneId: scene.id, sceneCode: scene.scene_code, status: 'pending', progress: 0, stage: 'pending', message: '等待处理...' })
+        sceneStore.addSliceTask({ taskId: updateResult.data.task_id, sceneId: scene.id, sceneCode: scene.scene_code, status: 'queued', progress: 0, stage: 'queued', message: '排队中', queuePosition: 0 })
       }
       sceneProgressMap.value.delete(scene.scene_code)
       loadSceneList()
@@ -633,7 +634,7 @@ function handleMergeProgress(data: any) {
   setSceneProgress(scenes[0].scene_code, { percentage: data.percentage || 0, status: 'warning', label: `${(data.percentage || 0).toFixed(0)}%`, message: data.message || '合并中...', type: 'upload' })
 }
 
-function handleUploadComplete(data: any) {
+function handleUploadComplete(_data: any) {
   const scenes = sceneList.value.filter(s => sceneProgressMap.value.has(s.scene_code))
   if (scenes.length === 0) return
   setSceneProgress(scenes[0].scene_code, { percentage: 100, status: 'success', label: '完成', message: '上传完成', type: 'upload' })
@@ -657,7 +658,7 @@ async function handleCancelUpload(sceneCode: string) {
   }
 }
 
-function handleSliceProgress(data: any) {}
+function handleSliceProgress(_data: any) {}
 function handleSliceComplete(data: any) {
   if (data.scene_code) {
     const task = Array.from(sceneStore.sliceTasks.values()).find(t => t.sceneCode === data.scene_code)
@@ -671,7 +672,7 @@ function handleSliceComplete(data: any) {
     }, 1000)
   }
 }
-function handleSliceError(data: any) {}
+function handleSliceError(_data: any) {}
 
 const openDeleteDialog = (id: number) => {
   deletingId.value = id
