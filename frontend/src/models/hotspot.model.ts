@@ -92,3 +92,11 @@ export type HotspotListResponse = {
     }
     hotspots: HotspotListItem[]
 }
+
+export type HotspotForViewer = HotspotDetailResponse & {
+  target_scene_id?: number
+  question?: string
+  options?: string
+  answer?: string
+  score?: number
+}

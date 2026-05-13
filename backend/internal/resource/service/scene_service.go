@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -36,16 +35,7 @@ type SceneService struct {
 	redisService   *redis.RedisService
 }
 
-func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient) *SceneService {
-	return &SceneService{
-		repo:           repository.NewSceneRepository(db),
-		spaceRepo:      repository.NewSpaceRepository(db),
-		minioClient:    minioClient,
-		imageProcessor: image.NewProcessor(),
-	}
-}
-
-func NewSceneServiceWithSliceQueue(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQueue *sliceService.SliceQueue, redisService *redis.RedisService) *SceneService {
+func NewSceneService(db *gorm.DB, minioClient *minio_client.MinIOClient, sliceQueue *sliceService.SliceQueue, redisService *redis.RedisService) *SceneService {
 	return &SceneService{
 		repo:           repository.NewSceneRepository(db),
 		spaceRepo:      repository.NewSpaceRepository(db),
@@ -56,66 +46,7 @@ func NewSceneServiceWithSliceQueue(db *gorm.DB, minioClient *minio_client.MinIOC
 	}
 }
 
-func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isAdmin bool, panoramaFile *multipart.FileHeader) (*model.ResScene, error) {
-	space, err := s.spaceRepo.FindByID(req.SpaceID)
-	if err != nil {
-		return nil, fmt.Errorf("空间不存在: %w", err)
-	}
-
-	if !isAdmin && space.CreatedBy != userID {
-		return nil, errors.New("无权限在此空间创建场景")
-	}
-
-	// 自动生成或清理 SceneCode
-	sceneCode, err := s.generateSceneCode(req.SceneCode, req.Title)
-	if err != nil {
-		return nil, err
-	}
-
-	exists, err := s.repo.CheckSceneCodeExists(sceneCode, 0)
-	if err != nil {
-		return nil, fmt.Errorf("检查场景编码失败: %w", err)
-	}
-	if exists {
-		return nil, errors.New("场景编码已存在")
-	}
-
-	scene := &model.ResScene{
-		SpaceID:      req.SpaceID,
-		Title:        req.Title,
-		SceneCode:    sceneCode,
-		PanoramaType: req.PanoramaType,
-		InitialFOV:   req.InitialFOV,
-		InitialPitch: req.InitialPitch,
-		InitialYaw:   req.InitialYaw,
-		NorthOffset:  req.NorthOffset,
-		Longitude:    req.Longitude,
-		Latitude:     req.Latitude,
-		SortOrder:    req.SortOrder,
-		Status:       1,
-	}
-
-	if scene.InitialFOV == 0 {
-		scene.InitialFOV = 100
-	}
-	if scene.PanoramaType == "" {
-		scene.PanoramaType = "equirectangular"
-	}
-
-	if panoramaFile != nil {
-		if err := s.processPanoramaFile(scene, panoramaFile, space.Slug); err != nil {
-			return nil, fmt.Errorf("处理全景图失败: %w", err)
-		}
-	}
-
-	if err := s.repo.Create(scene); err != nil {
-		return nil, fmt.Errorf("创建场景失败: %w", err)
-	}
-
-	return scene, nil
-}
-
-func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID uint, isAdmin bool) (*dto.CreateSceneResponse, error) {
+func (s *SceneService) CreateScene(req *dto.CreateSceneRequest, userID uint, isAdmin bool) (*dto.CreateSceneResponse, error) {
 	space, err := s.spaceRepo.FindByID(req.SpaceID)
 	if err != nil {
 		return nil, fmt.Errorf("空间不存在: %w", err)
@@ -234,87 +165,6 @@ func (s *SceneService) CreateSceneWithFileID(req *dto.CreateSceneRequest, userID
 		SliceStatus: scene.SliceStatus,
 		TaskID:      scene.TaskID,
 	}, nil
-}
-
-func (s *SceneService) processPanoramaFile(scene *model.ResScene, file *multipart.FileHeader, spaceSlug string) error {
-	src, err := file.Open()
-	if err != nil {
-		return fmt.Errorf("打开文件失败: %w", err)
-	}
-	defer src.Close()
-
-	tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("panorama_%d%s", time.Now().UnixNano(), filepath.Ext(file.Filename)))
-	dst, err := os.Create(tempFile)
-	if err != nil {
-		return fmt.Errorf("创建临时文件失败: %w", err)
-	}
-	defer dst.Close()
-	defer os.Remove(tempFile)
-
-	if _, err := io.Copy(dst, src); err != nil {
-		return fmt.Errorf("保存临时文件失败: %w", err)
-	}
-
-	_, err = s.imageProcessor.ValidateFormat(tempFile)
-	if err != nil {
-		return fmt.Errorf("文件格式验证失败: %w", err)
-	}
-
-	if err := s.imageProcessor.ValidatePanoramaResolution(tempFile); err != nil {
-		return fmt.Errorf("分辨率验证失败: %w", err)
-	}
-
-	imageInfo, err := s.imageProcessor.GetImageInfo(tempFile)
-	if err != nil {
-		return fmt.Errorf("获取图片信息失败: %w", err)
-	}
-
-	md5Hash, err := s.imageProcessor.CalculateMD5(tempFile)
-	if err != nil {
-		return fmt.Errorf("计算MD5失败: %w", err)
-	}
-
-	existingScene, err := s.repo.FindByMD5(md5Hash)
-	if err != nil {
-		return fmt.Errorf("检查MD5失败: %w", err)
-	}
-	if existingScene != nil {
-		scene.SourceURL = existingScene.SourceURL
-		scene.ThumbnailURL = existingScene.ThumbnailURL
-		scene.SourceWidth = existingScene.SourceWidth
-		scene.SourceHeight = existingScene.SourceHeight
-		scene.SourceFileSize = existingScene.SourceFileSize
-		scene.SourceFileMD5 = md5Hash
-		return nil
-	}
-
-	sourceObjectName := model.GetSceneSourcePath(spaceSlug, scene.SceneCode)
-	sourceURL, err := s.minioClient.UploadFile(sourceObjectName, tempFile, "image/jpeg")
-	if err != nil {
-		return fmt.Errorf("上传源文件失败: %w", err)
-	}
-
-	thumbFile := filepath.Join(os.TempDir(), fmt.Sprintf("thumb_%d.jpg", time.Now().UnixNano()))
-	defer os.Remove(thumbFile)
-
-	if err := s.imageProcessor.GenerateThumbnail(tempFile, thumbFile); err != nil {
-		return fmt.Errorf("生成缩略图失败: %w", err)
-	}
-
-	thumbObjectName := model.GetScenePreviewPath(spaceSlug, scene.SceneCode)
-	thumbURL, err := s.minioClient.UploadFile(thumbObjectName, thumbFile, "image/jpeg")
-	if err != nil {
-		return fmt.Errorf("上传缩略图失败: %w", err)
-	}
-
-	scene.SourceURL = sourceURL
-	scene.ThumbnailURL = thumbURL
-	scene.SourceWidth = imageInfo.Width
-	scene.SourceHeight = imageInfo.Height
-	scene.SourceFileSize = imageInfo.FileSize
-	scene.SourceFileMD5 = md5Hash
-
-	return nil
 }
 
 func (s *SceneService) UpdateScene(id uint, req *dto.UpdateSceneRequest, userID uint, isAdmin bool) (*model.ResScene, error) {

@@ -62,8 +62,7 @@ func GetHotspotDetail(svc *service.HotspotService) gin.HandlerFunc {
 func CreateHotspot(svc *service.HotspotService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req dto.CreateHotspotRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,8 +83,7 @@ func CreateHotspot(svc *service.HotspotService) gin.HandlerFunc {
 func UpdateHotspot(svc *service.HotspotService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req HotspotIDParamRequest
 		if err := c.ShouldBindUri(&req); err != nil {
@@ -112,8 +110,7 @@ func UpdateHotspot(svc *service.HotspotService) gin.HandlerFunc {
 func DeleteHotspot(svc *service.HotspotService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req HotspotIDParamRequest
 		if err := c.ShouldBindUri(&req); err != nil {

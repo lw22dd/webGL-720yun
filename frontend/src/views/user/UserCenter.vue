@@ -130,7 +130,7 @@ import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import Header from '@/components/Header.vue'
 import { useUserStore } from '@/stores/user.store'
-import UserApi from '@/services/api/user.api'
+import UserApi from '@/apis/user.api'
 
 const router = useRouter()
 const userStore = useUserStore()

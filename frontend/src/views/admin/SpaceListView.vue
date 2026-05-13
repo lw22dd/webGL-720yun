@@ -125,7 +125,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import FormDialog, { type FormField } from '@/components/admin/FormDialog.vue'
-import SpaceApi from '@/services/api/space.api'
+import SpaceApi from '@/apis/space.api'
 import type { SpaceListItem } from '@/models/space.model'
 import { geocode } from '@/utils/amap'
 

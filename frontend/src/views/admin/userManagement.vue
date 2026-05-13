@@ -86,7 +86,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import AdminTable from '@/components/admin/AdminTable.vue'
-import UserApi from '@/services/api/user.api'
+import UserApi from '@/apis/user.api'
 import type { UserItem } from '@/models/user.model'
 
 const searchKeyword = ref('')

@@ -48,8 +48,8 @@ import { Viewer } from '@photo-sphere-viewer/core'
 import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
 import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
-import SceneApi from '@/services/api/scene.api'
-import HotspotApi from '@/services/api/hotspot.api'
+import SceneApi from '@/apis/scene.api'
+import HotspotApi from '@/apis/hotspot.api'
 import type { SceneListItem } from '@/models/scene.model'
 
 interface Props {

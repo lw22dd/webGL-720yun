@@ -20,7 +20,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import SpaceListView from './SpaceListView.vue'
 import SceneListView from './SceneListView.vue'
-import SpaceApi from '@/services/api/space.api'
+import SpaceApi from '@/apis/space.api'
 import type { SpaceListItem } from '@/models/space.model'
 
 const route = useRoute()

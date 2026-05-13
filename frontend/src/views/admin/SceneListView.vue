@@ -257,7 +257,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
-import SceneApi from '@/services/api/scene.api'
+import SceneApi from '@/apis/scene.api'
 import uploadService from '@/services/uploadService'
 import wsClient from '@/services/websocket.service'
 import { useSceneStore } from '@/stores/scene/scene.store'

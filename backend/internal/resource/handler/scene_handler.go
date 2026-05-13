@@ -66,8 +66,7 @@ func GetSceneDetail(svc *service.SceneService) gin.HandlerFunc {
 func CreateScene(svc *service.SceneService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req dto.CreateSceneRequest
 		if err := c.ShouldBind(&req); err != nil {
@@ -75,7 +74,7 @@ func CreateScene(svc *service.SceneService) gin.HandlerFunc {
 			return
 		}
 
-		scene, err := svc.CreateSceneWithFileID(&req, userID, isAdmin)
+		scene, err := svc.CreateScene(&req, userID, isAdmin)
 		if err != nil {
 			utils.Error(c, http.StatusBadRequest, err.Error())
 			return
@@ -88,8 +87,7 @@ func CreateScene(svc *service.SceneService) gin.HandlerFunc {
 func UpdateScene(svc *service.SceneService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req SceneIDParamRequest
 		if err := c.ShouldBindUri(&req); err != nil {
@@ -116,8 +114,7 @@ func UpdateScene(svc *service.SceneService) gin.HandlerFunc {
 func DeleteScene(svc *service.SceneService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req SceneIDParamRequest
 		if err := c.ShouldBindUri(&req); err != nil {
@@ -137,8 +134,7 @@ func DeleteScene(svc *service.SceneService) gin.HandlerFunc {
 func BatchImportScenes(svc *service.SceneService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req SpaceIDParamRequest
 		if err := c.ShouldBindUri(&req); err != nil {
@@ -183,8 +179,7 @@ func GetSpaceGraph(svc *service.SceneService) gin.HandlerFunc {
 func UpdateScenePosition(svc *service.SceneService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req SceneIDParamRequest
 		if err := c.ShouldBindUri(&req); err != nil {
@@ -210,8 +205,7 @@ func UpdateScenePosition(svc *service.SceneService) gin.HandlerFunc {
 func BatchUpdateScenePosition(svc *service.SceneService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req dto.BatchUpdatePositionRequest
 		if err := c.ShouldBindJSON(&req); err != nil {

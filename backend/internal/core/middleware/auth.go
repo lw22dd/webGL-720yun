@@ -113,7 +113,30 @@ func (m *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 }
 
 func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
-	return m.RequireRole("admin")
+	return func(c *gin.Context) {
+		if isSuper, exists := c.Get("is_super_admin"); exists {
+			if super, ok := isSuper.(bool); ok && super {
+				c.Next()
+				return
+			}
+		}
+
+		userRole, exists := c.Get("role")
+		if !exists {
+			utils.Forbidden(c, "无法获取用户角色")
+			c.Abort()
+			return
+		}
+
+		roleStr, ok := userRole.(string)
+		if !ok || roleStr != "admin" {
+			utils.Forbidden(c, "权限不足")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
 }
 
 func (m *AuthMiddleware) RequireStudent() gin.HandlerFunc {
@@ -172,4 +195,13 @@ func GetCurrentUser(c *gin.Context) (userID uint, username string, role string) 
 		}
 	}
 	return
+}
+
+func GetIsAdmin(c *gin.Context) bool {
+	isSuperAdmin, exists := c.Get("is_super_admin")
+	if !exists {
+		return false
+	}
+	isAdmin, ok := isSuperAdmin.(bool)
+	return ok && isAdmin
 }

@@ -1,104 +1,45 @@
 <template>
   <div class="panorama-container">
     <div ref="containerRef" class="panorama-canvas"></div>
-    
-    <div class="pano-topbar">
-      <div class="pano-topbar-left">
-        <t-button theme="default" variant="outline" @click="goBack" class="back-btn">
-          ← 返回
-        </t-button>
-        <span class="pano-title">{{ sceneTitle }}</span>
-      </div>
-      <div class="pano-topbar-right">
-        <t-button theme="default" variant="outline" @click="copyShareLink" class="action-btn">
-          🔗 分享
-        </t-button>
-        <t-button theme="default" variant="outline" @click="toggleFullscreen" class="action-btn">
-          ⛶ 全屏
-        </t-button>
-      </div>
-    </div>
 
-    <div class="pano-controls">
-      <t-button theme="default" variant="outline" size="small" @click="resetCamera" title="重置视角">
-        ⟲
-      </t-button>
-      <t-button 
-        :theme="autoRotate ? 'primary' : 'default'" 
-        variant="outline" 
-        size="small" 
-        @click="toggleAutoRotate"
-        title="自动旋转"
-      >
-        ↻
-      </t-button>
-      <t-button theme="default" variant="outline" size="small" @click="zoomIn" title="放大">
-        +
-      </t-button>
-      <t-button theme="default" variant="outline" size="small" @click="zoomOut" title="缩小">
-        −
-      </t-button>
-    </div>
+    <PanoTopbar
+      :title="sceneTitle"
+      @back="goBack"
+      @share="copyShareLink"
+      @fullscreen="toggleFullscreen"
+    />
 
-    <SceneStrip 
+    <PanoControls
+      :auto-rotate="autoRotate"
+      @reset="resetCamera"
+      @toggle-rotate="toggleAutoRotateAction"
+      @zoom-in="zoomIn"
+      @zoom-out="zoomOut"
+    />
+
+    <SceneStrip
       v-if="scenes.length > 0"
       :scenes="scenes"
       :current-scene-id="currentSceneId"
       @scene-select="handleSceneSelect"
     />
 
-    <div v-if="loading" class="pano-loading">
+    <div v-if="engineLoading" class="pano-loading">
       <t-loading size="large" text="加载中..." />
     </div>
 
-    <div v-if="error" class="pano-error">
+    <div v-if="engineError" class="pano-error">
       <t-icon name="error-circle" size="48" />
-      <p>{{ error }}</p>
+      <p>{{ engineError }}</p>
       <t-button theme="primary" @click="loadScene">重试</t-button>
     </div>
 
-    <t-dialog
+    <PanoHotspotDialog
       v-model:visible="infoDialogVisible"
-      :header="currentHotspot?.title"
-      width="400px"
-      :footer="false"
-      attach=".panorama-container"
-    >
-      <div class="hotspot-info-content">
-        <p>{{ currentHotspot?.content }}</p>
-      </div>
-    </t-dialog>
+      :hotspot="currentHotspot"
+    />
 
-    <t-dialog
-      v-model:visible="quizDialogVisible"
-      :header="currentHotspot?.title || '知识问答'"
-      width="500px"
-      :footer="false"
-      attach=".panorama-container"
-    >
-      <div class="hotspot-quiz-content">
-        <p class="quiz-question">{{ currentHotspot?.question }}</p>
-        <div class="quiz-options">
-          <div 
-            v-for="(option, index) in quizOptions" 
-            :key="index"
-            class="quiz-option"
-            :class="{ 'selected': selectedQuizOption === index }"
-            @click="selectedQuizOption = Number(index)"
-          >
-            {{ String.fromCharCode(65 + Number(index)) }}. {{ String(option) }}
-          </div>
-        </div>
-        <t-button 
-          theme="primary" 
-          block 
-          :disabled="selectedQuizOption === null"
-          @click="submitQuiz"
-        >
-          提交答案
-        </t-button>
-      </div>
-    </t-dialog>
+    
   </div>
 </template>
 
@@ -106,304 +47,98 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { Viewer } from '@photo-sphere-viewer/core'
-import { CubemapAdapter } from '@photo-sphere-viewer/cubemap-adapter'
-import { CubemapTilesAdapter } from '@photo-sphere-viewer/cubemap-tiles-adapter'
-import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
-import '@photo-sphere-viewer/core/index.css'
-import '@photo-sphere-viewer/markers-plugin/index.css'
-import SceneApi from '@/services/api/scene.api'
-import HotspotApi from '@/services/api/hotspot.api'
+import SceneApi from '@/apis/scene.api'
+import HotspotApi from '@/apis/hotspot.api'
+import type { SceneDetailResponse, SceneListItem } from '@/models/scene.model'
+import type { HotspotForViewer } from '@/models/hotspot.model'
+import { usePanoramaEngine } from '@/composables/usePanoramaEngine'
+import PanoTopbar from './panorama/PanoTopbar.vue'
+import PanoControls from './panorama/PanoControls.vue'
+import PanoHotspotDialog from './panorama/PanoHotspotDialog.vue'
 import SceneStrip from './SceneStrip.vue'
-import type { SceneDetailResponse } from '@/models/scene.model'
-import { TilePreloader, getBaseTileUrls, getTileUrl } from '@/utils/tileLoader'
-
-
-const baseApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'
-
 
 const route = useRoute()
 const router = useRouter()
 
 const containerRef = ref<HTMLDivElement | null>(null)
-const loading = ref(true)
-const error = ref('')
-const autoRotate = ref(false)
+const {
+  loading: engineLoading,
+  error: engineError,
+  initScene,
+  destroy: destroyEngine,
+  zoomIn,
+  zoomOut,
+  toggleAutoRotate,
+  resetCamera: resetCameraPose,
+  setOnHotspotClick,
+} = usePanoramaEngine(containerRef)
 
+const autoRotate = ref(false)
 const currentScene = ref<SceneDetailResponse | null>(null)
-const scenes = ref<any[]>([])
+const scenes = ref<SceneListItem[]>([])
 const currentSceneId = ref<number | null>(null)
 const sceneTitle = computed(() => currentScene.value?.title || '全景漫游')
 
 const infoDialogVisible = ref(false)
 const quizDialogVisible = ref(false)
-const currentHotspot = ref<any>(null)
+const currentHotspot = ref<HotspotForViewer | null>(null)
 const selectedQuizOption = ref<number | null>(null)
-const quizOptions = computed(() => {
-  if (!currentHotspot.value?.options) return []
-  try {
-    return JSON.parse(currentHotspot.value.options)
-  } catch {
-    return []
-  }
-})
-
-let viewer: any = null
-let markersPlugin: any = null
-let tilePreloader: TilePreloader | null = null
 
 const loadScene = async () => {
   const sceneCode = route.query.scene as string
   if (!sceneCode) {
-    error.value = '未指定场景'
-    loading.value = false
+    engineError.value = '未指定场景'
     return
   }
 
   try {
-    loading.value = true
-    error.value = ''
-
     const result = await SceneApi.getSceneList({ keyword: sceneCode, page: 1, page_size: 10 })
-      console.log(result)
 
     if (result.code === 200 && result.data && result.data.scenes && result.data.scenes.length > 0) {
-      const scene = result.data.scenes.find((s: any) => s.scene_code === sceneCode)
+      const scene = result.data.scenes.find((s: SceneListItem) => s.scene_code === sceneCode)
       if (scene) {
         currentSceneId.value = scene.id
+        scenes.value = result.data.scenes
         const detailResult = await SceneApi.getSceneDetail(scene.id)
         if (detailResult.code === 200 && detailResult.data) {
           currentScene.value = detailResult.data
-          await initViewer()
-          loadHotspots()
+          await initScene(detailResult.data)
+          await loadHotspotsForScene(scene.id)
         }
       }
     } else {
-      error.value = '场景不存在'
+      engineError.value = '场景不存在'
     }
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
-  } finally {
-    loading.value = false
+  } catch (e: unknown) {
+    engineError.value = e instanceof Error ? e.message : '加载失败'
   }
 }
 
-const initViewer = async () => {
-  if (!containerRef.value || !currentScene.value) return
-
-  if (viewer) {
-    viewer.destroy()
-    viewer = null
-  }
-
-  if (tilePreloader) {
-    tilePreloader.clear()
-    tilePreloader = null
-  }
-
-  const scene = currentScene.value
-  const sceneCode = scene.scene_code
-
-  const useCubemap = (scene.slice_status === 'ready' || scene.slice_status === 'completed') && sceneCode
-
+const loadHotspotsForScene = async (sceneId: number) => {
   try {
-    let panoramaConfig: any
-    let adapterConfig: any = null
-
-    if (useCubemap) {
-      const baseTileUrls = getBaseTileUrls(sceneCode)
-      const faceMap: Record<string, string> = {
-        left: 'nx',
-        front: 'pz',
-        right: 'px',
-        back: 'nz',
-        top: 'py',
-        bottom: 'ny'
-      }
-      const tileUrl = (face: string, col: number, row: number, level: number) => {
-        const mappedFace = faceMap[face] || face
-        // level 是 levels 数组的索引：0 -> API Level 1 (4x4), 1 -> API Level 2 (8x8)
-        const apiLevel = level + 1
-        return getTileUrl(sceneCode, mappedFace, apiLevel, col, row)
-      }
-
-      adapterConfig = CubemapTilesAdapter
-      panoramaConfig = {
-        baseUrl: {
-          left: baseTileUrls.left,
-          front: baseTileUrls.front,
-          right: baseTileUrls.right,
-          back: baseTileUrls.back,
-          top: baseTileUrls.top,
-          bottom: baseTileUrls.bottom,
-        },
-        flipTopBottom: true,
-        levels: [
-          { faceSize: 2048, nbTiles: 4 },  // Level 1: 4x4 瓦片
-          { faceSize: 4096, nbTiles: 8 },  // Level 2: 8x8 高清瓦片
-        ],
-        tileUrl,
-      }
-      console.log('[Pano] 使用 CubemapTilesAdapter 多层级瓦片渲染模式 (Level 1 + Level 2)')
-      tilePreloader = new TilePreloader(sceneCode)
-    } else {
-      const panoramaUrl = scene.tile_url || scene.source_url
-      if (!panoramaUrl) {
-        error.value = '全景图地址不存在'
-        return
-      }
-      panoramaConfig = panoramaUrl
-      console.log('[Pano] 使用 Equirectangular 全景图渲染模式')
-    }
-
-    const viewerConfig: any = {
-      container: containerRef.value,
-      panorama: panoramaConfig,
-      defaultZoomLvl: 0,
-      defaultPitch: scene.initial_pitch || 0,
-      defaultYaw: scene.initial_yaw || 0,
-      minFov: 30,
-      maxFov: 90,
-      navbar: false,
-      plugins: [
-        [MarkersPlugin, {}]
-      ]
-    }
-
-    if (adapterConfig) {
-      viewerConfig.adapter = adapterConfig
-    }
-
-    viewer = new Viewer(viewerConfig)
-
-    markersPlugin = viewer.getPlugin(MarkersPlugin) as any
-
-    viewer.addEventListener('ready', () => {
-      loading.value = false
-      
-      if (tilePreloader) {
-        tilePreloader.preloadLevel(1).catch(console.error)
-      }
-    })
-
-    viewer.addEventListener('panorama-error', (err: any) => {
-      console.error('[Pano] Panorama load error:', err)
-
-      if (sceneCode) {
-        console.log('[Pano] Fallback: 使用 source API 重试')
-        initViewerWithFallback(`${baseApiUrl}/api/v1/res/sources/${sceneCode}`)
-      } else {
-        error.value = '全景图加载失败，请重新上传或切片'
-        loading.value = false
-      }
-    })
-
-    markersPlugin?.addEventListener('select-marker', ({ marker }: any) => {
-      handleMarkerClick(marker.config.id)
-    })
-
-  } catch (e: any) {
-    error.value = e.message || '初始化失败'
-  }
-}
-
-const initViewerWithFallback = async (panoramaUrl: string) => {
-  if (!containerRef.value || !currentScene.value) return
-
-  if (viewer) {
-    viewer.destroy()
-    viewer = null
-  }
-
-  const scene = currentScene.value
-
-  try {
-    const viewerConfig: any = {
-      container: containerRef.value,
-      panorama: panoramaUrl,
-      defaultZoomLvl: 0,
-      defaultPitch: scene.initial_pitch || 0,
-      defaultYaw: scene.initial_yaw || 0,
-      minFov: 30,
-      maxFov: 90,
-      navbar: false,
-      plugins: [
-        [MarkersPlugin, {}]
-      ]
-    }
-
-    viewer = new Viewer(viewerConfig)
-    markersPlugin = viewer.getPlugin(MarkersPlugin) as any
-
-    viewer.addEventListener('ready', () => {
-      loading.value = false
-    })
-
-    viewer.addEventListener('panorama-error', () => {
-      error.value = '全景图加载失败'
-      loading.value = false
-    })
-
-    markersPlugin?.addEventListener('select-marker', ({ marker }: any) => {
-      handleMarkerClick(marker.config.id)
-    })
-
-  } catch (e: any) {
-    error.value = e.message || '初始化失败'
-    loading.value = false
-  }
-}
-
-const loadHotspots = async () => {
-  if (!currentSceneId.value || !markersPlugin) return
-
-  try {
-    const result = await HotspotApi.getHotspotList({ 
-      scene_id: currentSceneId.value,
+    const result = await HotspotApi.getHotspotList({
+      scene_id: sceneId,
       page: 1,
       page_size: 100
     })
     if (result.code === 200 && result.data) {
-      result.data.hotspots.forEach((hotspot: any) => {
-        const markerConfig: any = {
-          id: `hotspot-${hotspot.id}`,
-          position: { pitch: hotspot.pitch, yaw: hotspot.yaw },
-          tooltip: hotspot.title,
-          data: hotspot
-        }
-
-        switch (hotspot.type) {
-          case 1:
-            markerConfig.html = `<div class="hotspot-marker hotspot-scene">→</div>`
-            break
-          case 2:
-            markerConfig.html = `<div class="hotspot-marker hotspot-info">ℹ</div>`
-            break
-          case 3:
-            markerConfig.html = `<div class="hotspot-marker hotspot-quiz">?</div>`
-            break
-        }
-
-        markersPlugin?.addMarker(markerConfig)
-      })
+      const hotspots = result.data.hotspots as unknown as HotspotForViewer[]
+      if (currentScene.value) {
+        currentScene.value.hotspots = hotspots as any
+      }
     }
   } catch (e) {
     console.error('Failed to load hotspots:', e)
   }
 }
 
-const handleMarkerClick = (markerId: string) => {
-  const hotspotId = parseInt(markerId.replace('hotspot-', ''))
-  const hotspot = currentScene.value?.hotspots?.find((h: any) => h.id === hotspotId)
-  
-  if (!hotspot) return
-
+const handleMarkerClick = (hotspot: HotspotForViewer) => {
   currentHotspot.value = hotspot
 
   switch (hotspot.type) {
     case 1:
-      if ((hotspot as any).target_scene_id) {
-        handleSceneSelect((hotspot as any).target_scene_id)
+      if (hotspot.target_scene_id) {
+        handleSceneSelect(hotspot.target_scene_id)
       }
       break
     case 2:
@@ -416,21 +151,20 @@ const handleMarkerClick = (markerId: string) => {
   }
 }
 
+setOnHotspotClick(handleMarkerClick)
+
 const handleSceneSelect = async (sceneId: number) => {
   try {
-    loading.value = true
     const result = await SceneApi.getSceneDetail(sceneId)
     if (result.code === 200 && result.data) {
       currentScene.value = result.data
       currentSceneId.value = sceneId
       router.push({ query: { scene: result.data.scene_code } })
-      await initViewer()
-      loadHotspots()
+      await initScene(result.data)
+      await loadHotspotsForScene(sceneId)
     }
-  } catch (e: any) {
-    MessagePlugin.error(e.message || '切换场景失败')
-  } finally {
-    loading.value = false
+  } catch (e: unknown) {
+    MessagePlugin.error(e instanceof Error ? e.message : '切换场景失败')
   }
 }
 
@@ -443,35 +177,17 @@ const toggleFullscreen = () => {
 }
 
 const resetCamera = () => {
-  if (!viewer || !currentScene.value) return
-  ;(viewer as any).setPose?.({
-    pitch: currentScene.value.initial_pitch || 0,
-    yaw: currentScene.value.initial_yaw || 0,
-    zoom: currentScene.value.initial_fov || 50
-  })
+  if (!currentScene.value) return
+  resetCameraPose(
+    currentScene.value.initial_pitch || 0,
+    currentScene.value.initial_yaw || 0,
+    currentScene.value.initial_fov || 50
+  )
 }
 
-const toggleAutoRotate = () => {
+const toggleAutoRotateAction = () => {
   autoRotate.value = !autoRotate.value
-  if (viewer) {
-    if (autoRotate.value) {
-      ;(viewer as any).startAutoRotate?.({ speed: 0.5 })
-    } else {
-      ;(viewer as any).stopAutoRotate?.()
-    }
-  }
-}
-
-const zoomIn = () => {
-  if (!viewer) return
-  const currentZoom = viewer.getZoomLevel()
-  viewer.zoom(currentZoom + 10)
-}
-
-const zoomOut = () => {
-  if (!viewer) return
-  const currentZoom = viewer.getZoomLevel()
-  viewer.zoom(currentZoom - 10)
+  toggleAutoRotate(autoRotate.value)
 }
 
 const copyShareLink = () => {
@@ -483,16 +199,16 @@ const copyShareLink = () => {
 
 const submitQuiz = () => {
   if (selectedQuizOption.value === null || !currentHotspot.value) return
-  
+
   const answer = currentHotspot.value.answer
-  const options = quizOptions.value
-  
+  const options = currentHotspot.value.options ? JSON.parse(currentHotspot.value.options) : []
+
   if (options[selectedQuizOption.value] === answer) {
     MessagePlugin.success('回答正确！')
   } else {
     MessagePlugin.warning('回答错误，正确答案是：' + answer)
   }
-  
+
   quizDialogVisible.value = false
 }
 
@@ -521,14 +237,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (viewer) {
-    viewer.destroy()
-    viewer = null
-  }
-  if (tilePreloader) {
-    tilePreloader.clear()
-    tilePreloader = null
-  }
+  destroyEngine()
 })
 </script>
 
@@ -544,81 +253,6 @@ onUnmounted(() => {
 .panorama-canvas {
   width: 100%;
   height: 100%;
-}
-
-.pano-topbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
-  z-index: 100;
-}
-
-.pano-topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.pano-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.pano-title {
-  color: #fff;
-  font-size: 18px;
-  font-weight: 500;
-}
-
-.back-btn,
-.action-btn {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: #fff !important;
-  backdrop-filter: blur(10px);
-}
-
-.back-btn:hover,
-.action-btn:hover {
-  background: rgba(255, 255, 255, 0.2) !important;
-}
-
-.pano-controls {
-  position: absolute;
-  right: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 100;
-}
-
-.pano-controls :deep(.t-button) {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: #fff !important;
-  backdrop-filter: blur(10px);
-  font-size: 18px;
-}
-
-.pano-controls :deep(.t-button:hover) {
-  background: rgba(255, 255, 255, 0.2) !important;
-}
-
-.pano-controls :deep(.t-button.t-button--theme-primary) {
-  background: #0EA5E9 !important;
-  border-color: #0EA5E9 !important;
 }
 
 .pano-loading {
@@ -645,50 +279,6 @@ onUnmounted(() => {
 .pano-error p {
   margin: 0;
   font-size: 16px;
-}
-
-.hotspot-info-content,
-.hotspot-quiz-content {
-  padding: 8px 0;
-}
-
-.hotspot-info-content p {
-  color: #4e5969;
-  line-height: 1.6;
-  margin: 0;
-}
-
-.quiz-question {
-  font-size: 16px;
-  font-weight: 500;
-  color: #1d2129;
-  margin-bottom: 16px;
-}
-
-.quiz-options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.quiz-option {
-  padding: 12px 16px;
-  border: 1px solid #e5e6eb;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.quiz-option:hover {
-  border-color: #0EA5E9;
-  background: rgba(14, 165, 233, 0.05);
-}
-
-.quiz-option.selected {
-  border-color: #0EA5E9;
-  background: rgba(14, 165, 233, 0.1);
-  color: #0EA5E9;
 }
 </style>
 

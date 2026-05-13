@@ -60,7 +60,7 @@ import MapToolbar from './MapToolbar.vue'
 import ScenePanel from './ScenePanel.vue'
 import type { BasemapType } from '@/composables/useL7Scene'
 import type { SceneMarkerData } from '@/composables/useSceneMarkers'
-import SpaceApi from '@/services/api/space.api'
+import SpaceApi from '@/apis/space.api'
 import type { SpaceDetailResponse } from '@/models/space.model'
 
 const props = defineProps<{

@@ -51,7 +51,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
-import UserApi from '@/services/api/user.api'
+import UserApi from '@/apis/user.api'
 
 const route = useRoute()
 const router = useRouter()

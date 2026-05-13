@@ -86,7 +86,7 @@ func Run() {
 	userSvc := userService.NewUserService(db.DB, jwtService, redisClient)
 	spaceService := resService.NewSpaceService(db.DB, minioClient)
 	sliceQueue := router.NewSliceQueue(redisClient)
-	sceneService := resService.NewSceneServiceWithSliceQueue(db.DB, minioClient, sliceQueue, redisClient)
+	sceneService := resService.NewSceneService(db.DB, minioClient, sliceQueue, redisClient)
 	hotspotService := resService.NewHotspotService(db.DB)
 
 	// 5. 为需要切片的场景创建切片任务

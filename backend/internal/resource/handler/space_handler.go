@@ -84,8 +84,7 @@ func CreateSpace(svc *service.SpaceService) gin.HandlerFunc {
 func UpdateSpace(svc *service.SpaceService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req SpaceIDRequest
 		if err := c.ShouldBindUri(&req); err != nil {
@@ -114,8 +113,7 @@ func UpdateSpace(svc *service.SpaceService) gin.HandlerFunc {
 func DeleteSpace(svc *service.SpaceService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req SpaceIDRequest
 		if err := c.ShouldBindUri(&req); err != nil {
@@ -139,8 +137,7 @@ type DeleteSpaceBatchRequest struct {
 func DeleteSpaceBatch(svc *service.SpaceService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _, _ := middleware.GetCurrentUser(c)
-		isSuperAdmin, _ := c.Get("is_super_admin")
-		isAdmin := isSuperAdmin.(bool)
+		isAdmin := middleware.GetIsAdmin(c)
 
 		var req DeleteSpaceBatchRequest
 		if err := c.ShouldBindJSON(&req); err != nil {

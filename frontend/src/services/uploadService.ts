@@ -8,7 +8,7 @@ import type {
   UploadOptions,
   UploadTask
 } from '@/models/upload.model'
-import UploadApi from '@/services/api/upload.api'
+import UploadApi from '@/apis/upload.api'
 import { useUploadStore } from '@/stores/scene/upload.store'
 
 const CHUNK_SIZE = 5 * 1024 * 1024

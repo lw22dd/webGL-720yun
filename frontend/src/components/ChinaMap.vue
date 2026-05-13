@@ -65,8 +65,8 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { SearchIcon } from 'tdesign-icons-vue-next'
 import * as echarts from 'echarts'
-import { getChinaGeoJSON } from '@/services/api/geo.api'
-import SpaceApi from '@/services/api/space.api'
+import { getChinaGeoJSON } from '@/apis/geo.api'
+import SpaceApi from '@/apis/space.api'
 import type { SpaceListItem, SpaceWithScenes } from '@/models/space.model'
 
 const props = defineProps<{
@@ -392,7 +392,7 @@ defineExpose({
   position: relative;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #0F1826 0%, #162032 50%, #1A2744 100%);
+  background: transparent; /* 改为透明以显示父级动态背景 */
 }
 
 .map-wrapper {
@@ -402,10 +402,11 @@ defineExpose({
 
 .search-box {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  width: 360px;
+  top: 30px;
+  left: 30px;
+  width: 380px;
   z-index: 100;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
 }
 
 .search-results {
@@ -413,14 +414,14 @@ defineExpose({
   top: 100%;
   left: 0;
   right: 0;
-  background: rgba(26, 35, 50, 0.95);
-  backdrop-filter: blur(12px);
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  margin-top: 8px;
+  margin-top: 12px;
   max-height: 400px;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 .search-history {
@@ -436,7 +437,7 @@ defineExpose({
 
 .search-history-title {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .search-history-clear {
@@ -466,13 +467,13 @@ defineExpose({
   background: rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .search-history-tag:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(14, 165, 233, 0.2);
   color: #fff;
 }
 
@@ -499,7 +500,7 @@ defineExpose({
 }
 
 .search-result-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(14, 165, 233, 0.1);
 }
 
 .result-name {
@@ -512,7 +513,7 @@ defineExpose({
 
 .result-location {
   display: block;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
   font-size: 12px;
 }
 
@@ -521,9 +522,9 @@ defineExpose({
   top: 100%;
   left: 0;
   right: 0;
-  margin-top: 8px;
+  margin-top: 12px;
   padding: 12px 16px;
-  background: rgba(26, 35, 50, 0.9);
+  background: rgba(30, 41, 59, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -531,11 +532,12 @@ defineExpose({
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .hot-tag-label {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .hot-tag {
@@ -550,26 +552,42 @@ defineExpose({
 }
 
 .hot-tag:hover {
-  background: rgba(14, 165, 233, 0.25);
+  background: rgba(14, 165, 233, 0.3);
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 .view-toggle {
   position: absolute;
   top: 0;
-  right: -50px;
+  right: -56px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 :deep(.t-input) {
-  background: rgba(26, 35, 50, 0.9) !important;
+  background: rgba(30, 41, 59, 0.7) !important;
+  backdrop-filter: blur(8px) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
+  padding: 8px 16px !important;
+  transition: all 0.3s !important;
+}
+
+:deep(.t-input:hover) {
+  border-color: rgba(14, 165, 233, 0.4) !important;
+  background: rgba(30, 41, 59, 0.85) !important;
+}
+
+:deep(.t-input.t-is-focused) {
+  border-color: #0EA5E9 !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2) !important;
 }
 
 :deep(.t-input__inner) {
   color: #fff !important;
+  font-size: 14px !important;
 }
 
 :deep(.t-input__inner::placeholder) {
@@ -577,12 +595,17 @@ defineExpose({
 }
 
 :deep(.t-button) {
-  background: rgba(26, 35, 50, 0.9);
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
 }
 
 :deep(.t-button.t-button--variant-base) {
   background: #0EA5E9;
   border-color: #0EA5E9;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 </style>

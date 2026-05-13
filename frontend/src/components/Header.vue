@@ -171,7 +171,7 @@ import {
   StarIcon,
   HistoryIcon
 } from 'tdesign-icons-vue-next'
-import UserApi from '@/services/api/user.api'
+import UserApi from '@/apis/user.api'
 import { useUserStore } from '@/stores/user.store'
 import { useFavoriteStore } from '@/stores/favorite.store'
 
@@ -306,12 +306,12 @@ const handleLogout = async () => {
 .header {
   position: relative;
   flex-shrink: 0;
-  background: rgba(15, 24, 38, 0.95);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 24, 38, 0.4); /* 降低透明度以显示背景动画 */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   height: 64px;
   display: flex;
   align-items: center;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px) saturate(1.5); /* 增加饱和度 */
   z-index: 1000;
 }
 
@@ -319,7 +319,7 @@ const handleLogout = async () => {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -332,17 +332,23 @@ const handleLogout = async () => {
   align-items: center;
   flex-shrink: 0;
   cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.logo-section:hover {
+  transform: scale(1.02);
 }
 
 .logo {
-  font-size: 20px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #0EA5E9, #4080ff);
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #38bdf8, #0EA5E9, #4080ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
   letter-spacing: -0.02em;
+  text-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 
 .nav-menu {
@@ -350,18 +356,18 @@ const handleLogout = async () => {
   align-items: center;
   flex: 1;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 12px;
 }
 
 .nav-item {
   position: relative;
   font-size: 14px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: all 0.2s;
+  padding: 8px 20px;
+  border-radius: 20px;
+  transition: all 0.3s;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -370,12 +376,13 @@ const handleLogout = async () => {
 
 .nav-item:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .nav-item.active {
   color: #fff;
-  background: rgba(14, 165, 233, 0.2);
+  background: rgba(14, 165, 233, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.3);
 }
 
 .badge {
@@ -385,17 +392,18 @@ const handleLogout = async () => {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  background: #0EA5E9;
+  background: #ef4444; /* 改为醒目的红色 */
   border-radius: 9px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   color: #fff;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
 }
 
 .auth-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   flex-shrink: 0;
 }
 
@@ -404,72 +412,82 @@ const handleLogout = async () => {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  padding: 6px 12px 6px 6px;
+  padding: 4px 12px 4px 4px;
   border-radius: 24px;
-  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s;
 }
 
 .user-info:hover {
   background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(14, 165, 233, 0.4);
 }
 
 .user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0EA5E9, #4080ff);
+  background: linear-gradient(135deg, #38bdf8, #4080ff);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.4);
 }
 
 .user-name {
-  color: #fff;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 :deep(.t-button--variant-outline) {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
   color: #fff;
+  border-radius: 20px;
 }
 
 :deep(.t-button--variant-outline:hover) {
   background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 :deep(.t-button--theme-primary) {
   background: linear-gradient(135deg, #0EA5E9, #4080ff);
   border: none;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 
 .dialog-footer {
-  margin-top: 16px;
+  margin-top: 20px;
   display: flex;
   justify-content: center;
 }
 
 .link-text {
-  font-size: 14px;
-  color: #0EA5E9;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  transition: color 0.2s;
+  transition: all 0.2s;
 }
 
 .link-text:hover {
-  color: #4080ff;
-  text-decoration: underline;
+  color: #0EA5E9;
+  text-decoration: none;
 }
 
 :deep(.t-dropdown-menu) {
-  background: rgba(26, 35, 50, 0.95);
-  backdrop-filter: blur(12px);
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 :deep(.t-dropdown-item) {
@@ -477,10 +495,12 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+  border-radius: 8px;
+  margin: 2px 0;
 }
 
 :deep(.t-dropdown-item:hover) {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(14, 165, 233, 0.15);
   color: #fff;
 }
 </style>
