@@ -5,6 +5,7 @@ import "time"
 type InitUploadRequest struct {
 	SpaceID   uint   `json:"space_id" binding:"required"`
 	SceneCode string `json:"scene_code" binding:"omitempty"`
+	Title     string `json:"title" binding:"omitempty"`
 	FileName  string `json:"filename" binding:"required"`
 	FileSize  int64  `json:"file_size" binding:"required,min=1"`
 	FileMD5   string `json:"file_hash" binding:"required,len=32"`
@@ -76,6 +77,7 @@ type UploadTask struct {
 	SpaceName     string `json:"space_name"`
 	SpaceSlug     string `json:"space_slug"`
 	SceneCode     string `json:"scene_code"`
+	Title         string `json:"title"`
 	FileName      string `json:"file_name"`
 	FileSize      int64  `json:"file_size"`
 	FileMD5       string `json:"file_md5"`

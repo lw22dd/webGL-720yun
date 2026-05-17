@@ -22,6 +22,7 @@ import (
 	"webGL-720yun/pkg/image"
 	"webGL-720yun/pkg/minio_client"
 	"webGL-720yun/pkg/progress"
+	"webGL-720yun/pkg/utils"
 	"webGL-720yun/pkg/websocket"
 )
 
@@ -115,6 +116,7 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		SpaceName:     space.Name,
 		SpaceSlug:     space.Slug,
 		SceneCode:     req.SceneCode,
+		Title:         req.Title,
 		FileName:      req.FileName,
 		FileSize:      req.FileSize,
 		FileMD5:       req.FileMD5,
@@ -305,7 +307,11 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 
 	resolvedFileID := task.SceneCode
 	if resolvedFileID == "" {
-		resolvedFileID = uuid.New().String()
+		sceneTitle := task.Title
+		if sceneTitle == "" {
+			sceneTitle = task.FileName
+		}
+		resolvedFileID = utils.GenerateSceneCode(sceneTitle)
 	}
 
 	s.notifyMergeProgress(req.UploadID, userID, "uploading", 50, "上传源文件...")
