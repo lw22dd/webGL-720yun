@@ -71,6 +71,46 @@ func (m *MinIOClient) UploadSceneTiles(ctx context.Context, spaceSlug, sceneCode
 	return g.Wait()
 }
 
+// UploadFaceTiles 上传单个面的瓦片，10并发
+func (m *MinIOClient) UploadFaceTiles(ctx context.Context, spaceSlug, sceneCode, faceName string, tileFiles map[int][]string) error {
+	type task struct {
+		objectName string
+		filePath   string
+	}
+
+	var tasks []task
+	for level, files := range tileFiles {
+		for _, file := range files {
+			fileName := filepath.Base(file)
+			var x, y int
+			fmt.Sscanf(fileName, "tile_%d_%d.jpg", &x, &y)
+
+			objectName := model.GetSceneTilePath(spaceSlug, sceneCode, faceName, level, x, y)
+			tasks = append(tasks, task{objectName: objectName, filePath: file})
+		}
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	const maxConcurrent = 10
+	sem := make(chan struct{}, maxConcurrent)
+
+	for _, t := range tasks {
+		t := t
+		g.Go(func() error {
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+
+			return m.uploadFile(ctx, t.objectName, t.filePath)
+		})
+	}
+
+	return g.Wait()
+}
+
 // CheckSceneAssetsExist 检查场景资源是否已存在
 func (m *MinIOClient) CheckSceneAssetsExist(ctx context.Context, spaceSlug, sceneCode string) bool {
 	previewPath := model.GetScenePreviewPath(spaceSlug, sceneCode)

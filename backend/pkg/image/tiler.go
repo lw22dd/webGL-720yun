@@ -85,7 +85,7 @@ func (t *Tiler) GenerateTiles(faceFiles map[string]string, outputDir string) (ma
 	for faceName, filePath := range faceFiles {
 		go func(name, path string) {
 			result := TileResult{FaceName: name}
-			tiles, err := t.processFace(name, path, outputDir)
+			tiles, err := t.ProcessFace(name, path, outputDir)
 			result.Tiles = tiles
 			result.Err = err
 			results <- result
@@ -104,7 +104,8 @@ func (t *Tiler) GenerateTiles(faceFiles map[string]string, outputDir string) (ma
 	return tileFiles, nil
 }
 
-func (t *Tiler) processFace(faceName, filePath, outputDir string) (map[int][]string, error) {
+// ProcessFace 处理单个面的瓦片切割，三级LOD并行生成
+func (t *Tiler) ProcessFace(faceName, filePath, outputDir string) (map[int][]string, error) {
 	img, err := imaging.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("打开面 %s 失败: %w", faceName, err)
@@ -115,38 +116,51 @@ func (t *Tiler) processFace(faceName, filePath, outputDir string) (map[int][]str
 		return nil, err
 	}
 
-	tiles := make(map[int][]string)
 	originalSize := img.Bounds().Dx()
 
+	type levelResult struct {
+		level int
+		files []string
+		err   error
+	}
+
+	results := make(chan levelResult, 3)
+
 	for level := 0; level <= 2; level++ {
-		spec, ok := t.lodSpecs[level]
-		if !ok {
-			continue
-		}
+		level := level
+		spec := t.lodSpecs[level]
 
-		targetSize := spec.TargetSize
-		if targetSize > spec.MaxSize*spec.TileCount {
-			targetSize = spec.MaxSize * spec.TileCount
-		}
+		go func() {
+			targetSize := spec.TargetSize
+			if targetSize > spec.MaxSize*spec.TileCount {
+				targetSize = spec.MaxSize * spec.TileCount
+			}
 
-		var levelImg image.Image
-		if originalSize >= targetSize {
-			levelImg = imaging.Resize(img, targetSize, targetSize, imaging.Lanczos)
-		} else {
-			levelImg = img
-		}
+			var levelImg image.Image
+			if originalSize >= targetSize {
+				levelImg = imaging.Resize(img, targetSize, targetSize, imaging.Lanczos)
+			} else {
+				levelImg = img
+			}
 
-		levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", level))
-		if err := os.MkdirAll(levelDir, 0755); err != nil {
-			return nil, err
-		}
+			levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", level))
+			if err := os.MkdirAll(levelDir, 0755); err != nil {
+				results <- levelResult{level: level, err: err}
+				return
+			}
 
-		tileFiles, err := t.sliceImageByLOD(levelImg, levelDir, spec.TileCount)
-		if err != nil {
-			return nil, err
-		}
+			tileFiles, err := t.sliceImageByLOD(levelImg, levelDir, spec.TileCount)
+			results <- levelResult{level: level, files: tileFiles, err: err}
+		}()
+	}
 
-		tiles[level] = tileFiles
+	tiles := make(map[int][]string)
+	for i := 0; i < 3; i++ {
+		r := <-results
+		if r.err != nil {
+			return nil, r.err
+		}
+		tiles[r.level] = r.files
 	}
 
 	return tiles, nil

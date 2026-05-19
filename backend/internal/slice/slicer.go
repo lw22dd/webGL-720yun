@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/minio/minio-go/v7"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 
 	"webGL-720yun/internal/model"
@@ -254,36 +256,34 @@ func (p *SliceProcessor) Process(ctx context.Context, task *sliceservice.SliceTa
 		return fmt.Errorf("创建tiles目录失败: %w", err)
 	}
 
-	tilesStart := time.Now()
-	tileFiles, err := p.imageTiler.GenerateTiles(cubemapFiles, tilesDir)
-	if err != nil {
+	var eg errgroup.Group
+	var tileCount int
+	var mu sync.Mutex
+
+	for faceName, faceFile := range cubemapFiles {
+		faceName, faceFile := faceName, faceFile
+		eg.Go(func() error {
+			faceTiles, err := p.imageTiler.ProcessFace(faceName, faceFile, tilesDir)
+			if err != nil {
+				return fmt.Errorf("面 %s 瓦片生成失败: %w", faceName, err)
+			}
+
+			mu.Lock()
+			for _, files := range faceTiles {
+				tileCount += len(files)
+			}
+			mu.Unlock()
+
+			return p.minioClient.UploadFaceTiles(ctx, task.SpaceSlug, task.SceneCode, faceName, faceTiles)
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
 		metrics.Success = false
 		metrics.ErrorMessage = err.Error()
-		return fmt.Errorf("生成瓦片失败: %w", err)
-	}
-	metrics.TilesGenTime = time.Since(tilesStart)
-
-	tileCount := 0
-	for _, levels := range tileFiles {
-		for _, files := range levels {
-			tileCount += len(files)
-		}
+		return err
 	}
 	metrics.TileCount = tileCount
-
-	p.notifyProgress(task, 70, slicedto.StageTiles, "瓦片生成完成")
-	bar.Set(70)
-
-	p.notifyProgress(task, 75, slicedto.StageUploading, "开始上传瓦片...")
-	bar.Set(75)
-
-	uploadStart := time.Now()
-	if err := p.minioClient.UploadSceneTiles(ctx, task.SpaceSlug, task.SceneCode, tileFiles); err != nil {
-		metrics.Success = false
-		metrics.ErrorMessage = err.Error()
-		return fmt.Errorf("上传瓦片失败: %w", err)
-	}
-	metrics.UploadTime = time.Since(uploadStart)
 
 	tileURL := model.GetSceneTileBasePath(task.SpaceSlug, task.SceneCode)
 
