@@ -162,30 +162,44 @@ func (p *SliceProcessor) Process(ctx context.Context, task *sliceservice.SliceTa
 	}
 	defer os.RemoveAll(tempDir)
 
-	p.notifyProgress(task, 5, slicedto.StageDownloading, "开始下载源文件...")
+	var sourceFile string
 
-	downloadStart := time.Now()
-	sourceFile := filepath.Join(tempDir, "source.jpg")
-	if err := p.minioClient.DownloadSceneSource(ctx, task.SpaceSlug, task.FileID, sourceFile); err != nil {
-		// 检查是否是源文件不存在（NoSuchKey），这通常意味着是一个旧的残留任务（Ghost Task）
-		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
-			log.Printf("⚠️  检测到幽灵任务: 无法找到源文件 %s/%s，该任务可能属于旧版本，已将其跳过。", task.SpaceSlug, task.FileID)
-			metrics.Success = true // 标记为处理完成（忽略）
-			return nil
+	if task.LocalSourcePath != "" {
+		if _, err := os.Stat(task.LocalSourcePath); err == nil {
+			sourceFile = task.LocalSourcePath
+			log.Printf("✅ 使用本地源文件: %s", task.LocalSourcePath)
+			defer func() {
+				os.Remove(task.LocalSourcePath)
+				os.RemoveAll(filepath.Dir(task.LocalSourcePath))
+			}()
 		}
-		metrics.Success = false
-		metrics.ErrorMessage = err.Error()
-		return fmt.Errorf("下载源文件失败: %w", err)
 	}
-	metrics.DownloadTime = time.Since(downloadStart)
+
+	if sourceFile == "" {
+		p.notifyProgress(task, 5, slicedto.StageDownloading, "开始下载源文件...")
+
+		sourceFile = filepath.Join(tempDir, "source.jpg")
+		downloadStart := time.Now()
+		if err := p.minioClient.DownloadSceneSource(ctx, task.SpaceSlug, task.FileID, sourceFile); err != nil {
+			if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+				log.Printf("⚠️  检测到幽灵任务: 无法找到源文件 %s/%s，该任务可能属于旧版本，已将其跳过。", task.SpaceSlug, task.FileID)
+				metrics.Success = true
+				return nil
+			}
+			metrics.Success = false
+			metrics.ErrorMessage = err.Error()
+			return fmt.Errorf("下载源文件失败: %w", err)
+		}
+		metrics.DownloadTime = time.Since(downloadStart)
+
+		p.notifyProgress(task, 10, slicedto.StageDownloading, "源文件下载完成")
+		bar.Set(10)
+	}
 
 	fileInfo, _ := os.Stat(sourceFile)
 	if fileInfo != nil {
 		metrics.ImageSize = fileInfo.Size()
 	}
-
-	p.notifyProgress(task, 10, slicedto.StageDownloading, "源文件下载完成")
-	bar.Set(10)
 
 	p.notifyProgress(task, 15, slicedto.StagePreview, "开始生成快速预览...")
 	bar.Set(15)

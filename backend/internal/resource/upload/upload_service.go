@@ -252,7 +252,12 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建临时目录失败: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	cleanupTemp := true
+	defer func() {
+		if cleanupTemp {
+			os.RemoveAll(tempDir)
+		}
+	}()
 
 	sort.Ints(uploadedChunks)
 
@@ -360,13 +365,15 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 
 	// 异步触发切片任务
 	if s.sliceQueue != nil {
+		cleanupTemp = false
 		sliceTask := &sliceservice.SliceTask{
-			SceneID:   0, // 将在后续通过FileID关联
-			SceneCode: resolvedFileID,
-			FileID:    resolvedFileID,
-			SpaceName: task.SpaceName,
-			SpaceSlug: task.SpaceSlug,
-			UserID:    userID,
+			SceneID:         0,
+			SceneCode:       resolvedFileID,
+			FileID:          resolvedFileID,
+			SpaceName:       task.SpaceName,
+			SpaceSlug:       task.SpaceSlug,
+			UserID:          userID,
+			LocalSourcePath: mergedFile,
 		}
 		if err := s.sliceQueue.PushTask(sliceTask); err != nil {
 			progress.PrintInfo("上传", fmt.Sprintf("警告: 推送切片任务失败: %v", err))

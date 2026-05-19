@@ -26,15 +26,16 @@ const (
 )
 
 type SliceTask struct {
-	TaskID      string `json:"task_id"`
-	SceneID     uint   `json:"scene_id"`
-	SceneCode   string `json:"scene_code"`
-	FileID      string `json:"file_id"`
-	SpaceName   string `json:"space_name"`
-	SpaceSlug   string `json:"space_slug"`
-	UserID      uint   `json:"user_id"`
-	CreatedAt   int64  `json:"created_at"`
-	GlobalIndex int64  `json:"global_index"`
+	TaskID          string `json:"task_id"`
+	SceneID         uint   `json:"scene_id"`
+	SceneCode       string `json:"scene_code"`
+	FileID          string `json:"file_id"`
+	SpaceName       string `json:"space_name"`
+	SpaceSlug       string `json:"space_slug"`
+	UserID          uint   `json:"user_id"`
+	CreatedAt       int64  `json:"created_at"`
+	GlobalIndex     int64  `json:"global_index"`
+	LocalSourcePath string `json:"local_source_path,omitempty"`
 }
 
 type QueuePosition struct {
