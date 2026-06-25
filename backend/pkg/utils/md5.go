@@ -1,21 +1,21 @@
 package utils
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"io"
 	"os"
 )
 
-// CalculateFileMD5 计算文件的 MD5 值
-func CalculateFileMD5(filePath string) (string, error) {
+// CalculateFileSHA256 计算文件的 SHA-256 值
+func CalculateFileSHA256(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
 
-	hash := md5.New()
+	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}

@@ -181,10 +181,10 @@ func seedScene(db *gorm.DB, minioClient *minio_client.MinIOClient, seedBasePath 
 		return nil, fmt.Errorf("创建场景记录失败: %w", createErr)
 	}
 
-	// 保存 MD5 映射
-	md5Str, _ := utils.CalculateFileMD5(localFilePath)
-	if md5Str != "" {
-		logger.Infof("📦 文件 MD5: %s", md5Str)
+	// 保存 SHA256 映射
+	sha256Str, _ := utils.CalculateFileSHA256(localFilePath)
+	if sha256Str != "" {
+		logger.Infof("📦 文件 SHA256: %s", sha256Str)
 	}
 
 	logger.Infof("✅ 创建场景: %s (ID=%d)", newScene.Title, newScene.ID)

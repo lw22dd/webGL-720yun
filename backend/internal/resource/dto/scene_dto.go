@@ -85,7 +85,7 @@ type SceneDetailResponse struct {
 	SourceWidth    int              `json:"source_width"`
 	SourceHeight   int              `json:"source_height"`
 	SourceFileSize int64            `json:"source_file_size"`
-	SourceFileMD5  string           `json:"source_file_md5"`
+	SourceFileSHA256  string           `json:"source_file_sha256"`
 	TileURL        string           `json:"tile_url"`
 	PreviewURL     string           `json:"preview_url"`
 	CubemapURL     string           `json:"cubemap_url"`
@@ -181,7 +181,7 @@ func ToSceneDetailResponse(scene *model.ResScene) *SceneDetailResponse {
 		SourceWidth:    scene.SourceWidth,
 		SourceHeight:   scene.SourceHeight,
 		SourceFileSize: scene.SourceFileSize,
-		SourceFileMD5:  scene.SourceFileMD5,
+		SourceFileSHA256:  scene.SourceFileSHA256,
 		TileURL:        scene.TileURL,
 		PreviewURL:     scene.PreviewURL,
 		CubemapURL:     scene.CubemapURL,

@@ -344,9 +344,9 @@ func (s *SceneService) DeleteScene(id uint, userID uint, isAdmin bool) error {
 		}
 	}
 
-	if scene.SourceFileMD5 != "" {
-		if err := s.redisService.DeleteFileMD5(scene.SourceFileMD5); err != nil {
-			logger.Warnf("清理Redis MD5缓存失败: %v", err)
+	if scene.SourceFileSHA256 != "" {
+		if err := s.redisService.DeleteFileSHA256(scene.SourceFileSHA256); err != nil {
+			logger.Warnf("清理Redis SHA256缓存失败: %v", err)
 		}
 	}
 

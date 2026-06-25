@@ -50,7 +50,7 @@ const (
 	KeyPrefixUploadTask     = "upload:task:"
 	KeyPrefixUploadChunks   = "upload:chunks:"
 	KeyPrefixUploadUser     = "upload:user:"
-	KeyPrefixFileMD5        = "file:md5:"
+	KeyPrefixFileSHA256     = "file:sha256:"
 	KeyPrefixFileInfo       = "file:info:"
 	KeyPrefixSceneMeta      = "scene:meta:"
 )
@@ -350,8 +350,8 @@ func (s *RedisService) SetUserUploadCount(userID uint, count int, expiresIn time
 	return s.client.Set(key, count, expiresIn).Err()
 }
 
-func (s *RedisService) GetFileIDByMD5(md5 string) (string, error) {
-	key := fmt.Sprintf("%s%s", KeyPrefixFileMD5, md5)
+func (s *RedisService) GetFileIDBySHA256(hash string) (string, error) {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileSHA256, hash)
 	result, err := s.client.Get(key).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -362,8 +362,8 @@ func (s *RedisService) GetFileIDByMD5(md5 string) (string, error) {
 	return result, nil
 }
 
-func (s *RedisService) SaveFileMD5(md5 string, fileID string) error {
-	key := fmt.Sprintf("%s%s", KeyPrefixFileMD5, md5)
+func (s *RedisService) SaveFileSHA256(hash string, fileID string) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileSHA256, hash)
 	return s.client.Set(key, fileID, 24*time.Hour).Err()
 }
 
@@ -398,7 +398,7 @@ func (s *RedisService) DeleteFileInfo(fileID string) error {
 	return s.client.Del(key).Err()
 }
 
-func (s *RedisService) DeleteFileMD5(md5 string) error {
-	key := fmt.Sprintf("%s%s", KeyPrefixFileMD5, md5)
+func (s *RedisService) DeleteFileSHA256(hash string) error {
+	key := fmt.Sprintf("%s%s", KeyPrefixFileSHA256, hash)
 	return s.client.Del(key).Err()
 }

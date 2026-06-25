@@ -52,7 +52,7 @@ export type UploadTask = {
   file: File
   fileName: string
   fileSize: number
-  fileMd5: string
+  fileHash: string
   totalChunks: number
   uploadedChunks: number[]
   status: 'pending' | 'uploading' | 'merging' | 'completed' | 'failed' | 'paused' | 'cancelled'

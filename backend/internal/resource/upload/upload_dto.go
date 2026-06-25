@@ -8,7 +8,7 @@ type InitUploadRequest struct {
 	Title     string `json:"title" binding:"omitempty"`
 	FileName  string `json:"filename" binding:"required"`
 	FileSize  int64  `json:"file_size" binding:"required,min=1"`
-	FileMD5   string `json:"file_hash" binding:"required,len=32"`
+	FileHash  string `json:"file_hash" binding:"required,len=64"`
 }
 
 type InitUploadResponse struct {
@@ -25,7 +25,7 @@ type InitUploadResponse struct {
 type ChunkUploadRequest struct {
 	UploadID   string `form:"upload_id" binding:"required"`
 	ChunkIndex int    `form:"chunk_index" binding:"required,min=0"`
-	ChunkMD5   string `form:"chunk_hash" binding:"required,len=32"`
+	ChunkHash  string `form:"chunk_hash" binding:"required,len=64"`
 }
 
 type ChunkUploadResponse struct {
@@ -37,7 +37,7 @@ type ChunkUploadResponse struct {
 
 type CompleteUploadRequest struct {
 	UploadID string `json:"upload_id" binding:"required"`
-	FileMD5  string `json:"file_hash" binding:"required,len=32"`
+	FileHash string `json:"file_hash" binding:"required,len=64"`
 }
 
 type CompleteUploadResponse struct {
@@ -80,7 +80,7 @@ type UploadTask struct {
 	Title         string `json:"title"`
 	FileName      string `json:"file_name"`
 	FileSize      int64  `json:"file_size"`
-	FileMD5       string `json:"file_md5"`
+	FileHash      string `json:"file_hash"`
 	TotalChunks   int    `json:"total_chunks"`
 	ChunkSize     int    `json:"chunk_size"`
 	Status        string `json:"status"`

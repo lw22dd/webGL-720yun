@@ -87,9 +87,9 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		return nil, fmt.Errorf("同时上传文件数量超过限制（最多%d个）", MaxConcurrentUploads)
 	}
 
-	fileID, err := s.uploadRepo.GetFileIDByMD5(req.FileMD5)
+	fileID, err := s.uploadRepo.GetFileIDBySHA256(req.FileHash)
 	if err != nil {
-		return nil, fmt.Errorf("检查文件MD5失败: %w", err)
+		return nil, fmt.Errorf("检查文件SHA256失败: %w", err)
 	}
 	if fileID != "" {
 		fileInfo, err := s.uploadRepo.GetFileInfo(fileID)
@@ -119,7 +119,7 @@ func (s *UploadService) InitUpload(req *InitUploadRequest, userID uint) (*InitUp
 		Title:         req.Title,
 		FileName:      req.FileName,
 		FileSize:      req.FileSize,
-		FileMD5:       req.FileMD5,
+		FileHash:      req.FileHash,
 		TotalChunks:   totalChunks,
 		ChunkSize:     ChunkSize,
 		Status:        TaskStatusPending,
@@ -332,8 +332,8 @@ func (s *UploadService) CompleteUpload(req *CompleteUploadRequest, userID uint) 
 		client.RemoveObject(ctx, bucket, chunkObjectName, minio.RemoveObjectOptions{})
 	}
 
-	if err := s.uploadRepo.SaveFileMD5(task.FileMD5, resolvedFileID); err != nil {
-		return nil, fmt.Errorf("保存文件MD5映射失败: %w", err)
+	if err := s.uploadRepo.SaveFileSHA256(task.FileHash, resolvedFileID); err != nil {
+		return nil, fmt.Errorf("保存文件SHA256映射失败: %w", err)
 	}
 
 	// ThumbURL 将在切片任务中由 processor 生成

@@ -44,7 +44,7 @@ type ResScene struct {
 	SourceWidth    int    `gorm:"column:source_width;comment:源文件宽度" json:"source_width"`
 	SourceHeight   int    `gorm:"column:source_height;comment:源文件高度" json:"source_height"`
 	SourceFileSize int64  `gorm:"column:source_file_size;comment:源文件大小" json:"source_file_size"`
-	SourceFileMD5  string `gorm:"type:varchar(32);index;column:source_file_md5;comment:源文件MD5" json:"source_file_md5"`
+	SourceFileSHA256  string `gorm:"type:varchar(64);index;column:source_file_sha256;comment:源文件SHA256" json:"source_file_sha256"`
 
 	TileURL      string `gorm:"type:varchar(500);column:tile_url;comment:瓦片目录URL" json:"tile_url"`
 	PreviewURL   string `gorm:"type:varchar(500);column:preview_url;comment:预览图URL" json:"preview_url"`

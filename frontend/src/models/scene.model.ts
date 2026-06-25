@@ -74,7 +74,7 @@ export type SceneDetailResponse = {
     source_width: number
     source_height: number
     source_file_size: number
-    source_file_md5: string
+    source_file_sha256: string
     tile_url: string
     preview_url: string
     cubemap_url: string

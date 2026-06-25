@@ -42,7 +42,7 @@ func (r *UploadRepository) CreateTask(task *UploadTask) error {
 		"scene_code":     task.SceneCode,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
-		"file_md5":       task.FileMD5,
+		"file_hash":      task.FileHash,
 		"total_chunks":   task.TotalChunks,
 		"chunk_size":     task.ChunkSize,
 		"status":         task.Status,
@@ -82,8 +82,8 @@ func (r *UploadRepository) GetTask(uploadID string) (*UploadTask, error) {
 	if v, ok := taskData["file_size"].(float64); ok {
 		task.FileSize = int64(v)
 	}
-	if v, ok := taskData["file_md5"].(string); ok {
-		task.FileMD5 = v
+	if v, ok := taskData["file_hash"].(string); ok {
+		task.FileHash = v
 	}
 	if v, ok := taskData["total_chunks"].(float64); ok {
 		task.TotalChunks = int(v)
@@ -118,7 +118,7 @@ func (r *UploadRepository) UpdateTaskStatus(uploadID string, status string) erro
 		"space_slug":     task.SpaceSlug,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
-		"file_md5":       task.FileMD5,
+		"file_hash":      task.FileHash,
 		"total_chunks":   task.TotalChunks,
 		"chunk_size":     task.ChunkSize,
 		"status":         status,
@@ -144,7 +144,7 @@ func (r *UploadRepository) UpdateTaskUploadedBytes(uploadID string, bytes int64)
 		"space_slug":     task.SpaceSlug,
 		"file_name":      task.FileName,
 		"file_size":      task.FileSize,
-		"file_md5":       task.FileMD5,
+		"file_hash":      task.FileHash,
 		"total_chunks":   task.TotalChunks,
 		"chunk_size":     task.ChunkSize,
 		"status":         task.Status,
@@ -193,14 +193,14 @@ func (r *UploadRepository) GetUserUploadCount(userID uint) (int, error) {
 	return r.redis.GetUserUploadCount(userID)
 }
 
-func (r *UploadRepository) GetFileIDByMD5(md5 string) (string, error) {
-	fileID, err := r.redis.GetFileIDByMD5(md5)
+func (r *UploadRepository) GetFileIDBySHA256(hash string) (string, error) {
+	fileID, err := r.redis.GetFileIDBySHA256(hash)
 	if err == nil && fileID != "" {
 		return fileID, nil
 	}
 
 	var scene model.ResScene
-	err = r.db.Where("source_file_md5 = ?", md5).First(&scene).Error
+	err = r.db.Where("source_file_sha256 = ?", hash).First(&scene).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", nil
@@ -209,13 +209,13 @@ func (r *UploadRepository) GetFileIDByMD5(md5 string) (string, error) {
 	}
 
 	// Hit MySQL, cache back to Redis
-	_ = r.SaveFileMD5(md5, scene.FileID)
+	_ = r.SaveFileSHA256(hash, scene.FileID)
 
 	return scene.FileID, nil
 }
 
-func (r *UploadRepository) SaveFileMD5(md5 string, fileID string) error {
-	return r.redis.SaveFileMD5(md5, fileID)
+func (r *UploadRepository) SaveFileSHA256(hash string, fileID string) error {
+	return r.redis.SaveFileSHA256(hash, fileID)
 }
 
 func (r *UploadRepository) SaveFileInfo(fileID string, info *FileInfo) error {

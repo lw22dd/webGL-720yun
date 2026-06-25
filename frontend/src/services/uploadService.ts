@@ -27,7 +27,7 @@ class UploadService {
   private pausedUploads: Map<string, boolean> = new Map()
   private uploadPromises: Map<string, Promise<void>> = new Map()
 
-  async calculateMD5(file: File): Promise<string> {
+  async calculateSHA256(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = async () => {
@@ -36,7 +36,7 @@ class UploadService {
           const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
           const hashArray = Array.from(new Uint8Array(hashBuffer))
           const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-          resolve(hashHex.substring(0, 32))
+          resolve(hashHex)
         } catch (error) {
           reject(error)
         }
@@ -54,10 +54,10 @@ class UploadService {
     uploadId: string,
     chunkIndex: number,
     chunk: Blob,
-    chunkMd5: string,
+    chunkHash: string,
     signal?: AbortSignal
   ): Promise<Result<ChunkUploadResponse>> {
-    return await UploadApi.uploadChunk(uploadId, chunkIndex, chunk, chunkMd5, signal)
+    return await UploadApi.uploadChunk(uploadId, chunkIndex, chunk, chunkHash, signal)
   }
 
   async completeUpload(uploadId: string, fileHash: string): Promise<Result<CompleteUploadResponse>> {
@@ -130,12 +130,12 @@ class UploadService {
     uploadId: string,
     chunkIndex: number,
     chunk: Blob,
-    chunkMd5: string,
+    chunkHash: string,
     retries = 0,
     signal?: AbortSignal
   ): Promise<Result<ChunkUploadResponse>> {
     try {
-      return await this.uploadChunk(uploadId, chunkIndex, chunk, chunkMd5, signal)
+      return await this.uploadChunk(uploadId, chunkIndex, chunk, chunkHash, signal)
     } catch (error: any) {
       if (error.message === 'UPLOAD_CANCELLED') {
         throw error
@@ -143,7 +143,7 @@ class UploadService {
       if (retries < this.maxRetries) {
         const delay = this.retryDelays[retries] || this.retryDelays[this.retryDelays.length - 1]
         await new Promise(resolve => setTimeout(resolve, delay))
-        return this.uploadChunkWithRetry(uploadId, chunkIndex, chunk, chunkMd5, retries + 1, signal)
+        return this.uploadChunkWithRetry(uploadId, chunkIndex, chunk, chunkHash, retries + 1, signal)
       }
       throw error
     }
@@ -159,7 +159,7 @@ class UploadService {
     this.abortController = new AbortController()
     const { signal } = this.abortController
 
-    const fileMd5 = await this.calculateMD5(file)
+    const fileHash = await this.calculateSHA256(file)
 
     const initResponse = await this.initUpload({
       space_id: (options as any).space_id,
@@ -167,7 +167,7 @@ class UploadService {
       title: (options as any).title,
       filename: file.name,
       file_size: file.size,
-      file_hash: fileMd5
+      file_hash: fileHash
     })
 
     if (signal.aborted) {
@@ -200,7 +200,7 @@ class UploadService {
       file,
       fileName: file.name,
       fileSize: file.size,
-      fileMd5,
+      fileHash,
       totalChunks,
       uploadedChunks: Array.from(uploadedChunks),
       status: 'uploading',
@@ -240,9 +240,9 @@ class UploadService {
           break
         }
 
-        const chunkMd5 = await this.calculateChunkMD5(item.chunk)
+        const chunkHash = await this.calculateChunkSHA256(item.chunk)
 
-        const uploadPromise = this.uploadChunkWithRetry(uploadId, item.index, item.chunk, chunkMd5, 0, signal)
+        const uploadPromise = this.uploadChunkWithRetry(uploadId, item.index, item.chunk, chunkHash, 0, signal)
           .then(response => {
             if (response.code === 200 && response.data) {
               uploadedChunks.add(item.index)
@@ -322,7 +322,7 @@ class UploadService {
 
       uploadStore.updateUploadTask(uploadId, { status: 'merging' })
 
-      const completeResponse = await this.completeUpload(uploadId, fileMd5)
+      const completeResponse = await this.completeUpload(uploadId, fileHash)
 
       if (completeResponse.code !== 200 || !completeResponse.data) {
         uploadStore.updateUploadTask(uploadId, { status: 'failed' })
@@ -359,7 +359,7 @@ class UploadService {
     }
   }
 
-  private async calculateChunkMD5(chunk: Blob): Promise<string> {
+  private async calculateChunkSHA256(chunk: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = async () => {
@@ -368,7 +368,7 @@ class UploadService {
           const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
           const hashArray = Array.from(new Uint8Array(hashBuffer))
           const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-          resolve(hashHex.substring(0, 32))
+          resolve(hashHex)
         } catch (error) {
           reject(error)
         }

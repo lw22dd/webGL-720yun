@@ -20,13 +20,13 @@ export default class UploadApi {
         uploadId: string,
         chunkIndex: number,
         chunk: Blob,
-        chunkMd5: string,
+        chunkHash: string,
         signal?: AbortSignal
     ): Promise<Result<ChunkUploadResponse>> {
         const formData = new FormData();
         formData.append('upload_id', uploadId);
         formData.append('chunk_index', chunkIndex.toString());
-        formData.append('chunk_hash', chunkMd5);
+        formData.append('chunk_hash', chunkHash);
         formData.append('chunk_data', chunk);
 
         const controller = new AbortController();

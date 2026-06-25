@@ -1,7 +1,7 @@
 package image
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -27,13 +27,13 @@ type ImageInfo struct {
 	Height      int
 	FileSize    int64
 	Format      string
-	MD5         string
+	SHA256      string
 	AspectRatio float64
 }
 
 type Processor struct {
-	maxFileSize    int64
-	thumbnailWidth int
+	maxFileSize     int64
+	thumbnailWidth  int
 	thumbnailHeight int
 }
 
@@ -112,9 +112,9 @@ func (p *Processor) GetImageInfo(filePath string) (*ImageInfo, error) {
 		return nil, fmt.Errorf("解析图片失败: %w", err)
 	}
 
-	md5Hash, err := p.CalculateMD5(filePath)
+	sha256Hash, err := p.CalculateSHA256(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("计算MD5失败: %w", err)
+		return nil, fmt.Errorf("计算SHA256失败: %w", err)
 	}
 
 	aspectRatio := float64(img.Width) / float64(img.Height)
@@ -124,7 +124,7 @@ func (p *Processor) GetImageInfo(filePath string) (*ImageInfo, error) {
 		Height:      img.Height,
 		FileSize:    fileInfo.Size(),
 		Format:      format,
-		MD5:         md5Hash,
+		SHA256:      sha256Hash,
 		AspectRatio: aspectRatio,
 	}, nil
 }
@@ -209,25 +209,25 @@ func (p *Processor) GenerateThumbnailFromReader(reader io.Reader, dstPath string
 	return nil
 }
 
-func (p *Processor) CalculateMD5(filePath string) (string, error) {
+func (p *Processor) CalculateSHA256(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("打开文件失败: %w", err)
 	}
 	defer file.Close()
 
-	hash := md5.New()
+	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
-		return "", fmt.Errorf("计算MD5失败: %w", err)
+		return "", fmt.Errorf("计算SHA256失败: %w", err)
 	}
 
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func (p *Processor) CalculateMD5FromReader(reader io.Reader) (string, error) {
-	hash := md5.New()
+func (p *Processor) CalculateSHA256FromReader(reader io.Reader) (string, error) {
+	hash := sha256.New()
 	if _, err := io.Copy(hash, reader); err != nil {
-		return "", fmt.Errorf("计算MD5失败: %w", err)
+		return "", fmt.Errorf("计算SHA256失败: %w", err)
 	}
 
 	return hex.EncodeToString(hash.Sum(nil)), nil

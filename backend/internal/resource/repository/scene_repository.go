@@ -90,9 +90,9 @@ func (r *SceneRepository) FindBySceneCodeWithSpace(code string) (*model.ResScene
 	return &scene, nil
 }
 
-func (r *SceneRepository) FindByMD5(md5 string) (*model.ResScene, error) {
+func (r *SceneRepository) FindBySHA256(hash string) (*model.ResScene, error) {
 	var scene model.ResScene
-	err := r.db.Where("source_file_md5 = ?", md5).First(&scene).Error
+	err := r.db.Where("source_file_sha256 = ?", hash).First(&scene).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
