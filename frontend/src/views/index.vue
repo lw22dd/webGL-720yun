@@ -108,20 +108,6 @@
           <p>暂无景区数据</p>
         </div>
       </div>
-      
-      <SpaceDetailPanel
-        :visible="panelVisible"
-        :space="selectedSpace"
-        @close="handlePanelClose"
-        @scene-click="handleSceneClick"
-      />
-
-      <SpaceDetailDialog
-        :visible="dialogVisible"
-        :space="selectedSpace"
-        @close="handleDialogClose"
-        @scene-click="handleSceneClick"
-      />
     </main>
   </div>
 </template>
@@ -131,16 +117,11 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '@/components/Header.vue'
 import ChinaMap from '@/components/ChinaMap.vue'
-import SpaceDetailPanel from '@/components/SpaceDetailPanel.vue'
-import SpaceDetailDialog from '@/components/SpaceDetailDialog.vue'
 import SpaceApi from '@/apis/space.api'
 import type { SpaceListItem, SpaceWithScenes } from '@/models/space.model'
 
 const router = useRouter()
 const chinaMapRef = ref<InstanceType<typeof ChinaMap> | null>(null)
-const panelVisible = ref(false)
-const dialogVisible = ref(false)
-const selectedSpace = ref<SpaceWithScenes | null>(null)
 const viewMode = ref<'map' | 'card'>('map')
 const spaceList = ref<SpaceListItem[]>([])
 const loading = ref(false)
@@ -187,21 +168,6 @@ const loadSpaceList = async () => {
 
 const handleSpaceClick = (space: SpaceWithScenes) => {
   router.push({ name: 'spaceDetail', params: { id: space.id } })
-}
-
-const handlePanelClose = () => {
-  panelVisible.value = false
-}
-
-const handleDialogClose = () => {
-  dialogVisible.value = false
-}
-
-const handleSceneClick = (scene: any) => {
-  panelVisible.value = false
-  dialogVisible.value = false
-  sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
-  router.push(`/panorama?scene=${scene.scene_code}`)
 }
 
 const handleViewModeChange = (mode: 'map' | 'card') => {

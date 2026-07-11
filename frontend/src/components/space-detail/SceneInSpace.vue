@@ -1,6 +1,7 @@
 <!--高德地图-->
 <template>
   <div class="space-detail-map">
+    
     <div ref="mapContainer" class="map-container"></div>
 
     <div v-if="loading" class="map-loading-overlay">
@@ -25,12 +26,6 @@
       @back="goBack"
     />
 
-    <ScenePanel
-      :scenes="sceneList"
-      :active-scene-id="activeSceneId"
-      @scene-click="handleSceneClick"
-    />
-
 
   </div>
 </template>
@@ -41,7 +36,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { Scene as L7Scene, Marker, Popup } from '@antv/l7'
 import { GaodeMap } from '@antv/l7-maps'
 import MapToolbar from './MapToolbar.vue'
-import ScenePanel from './ScenePanel.vue'
 import type { BasemapType } from '@/composables/useL7Scene'
 import type { SceneMarkerData } from '@/composables/useSceneMarkers'
 import SpaceApi from '@/apis/space.api'

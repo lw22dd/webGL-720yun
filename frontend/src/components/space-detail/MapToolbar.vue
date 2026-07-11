@@ -139,8 +139,38 @@ defineEmits<{
   justify-content: space-between;
   align-items: center;
   gap: 20px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.75);
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1a1a;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.space-info-bar {
+  display: flex;
+  justify-content: center;
+  padding: 10px 24px;
+
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -148,38 +178,11 @@ defineEmits<{
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
-.back-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 8px;
-  color: #333;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.back-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: #1a1a1a;
-  border-color: rgba(0, 0, 0, 0.12);
-}
-
-.space-info-bar {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
 .space-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  white-space: nowrap;
 }
 
 .space-name {
@@ -204,6 +207,13 @@ defineEmits<{
   align-items: center;
   gap: 16px;
   flex-shrink: 0;
+  padding: 10px 16px;
+
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
 .toolbar-section {

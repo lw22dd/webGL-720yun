@@ -13,16 +13,13 @@ import (
 )
 
 const (
-	SliceStreamKey   = "slice:tasks"
-	SliceGroup       = "slice_workers"
-	SliceConsumer    = "worker_1"
-	SliceTaskTimeout = 24 * time.Hour
+	SliceConsumer = "worker_1" // 任务处理消费者名称，用于从任务队列中获取任务
 
-	UserStreamPrefix  = "slice:user:"
-	ActiveUsersKey    = "slice:active_users"
-	BusyUsersKey      = "slice:busy_users"
-	GlobalCounterKey  = "slice:global_counter"
-	AvgProcessTimeSec = 30
+	UserStreamPrefix  = "slice:user:"          // 用户任务流前缀
+	ActiveUsersKey    = "slice:active_users"   // 当前活跃用户ID集合
+	BusyUsersKey      = "slice:busy_users"     // 正在处理任务的用户ID集合，避免一个用户占用多个worker
+	GlobalCounterKey  = "slice:global_counter" // 全局任务索引，用于计算排队人数
+	AvgProcessTimeSec = 30                     // 平均处理时间，单位秒
 )
 
 type SliceTask struct {
@@ -207,7 +204,6 @@ func (q *SliceQueue) readFromStream(streamKey, groupName, id string) (*SliceTask
 	q.updateUserActiveTime(task.UserID)
 	return &task, messageID, nil
 }
-
 
 func (q *SliceQueue) checkAndRemoveEmptyUser(userID uint, userStreamKey string) {
 	client := q.redis.GetClient()
