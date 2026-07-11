@@ -220,35 +220,6 @@
             </t-input>
           </t-form-item>
 
-          <t-form-item label="初始FOV" name="initial_fov">
-            <t-input-number
-              v-model="formData.initial_fov"
-              placeholder="视角范围 (30-150)"
-              :min="30"
-              :max="150"
-              style="width: 100%"
-            />
-          </t-form-item>
-
-          <t-form-item label="初始俯仰" name="initial_pitch">
-            <t-input-number
-              v-model="formData.initial_pitch"
-              placeholder="俯仰角度 (-90-90)"
-              :min="-90"
-              :max="90"
-              style="width: 100%"
-            />
-          </t-form-item>
-
-          <t-form-item label="初始偏航" name="initial_yaw">
-            <t-input-number
-              v-model="formData.initial_yaw"
-              placeholder="偏航角度 (-180-180)"
-              :min="-180"
-              :max="180"
-              style="width: 100%"
-            />
-          </t-form-item>
 
           <t-form-item label="排序权重" name="sort_order">
             <t-input-number v-model="formData.sort_order" placeholder="数字越大越靠前" style="width: 100%" />

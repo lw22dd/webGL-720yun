@@ -8,7 +8,7 @@
     </div>
     <div class="pano-topbar-right">
       <t-button theme="default" variant="outline" @click="$emit('share')" class="action-btn">
-        🔗 分享
+        小地图
       </t-button>
       <t-button theme="default" variant="outline" @click="$emit('fullscreen')" class="action-btn">
         ⛶ 全屏

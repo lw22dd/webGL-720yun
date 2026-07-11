@@ -13,6 +13,7 @@ dist
 dist-ssr
 *.local
 参考
+test
 
 # Editor directories and files
 .vscode/*

@@ -9,21 +9,6 @@
       @fullscreen="toggleFullscreen"
     />
 
-    <PanoControls
-      :auto-rotate="autoRotate"
-      @reset="resetCamera"
-      @toggle-rotate="toggleAutoRotateAction"
-      @zoom-in="zoomIn"
-      @zoom-out="zoomOut"
-    />
-
-    <SceneStrip
-      v-if="scenes.length > 0"
-      :scenes="scenes"
-      :current-scene-id="currentSceneId"
-      @scene-select="handleSceneSelect"
-    />
-
     <div v-if="engineLoading" class="pano-loading">
       <t-loading size="large" text="加载中..." />
     </div>
@@ -53,9 +38,7 @@ import type { SceneDetailResponse, SceneListItem } from '@/models/scene.model'
 import type { HotspotForViewer } from '@/models/hotspot.model'
 import { usePanoramaEngine } from '@/composables/usePanoramaEngine'
 import PanoTopbar from './panorama/PanoTopbar.vue'
-import PanoControls from './panorama/PanoControls.vue'
 import PanoHotspotDialog from './panorama/PanoHotspotDialog.vue'
-import SceneStrip from './SceneStrip.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -66,16 +49,9 @@ const {
   error: engineError,
   initScene,
   destroy: destroyEngine,
-  zoomIn,
-  zoomOut,
-  toggleAutoRotate,
-  resetCamera: resetCameraPose,
   setOnHotspotClick,
 } = usePanoramaEngine(containerRef)
-
-const autoRotate = ref(false)
 const currentScene = ref<SceneDetailResponse | null>(null)
-const scenes = ref<SceneListItem[]>([])
 const currentSceneId = ref<number | null>(null)
 const sceneTitle = computed(() => currentScene.value?.title || '全景漫游')
 
@@ -98,7 +74,6 @@ const loadScene = async () => {
       const scene = result.data.scenes.find((s: SceneListItem) => s.scene_code === sceneCode)
       if (scene) {
         currentSceneId.value = scene.id
-        scenes.value = result.data.scenes
         const detailResult = await SceneApi.getSceneDetail(scene.id)
         if (detailResult.code === 200 && detailResult.data) {
           currentScene.value = detailResult.data
@@ -174,20 +149,6 @@ const toggleFullscreen = () => {
   } else {
     document.exitFullscreen()
   }
-}
-
-const resetCamera = () => {
-  if (!currentScene.value) return
-  resetCameraPose(
-    currentScene.value.initial_pitch || 0,
-    currentScene.value.initial_yaw || 0,
-    currentScene.value.initial_fov || 50
-  )
-}
-
-const toggleAutoRotateAction = () => {
-  autoRotate.value = !autoRotate.value
-  toggleAutoRotate(autoRotate.value)
 }
 
 const copyShareLink = () => {

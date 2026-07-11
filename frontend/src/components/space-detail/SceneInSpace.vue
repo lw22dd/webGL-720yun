@@ -1,3 +1,4 @@
+<!--高德地图-->
 <template>
   <div class="space-detail-map">
     <div ref="mapContainer" class="map-container"></div>
@@ -13,9 +14,15 @@
       :show-markers="showMarkers"
       :show-p-o-i-toggle="!isAdmin"
       :show-marker-toggle="true"
+      :space-name="spaceData?.name"
+      :space-province="spaceData?.province"
+      :space-city="spaceData?.city"
+      :scene-count="sceneList.length"
+      :show-click-hint="isAdmin"
       @switch-basemap="handleBasemapSwitch"
       @toggle-p-o-i="handleTogglePOI"
       @toggle-markers="handleToggleMarkers"
+      @back="goBack"
     />
 
     <ScenePanel
@@ -24,30 +31,7 @@
       @scene-click="handleSceneClick"
     />
 
-    <div v-if="isAdmin" class="click-hint">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 8v8M8 12h8"/>
-      </svg>
-      点击地图添加场景节点
-    </div>
 
-    <button class="back-btn" @click="goBack">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M19 12H5"/>
-        <path d="M12 19l-7-7 7-7"/>
-      </svg>
-      返回总览
-    </button>
-
-    <div class="space-info-bar">
-      <div class="space-info">
-        <h1 class="space-name">{{ spaceData?.name }}</h1>
-        <span class="space-location">📍 {{ spaceData?.province }} {{ spaceData?.city }}</span>
-        <span class="space-divider">·</span>
-        <span class="space-scene-count">🎥 {{ sceneList.length }} 个场景节点</span>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -584,86 +568,7 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.6);
 }
 
-.back-btn {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: rgba(22, 32, 50, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 13px;
-  font-family: 'Noto Sans SC', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.back-btn:hover {
-  background: rgba(22, 32, 50, 0.98);
-  color: #fff;
-  border-color: rgba(14, 165, 233, 0.3);
-}
-
-.space-info-bar {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  padding: 10px 24px;
-  background: rgba(22, 32, 50, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  white-space: nowrap;
-}
-
-.space-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.space-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #fff;
-  margin: 0;
-}
-
-.space-location,
-.space-scene-count {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.space-divider {
-  color: rgba(255, 255, 255, 0.2);
-}
-
-.click-hint {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(22, 32, 50, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-}
 </style>
 
 <style>

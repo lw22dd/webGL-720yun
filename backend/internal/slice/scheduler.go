@@ -87,7 +87,17 @@ func (s *SliceScheduler) handleTask(workerID int, t *service.SliceTask, msgID st
 
 	log.Printf("[Worker %d] 开始处理任务: %s (场景: %s)", workerID, t.TaskID, t.SceneCode)
 
-	ctx := context.Background()
+	// 创建可取消的 context，stopChan 关闭时自动取消正在执行的任务
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-s.stopChan:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
 	if err := s.processor.ProcessWithRetry(ctx, t); err != nil {
 		log.Printf("[Worker %d] 任务处理失败: %s, error: %v", workerID, t.TaskID, err)
 		s.processor.notifyError(t, err.Error())
@@ -108,4 +118,3 @@ func (s *SliceScheduler) handleTask(workerID int, t *service.SliceTask, msgID st
 func (s *SliceScheduler) Stop() {
 	close(s.stopChan)
 }
-

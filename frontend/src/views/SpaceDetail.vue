@@ -1,12 +1,12 @@
 <template>
   <div class="space-detail-page">
-    <SpaceDetailMap @scene-click="handleSceneClick" />
+    <SceneInSpace @scene-click="handleSceneClick" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import SpaceDetailMap from '@/components/space-detail/SpaceDetailMap.vue'
+import SceneInSpace from '@/components/space-detail/SceneInSpace.vue'
 import type { SceneMarkerData } from '@/composables/useSceneMarkers'
 
 const router = useRouter()
