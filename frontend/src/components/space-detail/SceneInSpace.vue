@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Scene as L7Scene, Marker, Popup } from '@antv/l7'
 import { GaodeMap } from '@antv/l7-maps'
@@ -40,6 +40,23 @@ import type { BasemapType } from '@/composables/useL7Scene'
 import type { SceneMarkerData } from '@/composables/useSceneMarkers'
 import SpaceApi from '@/apis/space.api'
 import type { SpaceDetailResponse } from '@/models/space.model'
+import { loadAmapScript } from '@/utils/amap-loader'
+
+const TAG = '[SceneInSpace]'
+
+function logMem(label: string) {
+  const perf = (performance as any)
+  if (perf && perf.memory) {
+    const m = perf.memory
+    console.log(
+      `${TAG} [MEM] ${label} | used=${(m.usedJSHeapSize / 1048576).toFixed(1)}MB ` +
+      `total=${(m.totalJSHeapSize / 1048576).toFixed(1)}MB ` +
+      `limit=${(m.jsHeapSizeLimit / 1048576).toFixed(1)}MB`
+    )
+  } else {
+    console.log(`${TAG} [MEM] ${label} (performance.memory not available)`)
+  }
+}
 
 const props = defineProps<{
   isAdmin?: boolean
@@ -66,9 +83,8 @@ let aMapInstance: any = null
 let markerList: Marker[] = []
 let satelliteLayer: any = null
 let normalLayer: any = null
-
-const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || ''
-const AMAP_SECURITY_KEY = import.meta.env.VITE_AMAP_SECURITY_KEY || ''
+let aMapReadyTimer: ReturnType<typeof setInterval> | null = null
+let timeoutTimer: ReturnType<typeof setTimeout> | null = null
 
 const getPreviewUrl = (sceneCode: string) => {
   return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/api/v1/res/previews/${sceneCode}`
@@ -76,28 +92,6 @@ const getPreviewUrl = (sceneCode: string) => {
 
 function goBack() {
   router.push({ name: 'home' })
-}
-
-const loadAmapScript = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    if ((window as any).AMap) {
-      resolve()
-      return
-    }
-
-    // 配置安全密钥
-    if (AMAP_SECURITY_KEY) {
-      (window as any)._AMapSecurityConfig = {
-        securityJsCode: AMAP_SECURITY_KEY,
-      }
-    }
-
-    const script = document.createElement('script')
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}`
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load AMap SDK'))
-    document.head.appendChild(script)
-  })
 }
 
 async function loadSpaceData() {
@@ -188,7 +182,7 @@ const createPopupContent = (scene: SceneMarkerData): string => {
 const loadSceneMarkers = () => {
   if (!l7Scene) return
 
-  // 清除已有 Marker
+  // 清除已有 Marker（L7 removeAllMarkers 会移除 DOM）
   l7Scene!.removeAllMarkers()
   markerList = []
 
@@ -246,9 +240,9 @@ async function initMap() {
   }
 
   try {
-    console.log('Initializing map with center:', [spaceData.value.longitude, spaceData.value.latitude])
+    console.log(`${TAG} Initializing map with center:`, [spaceData.value.longitude, spaceData.value.latitude])
 
-    // 加载高德地图 SDK
+    // 加载高德地图 SDK（使用共享 loader，不会重复加载）
     await loadAmapScript()
 
     // 用 L7 Scene 直接创建地图
@@ -262,6 +256,7 @@ async function initMap() {
       }),
       logoVisible: false,
     })
+    logMem('L7Scene created')
 
     // 尝试获取 AMap 实例的方法
     const tryGetAMapInstance = () => {
@@ -273,98 +268,74 @@ async function initMap() {
           if (val && typeof val.setMapStyle === 'function') return val
         }
       }
-      const container = mapContainer.value
-      if (container) {
-        const amapKey = Object.keys(container).find(k => k.startsWith('__amap__'))
-        if (amapKey) return (container as any)[amapKey]
-      }
       return null
     }
 
     // 定时尝试获取 AMap 实例
-    const aMapReady = setInterval(() => {
+    aMapReadyTimer = setInterval(() => {
       const instance = tryGetAMapInstance()
       if (instance) {
-        clearInterval(aMapReady)
+        clearInterval(aMapReadyTimer!)
+        aMapReadyTimer = null
         aMapInstance = instance
-        console.log('Got AMap instance:', !!aMapInstance)
-
-        // 获取地图当前的图层数组，保存默认矢量图层
-        if (!normalLayer) {
-          const layers = aMapInstance.getLayers()
-          console.log('Current layers:', layers)
-          // 查找矢量底图
-          const AMap = (window as any).AMap
-          layers.forEach((layer: any) => {
-            if (layer && typeof layer.setOpacity === 'function') {
-              normalLayer = layer
-            }
-          })
-          // 如果没找到，使用 createDefaultLayer 创建标准矢量图层
-          if (!normalLayer && AMap.createDefaultLayer) {
-            normalLayer = AMap.createDefaultLayer()
-          }
-        }
-
-        if (typeof aMapInstance.setFeatures === 'function') {
-          aMapInstance.setFeatures(['bg', 'road', 'building'])
-        }
-
-        loadSceneMarkers()
-        if (props.isAdmin) {
-          l7Scene?.on('click', handleMapClick)
-        }
-        loading.value = false
+        onMapReady()
       }
     }, 500)
 
     // 监听 L7 loaded 事件
     l7Scene.on('loaded', () => {
-      clearInterval(aMapReady)
+      if (aMapReadyTimer) {
+        clearInterval(aMapReadyTimer)
+        aMapReadyTimer = null
+      }
       if (!aMapInstance) {
         aMapInstance = tryGetAMapInstance()
       }
-      console.log('L7 loaded event fired, aMapInstance:', !!aMapInstance)
-
-      // 获取并保存默认矢量图层
-      if (!normalLayer && aMapInstance) {
-        const layers = aMapInstance.getLayers()
-        console.log('Current layers on loaded:', layers)
-        const AMap = (window as any).AMap
-        layers.forEach((layer: any) => {
-          if (layer && typeof layer.setOpacity === 'function') {
-            normalLayer = layer
-          }
-        })
-        if (!normalLayer && AMap.createDefaultLayer) {
-          normalLayer = AMap.createDefaultLayer()
-        }
-      }
-
-      if (aMapInstance && typeof aMapInstance.setFeatures === 'function') {
-        aMapInstance.setFeatures(['bg', 'road', 'building'])
-      }
-
-      loadSceneMarkers()
-      if (props.isAdmin) {
-        l7Scene?.on('click', handleMapClick)
-      }
-      loading.value = false
+      onMapReady()
     })
 
     // 超时保护
-    setTimeout(() => {
+    timeoutTimer = setTimeout(() => {
       if (loading.value) {
-        clearInterval(aMapReady)
+        if (aMapReadyTimer) {
+          clearInterval(aMapReadyTimer)
+          aMapReadyTimer = null
+        }
         console.warn('Timeout: forcing loading to false')
         loading.value = false
       }
+      timeoutTimer = null
     }, 10000)
 
   } catch (error) {
     console.error('Failed to init map:', error)
     loading.value = false
   }
+}
+
+function onMapReady() {
+  if (!aMapInstance) return
+
+  logMem('AMap ready')
+
+  // 保存默认矢量图层引用（不创建新图层）
+  if (!normalLayer) {
+    const layers = aMapInstance.getLayers()
+    if (layers && layers.length > 0) {
+      normalLayer = layers[0]
+    }
+  }
+
+  if (typeof aMapInstance.setFeatures === 'function') {
+    aMapInstance.setFeatures(['bg', 'road', 'building'])
+  }
+
+  loadSceneMarkers()
+  if (props.isAdmin) {
+    l7Scene?.on('click', handleMapClick)
+  }
+  loading.value = false
+  logMem('onMapReady done')
 }
 
 function handleBasemapSwitch(type: BasemapType) {
@@ -398,11 +369,7 @@ function handleBasemapSwitch(type: BasemapType) {
       satelliteLayer.hide()
       console.log('Hid satelliteLayer')
     }
-    if (!normalLayer) {
-      normalLayer = AMap.createDefaultLayer()
-      aMapInstance.add(normalLayer)
-      console.log('Created and added normalLayer')
-    } else {
+    if (normalLayer) {
       normalLayer.show()
       console.log('Showed normalLayer')
     }
@@ -495,6 +462,7 @@ async function handleMapClick(e: any) {
 }
 
 onMounted(async () => {
+  logMem('onMounted start')
   const loaded = await loadSpaceData()
   if (loaded && spaceData.value) {
     await initMap()
@@ -504,16 +472,101 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
+  console.log(`${TAG} onBeforeUnmount START`)
+  logMem('onBeforeUnmount start')
+  console.log(`${TAG} window.AMap exists:`, !!(window as any).AMap)
+  console.log(`${TAG} container DOM still exists:`, !!mapContainer.value)
+  if (mapContainer.value) {
+    const container = mapContainer.value
+    const extendedKeys = Object.keys(container).filter(k => k.startsWith('__'))
+    console.log(`${TAG} container extended keys before cleanup:`, extendedKeys)
+    console.log(`${TAG} container child count:`, container.children.length)
+  }
+
+  // 清除定时器
+  if (aMapReadyTimer) {
+    clearInterval(aMapReadyTimer)
+    aMapReadyTimer = null
+    console.log(`${TAG} cleared aMapReadyTimer`)
+  }
+  if (timeoutTimer) {
+    clearTimeout(timeoutTimer)
+    timeoutTimer = null
+    console.log(`${TAG} cleared timeoutTimer`)
+  }
+
+  // 清除 Marker 引用
+  const markerCount = markerList.length
   markerList = []
-  if (l7Scene) {
-    l7Scene.destroy()
-    l7Scene = null
-  }
+  console.log(`${TAG} cleared ${markerCount} markers`)
+
+  // 先销毁 AMap 实例（必须显式销毁，L7 destroy 不一定彻底清理 AMap 资源）
   if (aMapInstance) {
-    aMapInstance.destroy()
+    try {
+      console.log(`${TAG} destroying AMap instance...`)
+      aMapInstance.destroy()
+      console.log(`${TAG} AMap instance destroyed`)
+    } catch (e) {
+      console.warn(`${TAG} Error destroying AMap instance:`, e)
+    }
     aMapInstance = null
+  } else {
+    console.log(`${TAG} aMapInstance is null, skip AMap destroy`)
   }
+  logMem('after AMap destroy')
+
+  // 再销毁 L7 Scene
+  if (l7Scene) {
+    try {
+      console.log(`${TAG} destroying L7 scene...`)
+      l7Scene.destroy()
+      console.log(`${TAG} L7 scene destroyed`)
+    } catch (e) {
+      console.warn(`${TAG} Error destroying L7 scene:`, e)
+    }
+    l7Scene = null
+  } else {
+    console.log(`${TAG} l7Scene is null, skip L7 destroy`)
+  }
+  logMem('after L7 destroy')
+
+  satelliteLayer = null
+  normalLayer = null
+
+  // 清理 mapContainer 上 AMap 注入的 DOM 扩展属性，确保 DOM 节点可被 GC
+  if (mapContainer.value) {
+    const container = mapContainer.value
+    const keysToRemove = Object.keys(container).filter(k => k.startsWith('__'))
+    console.log(`${TAG} cleaning ${keysToRemove.length} DOM extended keys:`, keysToRemove)
+    keysToRemove.forEach(k => delete (container as any)[k])
+    container.innerHTML = ''
+  }
+
+  // 清除场景数据引用
+  spaceData.value = null
+  sceneList.value = []
+
+  // 强制 GC 一下（如果可用）
+  if ((window as any).gc) {
+    try { (window as any).gc() } catch (e) { /* ignore */ }
+    logMem('after window.gc()')
+  }
+
+  console.log(`${TAG} onBeforeUnmount END`)
+})
+
+onUnmounted(() => {
+  // 兜底清理：此时 template ref 已被清空，mapContainer.value 为 null
+  // 仅清理 JS 层面的引用
+  console.log(`${TAG} onUnmounted (fallback cleanup)`)
+  aMapInstance = null
+  l7Scene = null
+  satelliteLayer = null
+  normalLayer = null
+  markerList = []
+  spaceData.value = null
+  sceneList.value = []
 })
 </script>
 

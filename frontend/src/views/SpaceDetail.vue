@@ -1,3 +1,4 @@
+<!-- 高德地图父容器页面 -->
 <template>
   <div class="space-detail-page">
     <SceneInSpace @scene-click="handleSceneClick" />
@@ -13,7 +14,7 @@ const router = useRouter()
 
 function handleSceneClick(scene: SceneMarkerData) {
   sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
-  router.push(`/panorama?scene=${scene.scene_code}`)
+  router.push(`/panorama?id=${scene.id}&scene=${scene.scene_code}`)
 }
 </script>
 

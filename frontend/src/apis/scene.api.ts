@@ -3,10 +3,12 @@ import type { SceneListRequest, SceneDetailResponse, SceneListResponse, BatchImp
 import Axios from "@/utils/axios";
 
 export default class SceneApi {
+    // 获取场景列表
     public static async getSceneList(params?: SceneListRequest): Promise<Result<SceneListResponse>> {
         return await Axios.get('/resource/scenes', { params });
     }
 
+    // 获取场景详情
     public static async getSceneDetail(id: number): Promise<Result<SceneDetailResponse>> {
         return await Axios.get(`/resource/scenes/${id}`);
     }
@@ -23,6 +25,7 @@ export default class SceneApi {
         return await Axios.delete(`/resource/scenes/${id}`);
     }
 
+    // 批量导入场景
     public static async batchImportScene(spaceId: number, file: File, onUploadProgress?: (progress: number) => void): Promise<Result<BatchImportResponse>> {
         const formData = new FormData();
         formData.append('space_id', spaceId.toString());
@@ -37,11 +40,12 @@ export default class SceneApi {
             }
         });
     }
-
+    // 获取空间场景图
     public static async getSpaceGraph(spaceId: number): Promise<Result<GraphDataResponse>> {
         return await Axios.get(`/resource/spaces/${spaceId}/graph`);
     }
 
+    // 更新场景位置
     public static async updateScenePosition(id: number, data: UpdatePositionRequest): Promise<Result<{ message: string }>> {
         return await Axios.put(`/resource/scenes/${id}/position`, data);
     }

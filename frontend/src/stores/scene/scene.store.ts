@@ -26,23 +26,7 @@ function createSliceTasksMap(): Map<string, SliceTaskInfo> {
   return new Map()
 }
 
-function objectToUploadMap(obj: Record<string, UploadTask> | null | undefined): Map<string, UploadTask> {
-  if (!obj) return createUploadTasksMap()
-  const map = new Map<string, UploadTask>()
-  for (const [key, value] of Object.entries(obj)) {
-    map.set(key, value)
-  }
-  return map
-}
-
-function objectToSliceMap(obj: Record<string, SliceTaskInfo> | null | undefined): Map<string, SliceTaskInfo> {
-  if (!obj) return createSliceTasksMap()
-  const map = new Map<string, SliceTaskInfo>()
-  for (const [key, value] of Object.entries(obj)) {
-    map.set(key, value)
-  }
-  return map
-}
+let handlersRegistered = false
 
 export const useSceneStore = defineStore('scene', () => {
   const uploadTasks = ref<Map<string, UploadTask>>(createUploadTasksMap())
@@ -74,17 +58,20 @@ export const useSceneStore = defineStore('scene', () => {
       return
     }
 
-    wsClient.on('progress', handleProgress)
-    wsClient.on('complete', handleComplete)
-    wsClient.on('error', handleError)
-    wsClient.on('merge_start', handleMergeStart)
-    wsClient.on('merge_progress', handleMergeProgress)
-    wsClient.on('slice_progress', handleSliceProgress)
-    wsClient.on('slice_complete', handleSliceComplete)
-    wsClient.on('slice_error', handleSliceError)
-    wsClient.on('slice_queue_status', handleSliceQueueStatus)
-    wsClient.on('disconnected', handleDisconnected)
-    wsClient.on('error', handleWsError)
+    if (!handlersRegistered) {
+      wsClient.on('progress', handleProgress)
+      wsClient.on('complete', handleComplete)
+      wsClient.on('error', handleError)
+      wsClient.on('merge_start', handleMergeStart)
+      wsClient.on('merge_progress', handleMergeProgress)
+      wsClient.on('slice_progress', handleSliceProgress)
+      wsClient.on('slice_complete', handleSliceComplete)
+      wsClient.on('slice_error', handleSliceError)
+      wsClient.on('slice_queue_status', handleSliceQueueStatus)
+      wsClient.on('disconnected', handleDisconnected)
+      wsClient.on('error', handleWsError)
+      handlersRegistered = true
+    }
 
     console.log('[SceneStore] Connecting WebSocket...')
     wsClient.connect(token)
@@ -150,7 +137,7 @@ export const useSceneStore = defineStore('scene', () => {
         message: data.message,
         status: 'slicing' as const
       }
-      sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
+      sliceTasks.value.set(data.task_id, updatedTask)
     } else {
       console.log('[Store] Task not found for progress:', data.task_id)
     }
@@ -168,7 +155,7 @@ export const useSceneStore = defineStore('scene', () => {
         previewUrl: data.preview_url,
         message: '切片完成'
       }
-      sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
+      sliceTasks.value.set(data.task_id, updatedTask)
     } else {
       console.log('[Store] Task not found for complete:', data.task_id)
     }
@@ -183,7 +170,7 @@ export const useSceneStore = defineStore('scene', () => {
         status: 'failed' as const,
         message: data.error
       }
-      sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
+      sliceTasks.value.set(data.task_id, updatedTask)
     } else {
       console.log('[Store] Task not found for error:', data.task_id)
     }
@@ -201,7 +188,7 @@ export const useSceneStore = defineStore('scene', () => {
         queuePosition: data.queue_ahead_count,
         estimatedWaitSeconds: data.estimated_wait_seconds
       }
-      sliceTasks.value = new Map(sliceTasks.value.set(data.task_id, updatedTask))
+      sliceTasks.value.set(data.task_id, updatedTask)
     }
   }
 
@@ -242,7 +229,7 @@ export const useSceneStore = defineStore('scene', () => {
   }
 
   function addSliceTask(taskInfo: SliceTaskInfo) {
-    sliceTasks.value = new Map(sliceTasks.value.set(taskInfo.taskId, taskInfo))
+    sliceTasks.value.set(taskInfo.taskId, taskInfo)
   }
 
   function getSliceTask(taskId: string): SliceTaskInfo | undefined {
@@ -253,7 +240,7 @@ export const useSceneStore = defineStore('scene', () => {
     const task = sliceTasks.value.get(taskId)
     if (task) {
       const updatedTask = { ...task, ...updates }
-      sliceTasks.value = new Map(sliceTasks.value.set(taskId, updatedTask))
+      sliceTasks.value.set(taskId, updatedTask)
     }
   }
 
@@ -283,6 +270,22 @@ export const useSceneStore = defineStore('scene', () => {
     })
   }
 
+  function cleanupWebSocket() {
+    if (!handlersRegistered) return
+    wsClient.off('progress', handleProgress)
+    wsClient.off('complete', handleComplete)
+    wsClient.off('error', handleError)
+    wsClient.off('merge_start', handleMergeStart)
+    wsClient.off('merge_progress', handleMergeProgress)
+    wsClient.off('slice_progress', handleSliceProgress)
+    wsClient.off('slice_complete', handleSliceComplete)
+    wsClient.off('slice_error', handleSliceError)
+    wsClient.off('slice_queue_status', handleSliceQueueStatus)
+    wsClient.off('disconnected', handleDisconnected)
+    wsClient.off('error', handleWsError)
+    handlersRegistered = false
+  }
+
   function disconnectWebSocket() {
     wsClient.disconnect()
     wsConnected.value = false
@@ -296,6 +299,7 @@ export const useSceneStore = defineStore('scene', () => {
     currentUpload,
     uploadingTasks,
     initWebSocket,
+    cleanupWebSocket,
     addUploadTask,
     updateUploadTask,
     removeUploadTask,
@@ -308,21 +312,5 @@ export const useSceneStore = defineStore('scene', () => {
     resumeUpload,
     clearCompletedTasks,
     disconnectWebSocket
-  }
-}, {
-  persist: {
-    key: 'scene-upload-tasks',
-    storage: localStorage,
-    serializer: {
-      deserialize: (value) => {
-        const parsed = JSON.parse(value)
-        return {
-          ...parsed,
-          uploadTasks: objectToUploadMap(parsed.uploadTasks),
-          sliceTasks: objectToSliceMap(parsed.sliceTasks)
-        }
-      },
-      serialize: (value) => JSON.stringify(value)
-    }
   }
 })

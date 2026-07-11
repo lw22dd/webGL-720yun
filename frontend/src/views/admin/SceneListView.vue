@@ -250,7 +250,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import type { FormRule } from 'tdesign-vue-next'
@@ -667,7 +667,7 @@ const openPreviewDialog = (scene: SceneListItem) => {
 
 const handleViewPanorama = (scene: SceneListItem) => {
   sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
-  router.push(`/panorama?scene=${scene.scene_code}`)
+  router.push(`/panorama?id=${scene.id}&scene=${scene.scene_code}`)
 }
 
 const handlePageChange = (context: { current: number; pageSize: number }) => {
@@ -704,6 +704,15 @@ onMounted(() => {
   wsClient.on('slice_progress', handleSliceProgress)
   wsClient.on('slice_complete', handleSliceComplete)
   wsClient.on('slice_error', handleSliceError)
+})
+
+onUnmounted(() => {
+  wsClient.off('progress', handleUploadProgress)
+  wsClient.off('merge_progress', handleMergeProgress)
+  wsClient.off('complete', handleUploadComplete)
+  wsClient.off('slice_progress', handleSliceProgress)
+  wsClient.off('slice_complete', handleSliceComplete)
+  wsClient.off('slice_error', handleSliceError)
 })
 
 defineExpose({

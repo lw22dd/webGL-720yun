@@ -84,9 +84,11 @@ export class TilePreloader {
   private loadingTiles: Map<string, Promise<void>> = new Map()
   private sceneCode: string
   private enabled: boolean = true
+  private abortController: AbortController
 
   constructor(sceneCode: string) {
     this.sceneCode = sceneCode
+    this.abortController = new AbortController()
   }
 
   setEnabled(enabled: boolean): void {
@@ -127,13 +129,16 @@ export class TilePreloader {
     }
 
     const url = getTileUrl(this.sceneCode, face, level, x, y)
-    const promise = fetch(url, { method: 'GET' })
+    const promise = fetch(url, { method: 'GET', signal: this.abortController.signal })
       .then(res => {
         if (res.ok) {
           this.loadedTiles.set(key, true)
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err.name === 'AbortError') {
+          return
+        }
         // 静默处理错误
       })
       .finally(() => {
@@ -150,6 +155,8 @@ export class TilePreloader {
   }
 
   clear(): void {
+    this.abortController.abort()
+    this.abortController = new AbortController()
     this.loadedTiles.clear()
     this.loadingTiles.clear()
   }

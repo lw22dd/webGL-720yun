@@ -17,6 +17,8 @@ export interface SliceTask {
   createdAt: number
 }
 
+let handlersRegistered = false
+
 export const useSliceStore = defineStore('slice', () => {
   const sliceTasks = ref<Map<string, SliceTask>>(new Map())
   const wsConnected = ref(false)
@@ -42,9 +44,12 @@ export const useSliceStore = defineStore('slice', () => {
       return
     }
 
-    wsClient.on('slice_progress', handleSliceProgress)
-    wsClient.on('slice_complete', handleSliceComplete)
-    wsClient.on('slice_error', handleSliceError)
+    if (!handlersRegistered) {
+      wsClient.on('slice_progress', handleSliceProgress)
+      wsClient.on('slice_complete', handleSliceComplete)
+      wsClient.on('slice_error', handleSliceError)
+      handlersRegistered = true
+    }
 
     wsClient.connect(token)
       .then(() => {
@@ -146,6 +151,14 @@ export const useSliceStore = defineStore('slice', () => {
     })
   }
 
+  function cleanupWebSocket() {
+    if (!handlersRegistered) return
+    wsClient.off('slice_progress', handleSliceProgress)
+    wsClient.off('slice_complete', handleSliceComplete)
+    wsClient.off('slice_error', handleSliceError)
+    handlersRegistered = false
+  }
+
   function disconnectWebSocket() {
     wsClient.disconnect()
     wsConnected.value = false
@@ -157,6 +170,7 @@ export const useSliceStore = defineStore('slice', () => {
     currentTasks,
     completedTasks,
     initWebSocket,
+    cleanupWebSocket,
     addSliceTask,
     updateSliceTask,
     removeSliceTask,
@@ -164,10 +178,5 @@ export const useSliceStore = defineStore('slice', () => {
     getSliceTaskBySceneId,
     clearCompletedSliceTasks,
     disconnectWebSocket
-  }
-}, {
-  persist: {
-    key: 'slice-tasks',
-    storage: localStorage
   }
 })

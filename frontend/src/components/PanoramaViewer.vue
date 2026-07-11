@@ -1,3 +1,4 @@
+<!-- 全景漫游组件 -->
 <template>
   <div class="panorama-container">
     <div ref="containerRef" class="panorama-canvas"></div>
@@ -61,26 +62,39 @@ const currentHotspot = ref<HotspotForViewer | null>(null)
 const selectedQuizOption = ref<number | null>(null)
 
 const loadScene = async () => {
+  const sceneId = route.query.id ? Number(route.query.id) : null
   const sceneCode = route.query.scene as string
-  if (!sceneCode) {
+
+  if (!sceneId && !sceneCode) {
     engineError.value = '未指定场景'
     return
   }
 
   try {
-    const result = await SceneApi.getSceneList({ keyword: sceneCode, page: 1, page_size: 10 })
+    let targetSceneId: number | null = sceneId
 
-    if (result.code === 200 && result.data && result.data.scenes && result.data.scenes.length > 0) {
-      const scene = result.data.scenes.find((s: SceneListItem) => s.scene_code === sceneCode)
-      if (scene) {
-        currentSceneId.value = scene.id
-        const detailResult = await SceneApi.getSceneDetail(scene.id)
-        if (detailResult.code === 200 && detailResult.data) {
-          currentScene.value = detailResult.data
-          await initScene(detailResult.data)
-          await loadHotspotsForScene(scene.id)
+    // 兼容旧链接：只有 sceneCode 时先查列表换 id
+    if (!targetSceneId && sceneCode) {
+      const result = await SceneApi.getSceneList({ keyword: sceneCode, page: 1, page_size: 10 })
+      if (result.code === 200 && result.data?.scenes?.length) {
+        const scene = result.data.scenes.find((s: SceneListItem) => s.scene_code === sceneCode)
+        if (scene) {
+          targetSceneId = scene.id
         }
       }
+    }
+
+    if (!targetSceneId) {
+      engineError.value = '场景不存在'
+      return
+    }
+
+    currentSceneId.value = targetSceneId
+    const detailResult = await SceneApi.getSceneDetail(targetSceneId)
+    if (detailResult.code === 200 && detailResult.data) {
+      currentScene.value = detailResult.data
+      await initScene(detailResult.data)
+      await loadHotspotsForScene(targetSceneId)
     } else {
       engineError.value = '场景不存在'
     }
@@ -134,7 +148,7 @@ const handleSceneSelect = async (sceneId: number) => {
     if (result.code === 200 && result.data) {
       currentScene.value = result.data
       currentSceneId.value = sceneId
-      router.push({ query: { scene: result.data.scene_code } })
+      router.push({ query: { id: sceneId, scene: result.data.scene_code } })
       await initScene(result.data)
       await loadHotspotsForScene(sceneId)
     }

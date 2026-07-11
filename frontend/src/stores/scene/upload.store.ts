@@ -6,15 +6,6 @@ function createUploadTasksMap(): Map<string, UploadTask> {
   return new Map()
 }
 
-function objectToMap(obj: Record<string, UploadTask> | null | undefined): Map<string, UploadTask> {
-  if (!obj) return createUploadTasksMap()
-  const map = new Map<string, UploadTask>()
-  for (const [key, value] of Object.entries(obj)) {
-    map.set(key, value)
-  }
-  return map
-}
-
 export const useUploadStore = defineStore('upload', () => {
   const uploadTasks = ref<Map<string, UploadTask>>(createUploadTasksMap())
   const currentUploadId = ref<string | null>(null)
@@ -107,20 +98,5 @@ export const useUploadStore = defineStore('upload', () => {
     resumeUpload,
     cancelUpload,
     clearCompletedTasks
-  }
-}, {
-  persist: {
-    key: 'upload-tasks',
-    storage: localStorage,
-    serializer: {
-      deserialize: (value) => {
-        const parsed = JSON.parse(value)
-        return {
-          ...parsed,
-          uploadTasks: objectToMap(parsed.uploadTasks)
-        }
-      },
-      serialize: (value) => JSON.stringify(value)
-    }
   }
 })

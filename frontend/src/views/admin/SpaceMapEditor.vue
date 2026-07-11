@@ -13,7 +13,7 @@ const router = useRouter()
 
 function handleSceneClick(scene: SceneMarkerData) {
   sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
-  router.push(`/panorama?scene=${scene.scene_code}`)
+  router.push(`/panorama?id=${scene.id}&scene=${scene.scene_code}`)
 }
 </script>
 

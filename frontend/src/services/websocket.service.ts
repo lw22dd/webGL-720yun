@@ -22,6 +22,15 @@ class WebSocketClient {
       const wsUrl = `${wsProtocol}//${wsHost}/api/v1/ws?token=${token}`
       console.log('[WebSocket] Connecting to:', wsUrl)
 
+      if (this.ws) {
+        this.ws.onopen = null
+        this.ws.onmessage = null
+        this.ws.onclose = null
+        this.ws.onerror = null
+        this.ws.close()
+        this.ws = null
+      }
+
       try {
         this.ws = new WebSocket(wsUrl)
 
@@ -48,7 +57,9 @@ class WebSocketClient {
           this.stopHeartbeat()
           this.emit('disconnected', { code: event.code, reason: event.reason })
 
-          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          const shouldReconnect = this.reconnectAttempts < this.maxReconnectAttempts
+          this.ws = null
+          if (shouldReconnect) {
             this.scheduleReconnect()
           }
         }

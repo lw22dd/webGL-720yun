@@ -98,7 +98,7 @@ const handleItemClick = (item: FavoriteItem) => {
     router.push(`/?space=${item.id}`)
   } else if (item.scene_code) {
     sessionStorage.setItem('panoramaFrom', router.currentRoute.value.fullPath)
-    router.push(`/panorama?scene=${item.scene_code}`)
+    router.push(`/panorama?id=${item.id}&scene=${item.scene_code}`)
   }
 }
 

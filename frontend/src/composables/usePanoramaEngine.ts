@@ -20,6 +20,10 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
   let tilePreloader: TilePreloader | null = null
   let onHotspotClickCallback: ((hotspot: HotspotForViewer) => void) | null = null
 
+  let readyHandler: (() => void) | null = null
+  let panoramaErrorHandler: (() => void) | null = null
+  let selectMarkerHandler: ((e: any) => void) | null = null
+
   const initScene = async (scene: SceneDetailResponse, hotspots?: HotspotForViewer[]): Promise<void> => {
     if (!container.value) return
 
@@ -100,7 +104,7 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       viewer = new Viewer(viewerConfig)
       markersPlugin = viewer.getPlugin(MarkersPlugin) as unknown as MarkersPlugin
 
-      viewer.addEventListener('ready', () => {
+      readyHandler = () => {
         loading.value = false
         viewerReady.value = true
 
@@ -111,19 +115,21 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
         if (hotspots && hotspots.length > 0) {
           loadHotspots(hotspots)
         }
-      })
+      }
+      viewer.addEventListener('ready', readyHandler)
 
-      viewer.addEventListener('panorama-error', () => {
+      panoramaErrorHandler = () => {
         if (sceneCode) {
           initViewerWithFallback(`${baseApiUrl}/api/v1/res/sources/${sceneCode}`, scene, hotspots)
         } else {
           error.value = '全景图加载失败，请重新上传或切片'
           loading.value = false
         }
-      })
+      }
+      viewer.addEventListener('panorama-error', panoramaErrorHandler)
 
       if (markersPlugin) {
-        markersPlugin.addEventListener('select-marker', (e: any) => {
+        selectMarkerHandler = (e: any) => {
           const hotspotId = parseInt(e.marker.config.id.replace('hotspot-', ''))
           if (scene.hotspots) {
             const hotspot = scene.hotspots.find((h) => h.id === hotspotId)
@@ -131,7 +137,8 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
               onHotspotClickCallback(hotspot as HotspotForViewer)
             }
           }
-        })
+        }
+        markersPlugin.addEventListener('select-marker', selectMarkerHandler)
       }
 
     } catch (e: unknown) {
@@ -147,10 +154,7 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
   ): Promise<void> => {
     if (!container.value) return
 
-    if (viewer) {
-      viewer.destroy()
-      viewer = null
-    }
+    destroy()
 
     try {
       const viewerConfig: any = {
@@ -170,22 +174,24 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       viewer = new Viewer(viewerConfig)
       markersPlugin = viewer.getPlugin(MarkersPlugin) as unknown as MarkersPlugin
 
-      viewer.addEventListener('ready', () => {
+      readyHandler = () => {
         loading.value = false
         viewerReady.value = true
 
         if (hotspots && hotspots.length > 0) {
           loadHotspots(hotspots)
         }
-      })
+      }
+      viewer.addEventListener('ready', readyHandler)
 
-      viewer.addEventListener('panorama-error', () => {
+      panoramaErrorHandler = () => {
         error.value = '全景图加载失败'
         loading.value = false
-      })
+      }
+      viewer.addEventListener('panorama-error', panoramaErrorHandler)
 
       if (markersPlugin) {
-        markersPlugin.addEventListener('select-marker', (e: any) => {
+        selectMarkerHandler = (e: any) => {
           const hotspotId = parseInt(e.marker.config.id.replace('hotspot-', ''))
           if (scene.hotspots) {
             const hotspot = scene.hotspots.find((h) => h.id === hotspotId)
@@ -193,7 +199,8 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
               onHotspotClickCallback(hotspot as HotspotForViewer)
             }
           }
-        })
+        }
+        markersPlugin.addEventListener('select-marker', selectMarkerHandler)
       }
 
     } catch (e: unknown) {
@@ -279,14 +286,28 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
 
   const destroy = (): void => {
     if (viewer) {
+      if (readyHandler) {
+        viewer.removeEventListener('ready', readyHandler)
+      }
+      if (panoramaErrorHandler) {
+        viewer.removeEventListener('panorama-error', panoramaErrorHandler)
+      }
       viewer.destroy()
       viewer = null
+    }
+    if (markersPlugin) {
+      if (selectMarkerHandler) {
+        markersPlugin.removeEventListener('select-marker', selectMarkerHandler)
+      }
+      markersPlugin = null
     }
     if (tilePreloader) {
       tilePreloader.clear()
       tilePreloader = null
     }
-    markersPlugin = null
+    readyHandler = null
+    panoramaErrorHandler = null
+    selectMarkerHandler = null
     viewerReady.value = false
   }
 
