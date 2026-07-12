@@ -12,7 +12,6 @@
               <t-option value="space" label="空间管理" />
               <t-option value="scene" label="场景管理" />
               <t-option value="hotspot" label="热点管理" />
-              <t-option value="system" label="系统设置" />
             </t-select>
             <t-date-range-picker v-model="operationFilter.dateRange" clearable />
             <t-button theme="primary" @click="loadOperationLogs">查询</t-button>

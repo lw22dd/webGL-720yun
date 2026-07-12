@@ -27,13 +27,6 @@
         <span>空间管理</span>
       </t-menu-item>
 
-      <t-menu-item value="/admin/settings">
-        <template #icon>
-          <t-icon name="setting" />
-        </template>
-        <span>系统设置</span>
-      </t-menu-item>
-
       <t-menu-item value="/admin/logs">
         <template #icon>
           <t-icon name="history" />

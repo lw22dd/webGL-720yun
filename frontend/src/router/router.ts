@@ -8,7 +8,6 @@ import UserDetail from '@/views/user/UserDetail.vue'
 import UserManagement from '@/views/admin/UserManagement.vue'
 import SpaceManagement from '@/views/admin/SpaceManagement.vue'
 import SpaceMapEditor from '@/views/admin/SpaceMapEditor.vue'
-import SystemSettings from '@/views/admin/SystemSettings.vue'
 import LogManagement from '@/views/admin/LogManagement.vue'
 import Favorites from '@/views/user/Favorites.vue'
 import History from '@/views/user/History.vue'
@@ -35,7 +34,6 @@ const routes: RouteRecordRaw[] = [
       { path: 'batch-register', component: ExcelUpload, name: 'adminBatchRegister' },
       { path: 'spaces', component: SpaceManagement, name: 'adminSpaces' },
       { path: 'spaces/:id/map', component: SpaceMapEditor, name: 'spaceMapEditor' },
-      { path: 'settings', component: SystemSettings, name: 'adminSettings' },
       { path: 'logs', component: LogManagement, name: 'adminLogs' }
     ]
   },

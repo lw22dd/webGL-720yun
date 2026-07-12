@@ -106,7 +106,6 @@ const currentPageName = computed(() => {
     '/admin/users': '用户管理',
     '/admin/batch-register': '批量导入',
     '/admin/spaces': '全景空间',
-    '/admin/settings': '全局配置',
     '/admin/logs': '操作审计'
   }
   return pathMap[route.path] || route.path.split('/').pop()
