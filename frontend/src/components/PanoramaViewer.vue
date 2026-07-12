@@ -6,7 +6,7 @@
     <PanoTopbar
       :title="sceneTitle"
       @back="goBack"
-      @share="copyShareLink"
+      @minimap="toggleMinimap"
       @fullscreen="toggleFullscreen"
     />
 
@@ -25,7 +25,12 @@
       :hotspot="currentHotspot"
     />
 
-    
+    <PanoMinimap
+      v-model:visible="minimapVisible"
+      :current-scene="currentScene"
+      :get-viewer="getViewer"
+      @scene-select="handleSceneSelect"
+    />
   </div>
 </template>
 
@@ -40,6 +45,7 @@ import type { HotspotForViewer } from '@/models/hotspot.model'
 import { usePanoramaEngine } from '@/composables/usePanoramaEngine'
 import PanoTopbar from './panorama/PanoTopbar.vue'
 import PanoHotspotDialog from './panorama/PanoHotspotDialog.vue'
+import PanoMinimap from './panorama/PanoMinimap.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,6 +57,7 @@ const {
   initScene,
   destroy: destroyEngine,
   setOnHotspotClick,
+  getViewer,
 } = usePanoramaEngine(containerRef)
 const currentScene = ref<SceneDetailResponse | null>(null)
 const currentSceneId = ref<number | null>(null)
@@ -60,6 +67,7 @@ const infoDialogVisible = ref(false)
 const quizDialogVisible = ref(false)
 const currentHotspot = ref<HotspotForViewer | null>(null)
 const selectedQuizOption = ref<number | null>(null)
+const minimapVisible = ref(false)
 
 const loadScene = async () => {
   const sceneId = route.query.id ? Number(route.query.id) : null
@@ -165,11 +173,8 @@ const toggleFullscreen = () => {
   }
 }
 
-const copyShareLink = () => {
-  const link = window.location.href
-  navigator.clipboard.writeText(link).then(() => {
-    MessagePlugin.success('链接已复制')
-  })
+const toggleMinimap = () => {
+  minimapVisible.value = !minimapVisible.value
 }
 
 const goBack = () => {

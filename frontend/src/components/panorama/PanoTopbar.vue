@@ -7,7 +7,7 @@
       <span class="pano-title">{{ title }}</span>
     </div>
     <div class="pano-topbar-right">
-      <t-button theme="default" variant="outline" @click="$emit('share')" class="action-btn">
+      <t-button theme="default" variant="outline" @click="$emit('minimap')" class="action-btn">
         小地图
       </t-button>
       <t-button theme="default" variant="outline" @click="$emit('fullscreen')" class="action-btn">
@@ -24,7 +24,7 @@ defineProps<{
 
 defineEmits<{
   (e: 'back'): void
-  (e: 'share'): void
+  (e: 'minimap'): void
   (e: 'fullscreen'): void
 }>()
 </script>

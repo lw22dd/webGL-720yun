@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import * as mapManager from '@/services/mapManager.service'
 
 interface UserInfo {
   id?: string
@@ -43,6 +44,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo.value = {}
     accessToken.value = ''
     refreshToken.value = ''
+    mapManager.forceDestroy()
   }
 
   return {
