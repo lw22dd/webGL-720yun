@@ -160,13 +160,16 @@ func BatchImportScenes(svc *service.SceneService) gin.HandlerFunc {
 
 func GetSpaceGraph(svc *service.SceneService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req SpaceIDParamRequest
+		// 路由为 /spaces/:id/graph，参数名是 id 而非 space_id
+		var req struct {
+			ID uint `uri:"id" binding:"required"`
+		}
 		if err := c.ShouldBindUri(&req); err != nil {
 			utils.BadRequest(c, "参数错误")
 			return
 		}
 
-		response, err := svc.GetSpaceGraphData(req.SpaceID)
+		response, err := svc.GetSpaceGraphData(req.ID)
 		if err != nil {
 			utils.Error(c, http.StatusBadRequest, err.Error())
 			return

@@ -573,9 +573,14 @@ func (s *SceneService) GetSpaceGraphData(spaceID uint) (*dto.GraphDataResponse, 
 	var nodes []*dto.SceneNodeData
 	var edges []*dto.EdgeData
 
+	// 两阶段处理：先收集所有场景 ID 到 map，再遍历生成 edges
+	// 避免顺序依赖 bug：A→B 时若 B 尚未入 map 会被误过滤
 	sceneMap := make(map[uint]bool)
 	for _, scene := range scenes {
 		sceneMap[scene.ID] = true
+	}
+
+	for _, scene := range scenes {
 		nodeData := dto.ToSceneNodeData(scene)
 		nodes = append(nodes, nodeData)
 

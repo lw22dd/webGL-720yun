@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import * as mapManager from '@/services/mapManager.service'
 
 interface UserInfo {
@@ -25,6 +25,10 @@ export const useUserStore = defineStore('user', () => {
   const userInfo = ref<UserInfo>({})
   const accessToken = ref('')
   const refreshToken = ref('')
+
+  const isAdmin = computed(() => {
+    return userInfo.value.is_super_admin === true || userInfo.value.role?.name === 'admin'
+  })
 
   function setLogin(status: boolean) {
     isLogin.value = status
@@ -52,6 +56,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo,
     accessToken,
     refreshToken,
+    isAdmin,
     setLogin,
     setUserInfo,
     setToken,

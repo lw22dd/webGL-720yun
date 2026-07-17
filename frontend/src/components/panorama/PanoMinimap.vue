@@ -55,7 +55,7 @@
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { Viewer } from '@photo-sphere-viewer/core'
 import type { SceneDetailResponse } from '@/models/scene.model'
-import type { GraphDataResponse, SceneNodeData, SpaceInfoForGraph } from '@/models/scene.model'
+import type { GraphDataResponse, SceneNodeData } from '@/models/scene.model'
 import SpaceApi from '@/apis/space.api'
 
 const props = defineProps<{
@@ -114,34 +114,9 @@ async function loadGraphData(spaceId: number) {
   loading.value = true
   error.value = null
   try {
-    const result = await SpaceApi.getSpaceDetail(spaceId)
+    const result = await SpaceApi.getSpaceGraph(spaceId)
     if (result.code === 200 && result.data) {
-      const space = result.data
-      const nodes: SceneNodeData[] = (space.scenes || []).map((s: any) => ({
-        id: s.id,
-        title: s.title,
-        scene_code: s.scene_code,
-        thumbnail_url: s.thumbnail_url || '',
-        longitude: s.longitude || 0,
-        latitude: s.latitude || 0,
-        has_position: !!s.longitude && !!s.latitude,
-        view_count: s.view_count || 0,
-      }))
-
-      const spaceInfo: SpaceInfoForGraph = {
-        id: space.id,
-        name: space.name,
-        longitude: space.longitude,
-        latitude: space.latitude,
-        zoom_level: space.zoom_level || 15,
-      }
-
-      graphData.value = {
-        space_info: spaceInfo,
-        nodes,
-        edges: [],
-        unplaced: [],
-      }
+      graphData.value = result.data
     } else {
       error.value = result.msg || '加载节点数据失败'
     }
@@ -244,25 +219,157 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, width: number, height: n
 function drawEdges(ctx: CanvasRenderingContext2D, layout: Layout) {
   const edges = graphData.value?.edges || []
   const nodes = graphData.value?.nodes || []
+  const currentId = props.currentScene?.id
 
   if (!edges.length || !nodes.length) return
 
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
-  ctx.lineWidth = 1
+  // 构建节点查找表
+  const nodeMap = new Map<number, SceneNodeData>()
+  for (const n of nodes) nodeMap.set(n.id, n)
+
+  // 预处理：识别双向边（A→B 且 B→A）
+  // key 使用 "minId-maxId" 规范化，避免重复
+  const edgePairs = new Set<string>()
+  const bidirectionalSet = new Set<string>()
+  for (const e of edges) {
+    const key = e.source_id < e.target_id
+      ? `${e.source_id}-${e.target_id}`
+      : `${e.target_id}-${e.source_id}`
+    if (edgePairs.has(key)) {
+      bidirectionalSet.add(key)
+    } else {
+      edgePairs.add(key)
+    }
+  }
+
+  // 按方向分组：同一方向的边只画一次（去重）
+  const drawnSet = new Set<string>()
+  // 当前场景的出边集合
+  const outgoingSet = new Set<string>()
 
   for (const edge of edges) {
-    const source = nodes.find(n => n.id === edge.source_id)
-    const target = nodes.find(n => n.id === edge.target_id)
+    const source = nodeMap.get(edge.source_id)
+    const target = nodeMap.get(edge.target_id)
     if (!source || !target) continue
+
+    const key = `${edge.source_id}-${edge.target_id}`
+    if (drawnSet.has(key)) continue
+    drawnSet.add(key)
 
     const p1 = toCanvas(source.longitude, source.latitude, layout)
     const p2 = toCanvas(target.longitude, target.latitude, layout)
 
+    // 判断边类型
+    const pairKey = edge.source_id < edge.target_id
+      ? `${edge.source_id}-${edge.target_id}`
+      : `${edge.target_id}-${edge.source_id}`
+    const isBidirectional = bidirectionalSet.has(pairKey)
+    const isOutgoing = edge.source_id === currentId
+
+    if (isOutgoing) {
+      outgoingSet.add(key)
+    }
+
+    // 颜色策略：
+    // - 当前场景出边 → 强调色（琥珀色）
+    // - 双向边 → 绿色（可往返）
+    // - 普通有向边 → 半透明白
+    let strokeColor: string
+    let lineWidth: number
+    if (isOutgoing) {
+      strokeColor = 'rgba(245, 158, 11, 0.85)'
+      lineWidth = 1.6
+    } else if (isBidirectional) {
+      strokeColor = 'rgba(16, 185, 129, 0.7)'
+      lineWidth = 1.3
+    } else {
+      strokeColor = 'rgba(255, 255, 255, 0.3)'
+      lineWidth = 1
+    }
+
+    ctx.strokeStyle = strokeColor
+    ctx.lineWidth = lineWidth
+
+    // 收缩端点：避免箭头插入节点圆心，从节点边缘开始/结束
+    const nodeRadius = BASE_NODE_RADIUS * Math.max(0.6, Math.min(1.4, zoomLevel.value))
+    const dx = p2.x - p1.x
+    const dy = p2.y - p1.y
+    const dist = Math.hypot(dx, dy)
+    if (dist < nodeRadius * 2) continue // 节点重叠时跳过
+
+    const ux = dx / dist
+    const uy = dy / dist
+    const startX = p1.x + ux * nodeRadius
+    const startY = p1.y + uy * nodeRadius
+    const endX = p2.x - ux * nodeRadius
+    const endY = p2.y - uy * nodeRadius
+
     ctx.beginPath()
-    ctx.moveTo(p1.x, p1.y)
-    ctx.lineTo(p2.x, p2.y)
+    ctx.moveTo(startX, startY)
+    ctx.lineTo(endX, endY)
     ctx.stroke()
+
+    // 箭头：单向边在终点画箭头；双向边两端都画箭头
+    if (isBidirectional) {
+      drawArrowHead(ctx, startX, startY, ux, uy, strokeColor)
+      drawArrowHead(ctx, endX, endY, -ux, -uy, strokeColor)
+    } else {
+      drawArrowHead(ctx, endX, endY, -ux, -uy, strokeColor)
+    }
   }
+
+  // 对当前场景的出边做额外的脉冲高亮效果
+  if (currentId !== undefined && outgoingSet.size > 0) {
+    const pulse = (Date.now() % 2000) / 2000
+    const alpha = 0.4 + 0.4 * Math.sin(pulse * Math.PI * 2)
+    for (const key of outgoingSet) {
+      const [srcId, tgtId] = key.split('-').map(Number)
+      const source = nodeMap.get(srcId)
+      const target = nodeMap.get(tgtId)
+      if (!source || !target) continue
+
+      const p1 = toCanvas(source.longitude, source.latitude, layout)
+      const p2 = toCanvas(target.longitude, target.latitude, layout)
+      const nodeRadius = BASE_NODE_RADIUS * Math.max(0.6, Math.min(1.4, zoomLevel.value))
+      const dx = p2.x - p1.x
+      const dy = p2.y - p1.y
+      const dist = Math.hypot(dx, dy)
+      if (dist < nodeRadius * 2) continue
+
+      ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`
+      ctx.lineWidth = 2.5
+      ctx.beginPath()
+      ctx.moveTo(p1.x, p1.y)
+      ctx.lineTo(p2.x, p2.y)
+      ctx.stroke()
+    }
+  }
+}
+
+function drawArrowHead(
+  ctx: CanvasRenderingContext2D,
+  tipX: number,
+  tipY: number,
+  dirX: number,
+  dirY: number,
+  color: string
+) {
+  const arrowSize = 5
+  // dir 指向箭头指向的反方向（从 tip 往回画两翼）
+  const angle = Math.atan2(dirY, dirX)
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.moveTo(tipX, tipY)
+  ctx.lineTo(
+    tipX + Math.cos(angle - Math.PI / 6) * arrowSize,
+    tipY + Math.sin(angle - Math.PI / 6) * arrowSize
+  )
+  ctx.lineTo(
+    tipX + Math.cos(angle + Math.PI / 6) * arrowSize,
+    tipY + Math.sin(angle + Math.PI / 6) * arrowSize
+  )
+  ctx.closePath()
+  ctx.fill()
 }
 
 function drawNodes(ctx: CanvasRenderingContext2D, layout: Layout) {

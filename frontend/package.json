@@ -17,7 +17,7 @@
     "@photo-sphere-viewer/cubemap-tiles-adapter": "^5.14.1",
     "@photo-sphere-viewer/markers-plugin": "^5.14.1",
     "@tailwindcss/vite": "^4.1.18",
-    "@types/three": "^0.182.0",
+    "@types/three": "^0.179.0",
     "autoprefixer": "^10.4.21",
     "axios": "^1.12.2",
     "echarts": "^6.0.0",
@@ -26,7 +26,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "tdesign-vue-next": "^1.7.0",
-    "three": "^0.182.0",
+    "three": "^0.179.0",
     "vue": "^3.5.12",
     "vue-router": "^4.5.1"
   },

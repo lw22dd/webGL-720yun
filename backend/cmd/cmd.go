@@ -85,6 +85,11 @@ func Run() {
 				logger.Warnf("全景资源初始化失败（非致命）: %v", initErr)
 			}
 		}
+
+		// 初始化默认热点（依赖场景已就绪，幂等）
+		if err := setup.SeedHotspotsIfNeeded(db.DB); err != nil {
+			logger.Warnf("默认热点初始化失败（非致命）: %v", err)
+		}
 	}
 
 	wsHub := websocket.NewHub()

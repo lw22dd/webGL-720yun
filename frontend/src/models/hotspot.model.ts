@@ -100,3 +100,27 @@ export type HotspotForViewer = HotspotDetailResponse & {
   answer?: string
   score?: number
 }
+
+export type HotspotIconPreset = {
+  key: string
+  label: string
+  svg: string
+  appliesTo: number[]
+}
+
+export type HotspotEditorForm = {
+  id?: number
+  scene_id: number
+  type: 1 | 2 | 3
+  pitch: number
+  yaw: number
+  title: string
+  icon_source: 'preset' | 'custom'
+  icon_preset_key?: string
+  icon_url?: string
+  target_scene_id?: number
+  content?: string
+  media_type?: 'image' | 'text'
+  media_url?: string
+  transition_effect?: 'fade' | 'zoom' | 'none'
+}

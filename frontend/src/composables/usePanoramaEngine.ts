@@ -6,6 +6,7 @@ import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/markers-plugin/index.css'
 import type { SceneDetailResponse } from '@/models/scene.model'
 import type { HotspotForViewer } from '@/models/hotspot.model'
+import { getHotspotIconHtml } from '@/utils/hotspotIcons'
 import { TilePreloader, getBaseTileUrls, getTileUrl } from '@/utils/tileLoader'
 
 const baseApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'
@@ -19,10 +20,12 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
   let markersPlugin: MarkersPlugin | null = null
   let tilePreloader: TilePreloader | null = null
   let onHotspotClickCallback: ((hotspot: HotspotForViewer) => void) | null = null
+  let onViewerClickCallback: ((pos: { pitch: number; yaw: number }) => void) | null = null
 
   let readyHandler: (() => void) | null = null
   let panoramaErrorHandler: (() => void) | null = null
   let selectMarkerHandler: ((e: any) => void) | null = null
+  let clickHandler: ((e: any) => void) | null = null
 
   const initScene = async (scene: SceneDetailResponse, hotspots?: HotspotForViewer[]): Promise<void> => {
     if (!container.value) return
@@ -128,14 +131,19 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       }
       viewer.addEventListener('panorama-error', panoramaErrorHandler)
 
+      clickHandler = (e: any) => {
+        if (!onViewerClickCallback) return
+        const { pitch, yaw, rightclick } = e.data
+        if (rightclick) return
+        onViewerClickCallback({ pitch, yaw })
+      }
+      viewer.addEventListener('click', clickHandler)
+
       if (markersPlugin) {
         selectMarkerHandler = (e: any) => {
-          const hotspotId = parseInt(e.marker.config.id.replace('hotspot-', ''))
-          if (scene.hotspots) {
-            const hotspot = scene.hotspots.find((h) => h.id === hotspotId)
-            if (hotspot && onHotspotClickCallback) {
-              onHotspotClickCallback(hotspot as HotspotForViewer)
-            }
+          const hotspot = e.marker.config.data as HotspotForViewer
+          if (hotspot && onHotspotClickCallback) {
+            onHotspotClickCallback(hotspot)
           }
         }
         markersPlugin.addEventListener('select-marker', selectMarkerHandler)
@@ -190,14 +198,19 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       }
       viewer.addEventListener('panorama-error', panoramaErrorHandler)
 
+      clickHandler = (e: any) => {
+        if (!onViewerClickCallback) return
+        const { pitch, yaw, rightclick } = e.data
+        if (rightclick) return
+        onViewerClickCallback({ pitch, yaw })
+      }
+      viewer.addEventListener('click', clickHandler)
+
       if (markersPlugin) {
         selectMarkerHandler = (e: any) => {
-          const hotspotId = parseInt(e.marker.config.id.replace('hotspot-', ''))
-          if (scene.hotspots) {
-            const hotspot = scene.hotspots.find((h) => h.id === hotspotId)
-            if (hotspot && onHotspotClickCallback) {
-              onHotspotClickCallback(hotspot as HotspotForViewer)
-            }
+          const hotspot = e.marker.config.data as HotspotForViewer
+          if (hotspot && onHotspotClickCallback) {
+            onHotspotClickCallback(hotspot)
           }
         }
         markersPlugin.addEventListener('select-marker', selectMarkerHandler)
@@ -209,31 +222,26 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
     }
   }
 
+  const buildMarkerConfig = (hotspot: HotspotForViewer): any => ({
+    id: `hotspot-${hotspot.id}`,
+    position: { pitch: hotspot.pitch, yaw: hotspot.yaw },
+    tooltip: hotspot.title,
+    data: hotspot,
+    html: getHotspotIconHtml(hotspot),
+    size: { width: 40, height: 40 },
+    anchor: 'center center',
+  })
+
   const loadHotspots = (hotspots: HotspotForViewer[]): void => {
     if (!markersPlugin) return
-
     hotspots.forEach((hotspot: HotspotForViewer) => {
-      const markerConfig: any = {
-        id: `hotspot-${hotspot.id}`,
-        position: { pitch: hotspot.pitch, yaw: hotspot.yaw },
-        tooltip: hotspot.title,
-        data: hotspot
-      }
-
-      switch (hotspot.type) {
-        case 1:
-          markerConfig.html = `<div class="hotspot-marker hotspot-scene">→</div>`
-          break
-        case 2:
-          markerConfig.html = `<div class="hotspot-marker hotspot-info">ℹ</div>`
-          break
-        case 3:
-          markerConfig.html = `<div class="hotspot-marker hotspot-quiz">?</div>`
-          break
-      }
-
-      markersPlugin?.addMarker(markerConfig)
+      markersPlugin?.addMarker(buildMarkerConfig(hotspot))
     })
+  }
+
+  const reloadHotspots = (hotspots: HotspotForViewer[]): void => {
+    markersPlugin?.clearMarkers()
+    loadHotspots(hotspots)
   }
 
   const clearHotspots = (): void => {
@@ -276,6 +284,10 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
     onHotspotClickCallback = callback
   }
 
+  const setOnViewerClick = (callback: (pos: { pitch: number; yaw: number }) => void): void => {
+    onViewerClickCallback = callback
+  }
+
   const getViewer = (): Viewer | null => viewer
 
   const preloadNextLevel = (): void => {
@@ -291,6 +303,9 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
       }
       if (panoramaErrorHandler) {
         viewer.removeEventListener('panorama-error', panoramaErrorHandler)
+      }
+      if (clickHandler) {
+        viewer.removeEventListener('click', clickHandler)
       }
       viewer.destroy()
       viewer = null
@@ -308,6 +323,7 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
     readyHandler = null
     panoramaErrorHandler = null
     selectMarkerHandler = null
+    clickHandler = null
     viewerReady.value = false
   }
 
@@ -318,12 +334,14 @@ export function usePanoramaEngine(container: Ref<HTMLElement | null>) {
     initScene,
     destroy,
     loadHotspots,
+    reloadHotspots,
     clearHotspots,
     zoomIn,
     zoomOut,
     toggleAutoRotate,
     resetCamera,
     setOnHotspotClick,
+    setOnViewerClick,
     getViewer,
     preloadNextLevel,
   }
