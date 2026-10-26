@@ -777,7 +777,15 @@ func (s *SceneService) GetSourceStream(ctx context.Context, sceneCode string) (*
 		return nil, err
 	}
 
-	objectPath := model.GetSceneSourcePath(spaceName, sceneCode)
+	// 原始全景图是按上传时生成的 file_id 存的，和 scene_code 不是同一个值
+	// （见 res_scene.file_id / source_url），这里必须先换回来，否则必然 404。
+	// file_id 为空的历史数据退回 scene_code。
+	sourceKey := sceneCode
+	if scene, err := s.repo.FindBySceneCode(sceneCode); err == nil && scene.FileID != "" {
+		sourceKey = scene.FileID
+	}
+
+	objectPath := model.GetSceneSourcePath(spaceName, sourceKey)
 	return s.getObjectStream(ctx, objectPath, "image/jpeg")
 }
 

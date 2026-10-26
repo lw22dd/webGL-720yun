@@ -21,11 +21,13 @@ type LODSpec struct {
 	TargetSize int // 该层级整面的目标像素尺寸
 }
 
-// DefaultLODSepcs 三级 LOD 规格：Level 0 (低清), Level 1 (中等), Level 2 (高清)
+// DefaultLODSepcs 三级 LOD 规格：Level 0 (480p), Level 1 (1080p), Level 2 (4K)
+// 每一级都会重采样到固定面尺寸，源图更大就缩小，源图更小就 Lanczos 放大，
+// 从而保证前端拿到的三档观感稳定。
 var DefaultLODSepcs = map[int]LODSpec{
-	0: {TileCount: 1, MaxSize: 1024, TargetSize: 1024}, // 低清层：1×1 = 1 张瓦片，1024px
-	1: {TileCount: 4, MaxSize: 512, TargetSize: 2048},  // 中等层：4×4 = 16 张瓦片，每张 512px
-	2: {TileCount: 8, MaxSize: 512, TargetSize: 4096},  // 高清层：8×8 = 64 张瓦片，每张 512px
+	0: {TileCount: 1, MaxSize: 512, TargetSize: 512},  // 480p 底图：1×1，512px
+	1: {TileCount: 4, MaxSize: 512, TargetSize: 2048}, // 1080p：4×4，每张 512px
+	2: {TileCount: 8, MaxSize: 512, TargetSize: 4096}, // 4K：8×8，每张 512px
 }
 
 // Tiler 负责将图片切割成瓦片矩阵
@@ -116,8 +118,6 @@ func (t *Tiler) ProcessFace(faceName, filePath, outputDir string) (map[int][]str
 		return nil, err
 	}
 
-	originalSize := img.Bounds().Dx()
-
 	type levelResult struct {
 		level int
 		files []string
@@ -136,12 +136,10 @@ func (t *Tiler) ProcessFace(faceName, filePath, outputDir string) (map[int][]str
 				targetSize = spec.MaxSize * spec.TileCount
 			}
 
-			var levelImg image.Image
-			if originalSize >= targetSize {
-				levelImg = imaging.Resize(img, targetSize, targetSize, imaging.Lanczos)
-			} else {
-				levelImg = img
-			}
+			// 每一级都重采样到目标尺寸：
+			// 大图 Lanczos 缩小（8K → 2048 面），小图 Lanczos 放大（8K 源图的 level2 → 4096 面）。
+			// 这样 level 0/1/2 的输出面固定为 512/2048/4096，前端三档 LOD 才能稳定切换。
+			levelImg := imaging.Resize(img, targetSize, targetSize, imaging.Lanczos)
 
 			levelDir := filepath.Join(faceDir, fmt.Sprintf("level_%d", level))
 			if err := os.MkdirAll(levelDir, 0755); err != nil {

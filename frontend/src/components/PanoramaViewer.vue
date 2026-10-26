@@ -37,6 +37,8 @@ import type { SceneDetailResponse, SceneListItem } from '@/models/scene.model'
 import type { HotspotForViewer, HotspotEditorForm } from '@/models/hotspot.model'
 import { useUserStore } from '@/stores/user.store'
 import { usePanoramaEngine } from '@/composables/usePanoramaEngine'
+import * as mapManager from '@/services/mapManager.service'
+import { resourceMonitor } from '@/utils/resourceMonitor'
 import PanoTopbar from './panorama/PanoTopbar.vue'
 import PanoHotspotDialog from './panorama/PanoHotspotDialog.vue'
 import PanoHotspotEditor from './panorama/PanoHotspotEditor.vue'
@@ -59,6 +61,8 @@ const {
 } = usePanoramaEngine(containerRef)
 const currentScene = ref<SceneDetailResponse | null>(null)
 const currentSceneId = ref<number | null>(null)
+/** 已经初始化过的场景编码，用来挡住路由 watcher 引发的重复初始化 */
+const loadedSceneCode = ref<string | null>(null)
 const sceneTitle = computed(() => currentScene.value?.title || '全景漫游')
 const isAdmin = computed(() => userStore.isAdmin)
 
@@ -116,8 +120,10 @@ const loadScene = async () => {
     const detailResult = await SceneApi.getSceneDetail(targetSceneId)
     if (detailResult.code === 200 && detailResult.data) {
       currentScene.value = detailResult.data
+      loadedSceneCode.value = detailResult.data.scene_code
       await initScene(detailResult.data)
       await loadHotspotsForScene(targetSceneId)
+      resourceMonitor.report('pano:scene-loaded', { sceneId: targetSceneId })
     } else {
       engineError.value = '场景不存在'
     }
@@ -223,9 +229,13 @@ const handleSceneSelect = async (sceneId: number) => {
     if (result.code === 200 && result.data) {
       currentScene.value = result.data
       currentSceneId.value = sceneId
+      // 先记下已加载的场景，再改路由：否则下面的 watch 会再初始化一遍 viewer，
+      // 造成同一容器上「销毁→重建→销毁→重建」的瞬时双 WebGL 上下文
+      loadedSceneCode.value = result.data.scene_code
       router.push({ query: { id: sceneId, scene: result.data.scene_code } })
       await initScene(result.data)
       await loadHotspotsForScene(sceneId)
+      resourceMonitor.report('pano:scene-switch', { sceneId })
     }
   } catch (e: unknown) {
     MessagePlugin.error(e instanceof Error ? e.message : '切换场景失败')
@@ -254,10 +264,11 @@ const goBack = () => {
   }
 }
 
-watch(() => route.query.scene, () => {
-  if (route.query.scene) {
-    loadScene()
-  }
+watch(() => route.query.scene, (sceneCode) => {
+  if (!sceneCode) return
+  // 热点切场景时 handleSceneSelect 已经用同一份详情初始化过，跳过重复初始化
+  if (sceneCode === loadedSceneCode.value) return
+  loadScene()
 })
 
 watch(editMode, async (val) => {
@@ -295,6 +306,9 @@ watch(editMode, async (val) => {
 })
 
 onMounted(() => {
+  // 地图的 WebGL 上下文 + 瓦片缓存和全景是两份独立显存，
+  // 进全景前先把地图收掉，避免演示路径上两边叠加
+  mapManager.forceDestroy()
   loadScene()
 })
 
